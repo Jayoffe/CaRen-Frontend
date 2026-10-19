@@ -29,11 +29,18 @@ async function request(endpoint, options = {}) {
   }
 
   if (!response.ok || result?.success === false) {
-    throw new Error(
-      typeof result === 'object' && result?.message
-        ? result.message
-        : `Request failed with status ${response.status}.`,
-    )
+    const errorMessage = typeof result === 'object' && result !== null
+      ? (
+          typeof result.message === 'string' ? result.message
+            : typeof result.error === 'string' ? result.error
+            : typeof result.error?.message === 'string' ? result.error.message
+            : Array.isArray(result.error) && typeof result.error[0]?.message === 'string'
+              ? result.error[0].message
+              : null
+        )
+      : null
+
+    throw new Error(errorMessage || `Request failed with status ${response.status}.`)
   }
   return result
 }
