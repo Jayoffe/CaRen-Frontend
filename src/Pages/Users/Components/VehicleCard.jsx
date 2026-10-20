@@ -1,0 +1,1 @@
+export default function VehicleCard({ vehicle, onSelect }) { return <article className='panel'> <h3>{vehicle?.make || 'Vehicle'} {vehicle?.model || ''}</h3> <p>{vehicle?.category || 'Vehicle'} ? {vehicle?.year || ''}</p> <button type='button' onClick={() => onSelect && onSelect(vehicle)}>View details</button> </article> }

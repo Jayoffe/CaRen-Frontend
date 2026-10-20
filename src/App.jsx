@@ -2,9 +2,17 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, imageUrl } from './api'
 import Login from './auth/Login'
 import SignUp from './auth/SignUp'
-import AdminLayout from './layouts/AdminLayout'
-import UserLayout from './layouts/UserLayout'
-import ProtectedRoute from './components/ProtectedRoute'
+import AdminLayout from './Pages/Admin/Layout/AdminLayout.jsx'
+import UserLayout from './Pages/Users/Layout/UserLayout.jsx'
+import ProtectedRoute from './Routes/ProtectedRoute.jsx'
+import UserDashboardPage from './Pages/Users/Pages/UserDashboard.jsx'
+import VehicleListingPage from './Pages/Users/Pages/VehicleListing.jsx'
+import VehicleDetailsPage from './Pages/Users/Pages/VehicleDetails.jsx'
+import CreateReservationPage from './Pages/Users/Pages/CreateReservation.jsx'
+import MyReservationsPage from './Pages/Users/Pages/MyReservations.jsx'
+import AdminDashboardPage from './Pages/Admin/Pages/AdminDashboard.jsx'
+import VehicleManagementPage from './Pages/Admin/Pages/VehicleManagement.jsx'
+import ReservationManagementPage from './Pages/Admin/Pages/ReservationManagement.jsx'
 import './App.css'
 
 const EMPTY_CAR = {
@@ -97,17 +105,23 @@ function App() {
   } else if (path === '/dashboard') {
     content = <CustomerDashboard {...shared} reloadKey={reloadKey} />
   } else if (path === '/users/dashboard') {
-    content = <CustomerDashboard {...shared} reloadKey={reloadKey} vehicleBasePath="/users/vehicles" />
+    content = <UserDashboardPage {...shared} navigate={navigate} />
   } else if (path === '/users/vehicles') {
-    content = <VehicleListing {...shared} reloadKey={reloadKey} admin={false} vehicleBasePath="/users/vehicles" />
+    content = <VehicleListingPage {...shared} navigate={navigate} />
   } else if (/^\/users\/vehicles\/\d+$/.test(path)) {
-    content = <VehicleDetails {...shared} navigate={navigate} carId={path.split('/')[3]} admin={false} vehicleBasePath="/users/vehicles" onChanged={refresh} />
+    content = <VehicleDetailsPage {...shared} navigate={navigate} carId={path.split('/')[3]} />
+  } else if (path === '/users/reservations') {
+    content = <MyReservationsPage {...shared} navigate={navigate} />
+  } else if (path === '/users/reservations/create') {
+    content = <CreateReservationPage {...shared} navigate={navigate} carId={new URLSearchParams(window.location.search).get('car_id')} />
   } else if (path === '/admin/dashboard') {
-    content = <AdminDashboard {...shared} reloadKey={reloadKey} />
+    content = <AdminDashboardPage {...shared} navigate={navigate} />
+  } else if (path === '/admin/reservations') {
+    content = <ReservationManagementPage {...shared} navigate={navigate} />
   } else if (path === '/vehicles') {
     content = <VehicleListing {...shared} reloadKey={reloadKey} admin={admin} />
   } else if (path === '/admin/vehicles') {
-    content = <VehicleListing {...shared} reloadKey={reloadKey} admin />
+    content = <VehicleManagementPage {...shared} navigate={navigate} />
   } else if (path === '/admin/vehicles/create') {
     content = <VehicleEditor {...shared} navigate={navigate} onSaved={refresh} />
   } else if (/^\/admin\/vehicles\/\d+\/edit$/.test(path)) {
@@ -154,6 +168,7 @@ function Redirect({ navigate, to }) {
 function Icon({ name, size = 18 }) {
   const shapes = {
     dashboard: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /></>,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></>,
     car: <><path d="m5 11 1.6-4.5A2.2 2.2 0 0 1 8.7 5h6.6a2.2 2.2 0 0 1 2.1 1.5L19 11" /><path d="M3 11h18v7H3zM6 18v2m12-2v2" /><circle cx="7" cy="15" r="1" /><circle cx="17" cy="15" r="1" /></>,
     search: <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></>,
     plus: <><path d="M12 5v14M5 12h14" /></>,
@@ -169,7 +184,6 @@ function Icon({ name, size = 18 }) {
     seat: <><path d="M7 4v7a3 3 0 0 0 3 3h5v5m-8 1h12M9 4h2v5H9z" /></>,
     fuel: <><path d="M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16M3 21h14m-9-4h4m4-9h2l3 3v6a2 2 0 0 1-4 0v-4" /></>,
     gear: <><circle cx="12" cy="12" r="3" /><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.6a8 8 0 0 1-1.6.9l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.6-.9l-1.7.6-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.9l-1.4-1.1 1.4-2.4 1.7.6a8 8 0 0 1 1.6-.9l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.6.9l1.7-.6 1.4 2.4-1.4 1.1a7 7 0 0 1 0 1.8Z" transform="translate(-1 -1)" /></>,
-    calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></>,
     shield: <><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" /><path d="m9 12 2 2 4-4" /></>,
   }
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{shapes[name] || shapes.car}</svg>
@@ -182,15 +196,15 @@ function Logo({ onClick }) {
 function Navbar({ user, adminLayout, path, navigate, logout }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const customerLinks = user?.role === 'admin'
-    ? [['/admin/dashboard', 'Dashboard'], ['/admin/vehicles', 'Vehicles']]
+    ? [['/admin/dashboard', 'Dashboard'], ['/admin/vehicles', 'Vehicles'], ['/admin/reservations', 'Reservations']]
     : user
-      ? [['/', 'Home'], ['/users/vehicles', 'Vehicles'], ['/users/dashboard', 'Dashboard']]
+    ? [['/', 'Home'], ['/users/vehicles', 'Vehicles'], ['/users/reservations', 'Reservations'], ['/users/dashboard', 'Dashboard']]
       : [['/', 'Home'], ['/vehicles', 'Vehicles']]
   return (
     <header className={`topbar ${adminLayout ? 'topbar-admin' : ''}`}>
       {!adminLayout && <Logo onClick={() => navigate('/')} />}
       {adminLayout
-        ? <div className="admin-breadcrumb"><span>Workspace</span><b>/</b><strong>{path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>
+        ? <div className="admin-breadcrumb"><span>Workspace</span><b>/</b><strong>{path.includes('vehicles') ? 'Vehicle management' : path.includes('reservations') ? 'Reservation management' : 'Dashboard'}</strong></div>
         : <nav className={menuOpen ? 'public-nav open' : 'public-nav'}>{customerLinks.map(([href, label]) => <button key={href} className={path === href ? 'nav-link active' : 'nav-link'} onClick={() => { navigate(href); setMenuOpen(false) }}>{label}</button>)}</nav>}
       <div className="topbar-right">
         <span className="connection-dot" title="Backend API" />
@@ -203,7 +217,7 @@ function Navbar({ user, adminLayout, path, navigate, logout }) {
 }
 
 function AdminSidebar({ path, navigate, logout }) {
-  const items = [['/admin/dashboard', 'dashboard', 'Dashboard'], ['/admin/vehicles', 'car', 'Vehicles']]
+  const items = [['/admin/dashboard', 'dashboard', 'Dashboard'], ['/admin/vehicles', 'car', 'Vehicles'], ['/admin/reservations', 'calendar', 'Reservations']]
   return <aside className="admin-sidebar">
     <Logo onClick={() => navigate('/admin/dashboard')} />
     <div className="sidebar-caption">WORKSPACE</div>
@@ -305,42 +319,6 @@ function CustomerDashboard({ user, navigate, reloadKey, vehicleBasePath = '/vehi
   </div>
 }
 
-function AdminDashboard({ navigate, reloadKey }) {
-  const [cars, setCars] = useState([])
-  const [stats, setStats] = useState({ total: 0, available: 0, unavailable: 0 })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  useEffect(() => {
-    let active = true
-    api.get('/api/cars?per_page=5')
-      .then((response) => {
-        if (active) {
-          setCars(response.data || [])
-          setStats({
-            total: response.meta?.total ?? 0,
-            available: response.meta?.available_count ?? 0,
-            unavailable: response.meta?.unavailable_count ?? 0,
-          })
-        }
-      })
-      .catch((err) => { if (active) setError(err.message) })
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
-  }, [reloadKey])
-  return <div className="admin-content content-width">
-    <div className="admin-page-heading"><div><span className="eyebrow">FLEET OVERVIEW</span><h1>Dashboard</h1><p>Welcome back. Here's what's happening with your fleet.</p></div><button className="button button-primary" onClick={() => navigate('/admin/vehicles/create')}><Icon name="plus" size={16} /> Add vehicle</button></div>
-    {error && <ErrorMessage message={error} />}
-    {loading ? <Loading label="Loading fleet overview" /> : <>
-      <div className="stats-grid"><StatCard label="Total vehicles" value={stats.total} detail="Vehicles in your fleet" icon="car" tone="blue" /><StatCard label="Available vehicles" value={stats.available} detail="Ready to be rented" icon="check" tone="green" /><StatCard label="Not available" value={stats.unavailable} detail="Rented or in maintenance" icon="calendar" tone="amber" /></div>
-      <section className="admin-panel"><SectionHeading eyebrow="LATEST ADDITIONS" title="Recently added" description="A quick look at vehicles in your fleet." action="Manage vehicles" onAction={() => navigate('/admin/vehicles')} />{cars.length ? <div className="recent-list">{cars.slice(0, 5).map((car) => <VehicleRow car={car} key={car.id} onClick={() => navigate(`/admin/vehicles/${car.id}`)} />)}</div> : <EmptyState title="Your fleet is ready for its first vehicle" description="Add a vehicle to start building your fleet." />}</section>
-    </>}
-  </div>
-}
-
-function StatCard({ label, value, detail, icon, tone }) {
-  return <div className="stat-card"><div className={`stat-icon ${tone}`}><Icon name={icon} size={19} /></div><div className="stat-label">{label}</div><div className="stat-value">{value}</div><div className="stat-detail">{detail}</div></div>
-}
-
 function VehicleListing({ navigate, reloadKey, admin, vehicleBasePath = admin ? '/admin/vehicles' : '/vehicles' }) {
   const params = new URLSearchParams(window.location.search)
   const [query, setQuery] = useState(params.get('search') || '')
@@ -429,10 +407,6 @@ function VehicleCard({ car, admin, onClick }) {
 function StatusPill({ status = 'available' }) {
   const text = status === 'available' ? 'Available' : status === 'rented' ? 'Rented' : status === 'maintenance' ? 'Maintenance' : 'Unavailable'
   return <span className={`status-pill status-${status}`}><i />{text}</span>
-}
-
-function VehicleRow({ car, onClick }) {
-  return <button className="vehicle-row" onClick={onClick}><span className="row-thumb"><img src={getVehiclePhoto(car)} alt="" /></span><span className="row-vehicle-name"><b>{car.make} {car.model}</b><small>{car.year} · {car.category}</small></span><span className="row-plate">{car.plate_number || 'Plate not set'}</span><StatusPill status={car.status} /><b className="row-price">{money(car.daily_rental_price)}<small> / day</small></b><Icon name="arrow" size={16} /></button>
 }
 
 function VehicleDetails({ carId, admin, navigate, onChanged, setToast, setApiError, vehicleBasePath = admin ? '/admin/vehicles' : '/vehicles' }) {

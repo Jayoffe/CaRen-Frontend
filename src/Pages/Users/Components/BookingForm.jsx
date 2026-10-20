@@ -1,0 +1,1 @@
+export default function BookingForm() { return <form className='panel'><h3>Book this vehicle</h3><label>Pickup date<input type='date' /></label><label>Return date<input type='date' /></label><button type='submit'>Reserve</button></form> }

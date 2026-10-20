@@ -1,0 +1,1 @@
+export default function RecommendationList({ recommendations = [] }) { return <div className='panel'><h3>Recommendations</h3>{recommendations.length ? recommendations.map((item, index) => <p key={index}>{item?.make || 'Vehicle'} {item?.model || ''}</p>) : <p>No recommendations yet.</p>}</div> }

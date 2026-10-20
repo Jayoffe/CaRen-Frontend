@@ -634,6 +634,38 @@
   margin: 0 auto;
 }
 
+.admin-frame {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.admin-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-main-content {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+}
+
+.admin-content {
+  width: 100%;
+  max-width: none;
+  padding: 35px clamp(18px, 2.8vw, 34px) 60px;
+  box-sizing: border-box;
+}
+
+.admin-content.content-width {
+  width: 100%;
+  max-width: none;
+}
+
 .customer-dashboard {
   padding-top: 29px;
 }
@@ -855,6 +887,23 @@
   display: inline-block;
   background: currentColor;
   border-radius: 50%;
+}
+
+.status-pill.status-pending {
+  color: #9a6b13;
+  background: #fff5dd;
+}
+
+.status-pill.status-rejected,
+.status-pill.status-cancelled {
+  color: #a5454c;
+  background: #fff0f0;
+}
+
+.status-pill.status-confirmed,
+.status-pill.status-completed {
+  color: #15835d;
+  background: #e9f8f0;
 }
 
 .vehicle-photo > .status-pill {
@@ -1098,11 +1147,14 @@
 }
 
 .admin-frame {
-  display: grid;
-  grid-template-columns: 222px minmax(0, 1fr);
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
 }
 
 .admin-sidebar {
+  width: 222px;
+  flex: 0 0 222px;
   min-height: 100vh;
   position: sticky;
   top: 0;
@@ -1221,13 +1273,17 @@
 
 .admin-main .topbar,
 .topbar-admin {
+  width: 100%;
   height: 67px;
   position: sticky;
-  padding: 0 4%;
-}
-
-.topbar-admin {
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
   justify-content: space-between;
+  padding: 0 4%;
+  background: #fff;
+  border-bottom: 1px solid #e8edf3;
 }
 
 .admin-breadcrumb {
@@ -1252,9 +1308,26 @@
   color: #6c7f94;
 }
 
-.admin-content {
-  padding-top: 35px;
-  padding-bottom: 60px;
+.admin-dashboard-section {
+  width: 100%;
+}
+
+.admin-dashboard-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.admin-dashboard-header > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.admin-dashboard-header h1 {
+  white-space: nowrap;
 }
 
 .admin-page-heading {
@@ -1266,10 +1339,15 @@
   font-size: 27px;
 }
 
+.dashboard-grid,
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  width: 100%;
+}
+
+.stats-grid {
   margin-bottom: 23px;
 }
 
@@ -1466,10 +1544,16 @@
 
 .detail-heading {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 18px;
   margin-bottom: 20px;
+  width: 100%;
+}
+
+.detail-heading > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .detail-breadcrumb {
@@ -1487,6 +1571,7 @@
   font-size: 27px;
   font-weight: 800;
   letter-spacing: -.9px;
+  white-space: nowrap;
 }
 
 .detail-heading-actions {
@@ -2052,6 +2137,133 @@
   color: #8b9aac;
   font-size: 8px;
   font-weight: 400;
+}
+
+.summary-lines {
+  display: grid;
+  gap: 12px;
+  color: #617287;
+  font-size: 12px;
+}
+
+.summary-lines p {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+}
+
+.summary-lines .summary-total {
+  padding-top: 12px;
+  border-top: 1px solid #e4eaf1;
+  color: #253b54;
+  font-size: 14px;
+}
+
+.summary-lines > small {
+  color: #8b9aac;
+  font-size: 10px;
+}
+
+.booking-vehicle-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  color: #40556c;
+  font-size: 12px;
+}
+
+.booking-vehicle-summary .row-thumb {
+  flex: 0 0 52px;
+}
+
+.booking-vehicle-summary small {
+  display: block;
+  margin-top: 4px;
+  color: #8b9aac;
+  font-size: 10px;
+}
+
+.fleet-filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(130px, .65fr) minmax(150px, .75fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.fleet-filters .button {
+  min-height: 37px;
+}
+
+.fleet-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  color: #74849a;
+  font-size: 11px;
+}
+
+.fleet-pagination > div {
+  display: flex;
+  gap: 8px;
+}
+
+.fleet-pagination .button {
+  min-height: 32px;
+}
+
+.reservation-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #52657b;
+  font-size: 12px;
+}
+
+.reservation-table th,
+.reservation-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #edf1f5;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.reservation-table th {
+  color: #8190a2;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.reservation-table td small {
+  display: block;
+  margin-top: 4px;
+  color: #8b9aac;
+}
+
+.reservation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.reservation-actions .button {
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 10px;
+}
+
+@media (max-width: 720px) {
+  .reservation-table {
+    min-width: 700px;
+  }
+
+  .fleet-filters {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .field-wide {
@@ -3826,6 +4038,33 @@ body {
 }
 
 @media (max-width: 900px) {
+  .admin-frame {
+    flex-direction: column;
+  }
+
+  .admin-sidebar {
+    width: 100%;
+    flex-basis: auto;
+    min-height: auto;
+    position: static;
+  }
+
+  .admin-main .topbar,
+  .topbar-admin {
+    padding: 0 20px;
+  }
+
+  .detail-heading,
+  .admin-dashboard-header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .admin-dashboard-header h1,
+  .detail-heading h1 {
+    white-space: normal;
+  }
+
   .home-hero {
     min-height: 440px;
     grid-template-columns: minmax(280px, .9fr) minmax(0, 1.1fr);

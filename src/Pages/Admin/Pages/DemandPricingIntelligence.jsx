@@ -1,0 +1,1 @@
+export default function DemandPricingIntelligence() { return <section className='panel'><h2>Demand & pricing intelligence</h2><p>Track forecasting insights and dynamic pricing recommendations.</p></section> }
