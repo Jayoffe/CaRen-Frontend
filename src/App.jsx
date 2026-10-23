@@ -13,6 +13,15 @@ import MyReservationsPage from './Pages/Users/Pages/MyReservations.jsx'
 import AdminDashboardPage from './Pages/Admin/Pages/AdminDashboard.jsx'
 import VehicleManagementPage from './Pages/Admin/Pages/VehicleManagement.jsx'
 import ReservationManagementPage from './Pages/Admin/Pages/ReservationManagement.jsx'
+import FleetOperationsPage from './Pages/Admin/Pages/FleetOperations.jsx'
+import MaintenanceManagementPage from './Pages/Admin/Pages/MaintenanceManagement.jsx'
+import MaintenancePredictionsPage from './Pages/Admin/Pages/MaintenancePredictions.jsx'
+import VehicleRecommendationsPage from './Pages/Users/Pages/VehicleRecommendations.jsx'
+import DemandPricingIntelligencePage from './Pages/Admin/Pages/DemandPricingIntelligence.jsx'
+import RiskAnalysisPage from './Pages/Admin/Pages/RiskAnalysis.jsx'
+import PaymentManagementPage from './Pages/Admin/Pages/PaymentManagement.jsx'
+import PaymentHistoryPage from './Pages/Users/Pages/PaymentHistory.jsx'
+import UserProfilePage from './Pages/Users/Pages/UserProfile.jsx'
 import './App.css'
 
 const EMPTY_CAR = {
@@ -47,6 +56,8 @@ function App() {
   const [toast, setToast] = useState('')
   const [apiError, setApiError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
+  const [adminNavOpen, setAdminNavOpen] = useState(false)
+  const [customerNavOpen, setCustomerNavOpen] = useState(false)
   const refresh = () => setReloadKey((key) => key + 1)
   const admin = user?.role === 'admin'
 
@@ -65,11 +76,29 @@ function App() {
     return () => window.clearTimeout(timer)
   }, [toast])
 
+  useEffect(() => {
+    if (!adminNavOpen && !customerNavOpen) return undefined
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') {
+        setAdminNavOpen(false)
+        setCustomerNavOpen(false)
+      }
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [adminNavOpen, customerNavOpen])
+
   const login = async (credentials) => {
     const response = await api.post('/api/login', credentials)
     setUser(response.data)
     setToast(`Welcome, ${response.data.full_name || response.data.username}.`)
-    navigate(response.data.role === 'admin' ? '/admin/dashboard' : '/users/dashboard', true)
+    const requestedPath = new URLSearchParams(window.location.search).get('next')
+    const nextPath = requestedPath?.startsWith('/users/reservations/create?car_id=')
+      ? requestedPath
+      : null
+    navigate(response.data.role === 'admin'
+      ? '/admin/dashboard'
+      : nextPath || '/users/dashboard', true)
   }
 
   const logout = async () => {
@@ -112,12 +141,36 @@ function App() {
     content = <VehicleDetailsPage {...shared} navigate={navigate} carId={path.split('/')[3]} />
   } else if (path === '/users/reservations') {
     content = <MyReservationsPage {...shared} navigate={navigate} />
+  } else if (path === '/users/rentals') {
+    content = <MyReservationsPage {...shared} navigate={navigate} view="active" />
+  } else if (path === '/users/reservations/history') {
+    content = <MyReservationsPage {...shared} navigate={navigate} view="history" />
+  } else if (path === '/users/profile') {
+    content = <UserProfilePage user={user} onProfileSaved={setUser} />
+  } else if (path === '/users/payments') {
+    content = <PaymentHistoryPage />
+  } else if (path === '/users/recommendations') {
+    content = <VehicleRecommendationsPage navigate={navigate} />
   } else if (path === '/users/reservations/create') {
     content = <CreateReservationPage {...shared} navigate={navigate} carId={new URLSearchParams(window.location.search).get('car_id')} />
   } else if (path === '/admin/dashboard') {
     content = <AdminDashboardPage {...shared} navigate={navigate} />
   } else if (path === '/admin/reservations') {
     content = <ReservationManagementPage {...shared} navigate={navigate} />
+  } else if (path === '/admin/reservations/history') {
+    content = <ReservationManagementPage {...shared} navigate={navigate} historyView />
+  } else if (path === '/admin/maintenance') {
+    content = <FleetOperationsPage navigate={navigate} />
+  } else if (path === '/admin/maintenance/records') {
+    content = <MaintenanceManagementPage navigate={navigate} />
+  } else if (path === '/admin/maintenance/predictions') {
+    content = <MaintenancePredictionsPage navigate={navigate} />
+  } else if (path === '/admin/intelligence/demand') {
+    content = <DemandPricingIntelligencePage />
+  } else if (path === '/admin/intelligence/risk') {
+    content = <RiskAnalysisPage />
+  } else if (path === '/admin/payments') {
+    content = <PaymentManagementPage />
   } else if (path === '/vehicles') {
     content = <VehicleListing {...shared} reloadKey={reloadKey} admin={admin} />
   } else if (path === '/admin/vehicles') {
@@ -146,8 +199,21 @@ function App() {
     {toast && <div className="toast"><span className="toast-check"><Icon name="check" /></span>{toast}<button onClick={() => setToast('')} aria-label="Dismiss notification"><Icon name="close" /></button></div>}
     {apiError && <div className="global-error" role="alert"><Icon name="alert" /><span>{apiError}</span><button onClick={() => setApiError('')} aria-label="Dismiss error"><Icon name="close" /></button></div>}
   </>
-  if (adminLayout) return <AdminLayout sidebar={<AdminSidebar path={path} navigate={navigate} logout={logout} />} topbar={<Navbar user={user} adminLayout path={path} navigate={navigate} logout={logout} />} notifications={notifications}>{content}</AdminLayout>
-  if (isUserRoute) return <UserLayout user={user} topbar={<Navbar user={user} adminLayout={false} path={path} navigate={navigate} logout={logout} />} notifications={notifications} footer={<Footer navigate={navigate} />}>{content}</UserLayout>
+  if (adminLayout) return <AdminLayout
+    sidebar={<AdminSidebar key={path} path={path} navigate={navigate} logout={logout} open={adminNavOpen} onNavigate={() => setAdminNavOpen(false)} />}
+    topbar={<Navbar user={user} adminLayout path={path} navigate={navigate} logout={logout} onMenuToggle={() => setAdminNavOpen((open) => !open)} />}
+    notifications={notifications}
+    navOpen={adminNavOpen}
+    onCloseNavigation={() => setAdminNavOpen(false)}
+  >{content}</AdminLayout>
+  if (isUserRoute) return <UserLayout
+    user={user}
+    sidebar={<CustomerSidebar user={user} path={path} navigate={navigate} logout={logout} open={customerNavOpen} onNavigate={() => setCustomerNavOpen(false)} />}
+    topbar={<Navbar user={user} adminLayout={false} customerLayout path={path} navigate={navigate} logout={logout} onMenuToggle={() => setCustomerNavOpen((open) => !open)} />}
+    notifications={notifications}
+    navOpen={customerNavOpen}
+    onCloseNavigation={() => setCustomerNavOpen(false)}
+  >{content}</UserLayout>
   return (
     <div className="app-frame">
       <div className="app-main">
@@ -168,6 +234,14 @@ function Redirect({ navigate, to }) {
 function Icon({ name, size = 18 }) {
   const shapes = {
     dashboard: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /></>,
+    brain: <><path d="M12 5.5a3 3 0 0 0-5.7-1.2A3.5 3.5 0 0 0 4 10.5a3.5 3.5 0 0 0 .8 6.3A3 3 0 0 0 12 18z" /><path d="M12 5.5a3 3 0 0 1 5.7-1.2 3.5 3.5 0 0 1 2.3 6.2 3.5 3.5 0 0 1-.8 6.3A3 3 0 0 1 12 18zM9 8v8m6-8v8M9 12h3m3 0h-3" /></>,
+    chart: <><path d="M4 19V5m0 14h17" /><path d="m7 15 4-4 3 2 5-6" /><path d="M16 7h3v3" /></>,
+    wallet: <><rect x="3" y="5" width="18" height="15" rx="2" /><path d="M3 9h18m-5 5h2" /><path d="M6 5V3h12v2" /></>,
+    receipt: <><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" /><path d="M9 8h6m-6 4h6m-6 4h3" /></>,
+    history: <><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" /><path d="M3 3v5h5m4-1v5l3 2" /></>,
+    chevron: <path d="m7 10 5 5 5-5" />,
+    key: <><circle cx="8" cy="15" r="5" /><path d="m11.5 11.5 8-8M16 7l2 2m-5 1 2 2" /></>,
+    user: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></>,
     car: <><path d="m5 11 1.6-4.5A2.2 2.2 0 0 1 8.7 5h6.6a2.2 2.2 0 0 1 2.1 1.5L19 11" /><path d="M3 11h18v7H3zM6 18v2m12-2v2" /><circle cx="7" cy="15" r="1" /><circle cx="17" cy="15" r="1" /></>,
     search: <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></>,
@@ -193,38 +267,177 @@ function Logo({ onClick }) {
   return <button className="logo" onClick={onClick} aria-label="DriveRent home"><span className="logo-symbol"><Icon name="car" size={19} /></span><span>Drive<span>Rent</span></span></button>
 }
 
-function Navbar({ user, adminLayout, path, navigate, logout }) {
+function Navbar({ user, adminLayout, customerLayout = false, path, navigate, logout, onMenuToggle }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const customerLinks = user?.role === 'admin'
-    ? [['/admin/dashboard', 'Dashboard'], ['/admin/vehicles', 'Vehicles'], ['/admin/reservations', 'Reservations']]
+    ? [['/admin/maintenance', 'Fleet Operations'], ['/admin/intelligence/demand', 'Demand Intelligence'], ['/admin/maintenance/predictions', 'Predictive Maintenance'], ['/admin/payments', 'Payment History'], ['/admin/reservations', 'Reservations'], ['/admin/reservations/history', 'Reservation History']]
     : user
-    ? [['/', 'Home'], ['/users/vehicles', 'Vehicles'], ['/users/reservations', 'Reservations'], ['/users/dashboard', 'Dashboard']]
+    ? [['/', 'Home'], ['/users/vehicles', 'Vehicles'], ['/users/recommendations', 'Recommendations'], ['/users/reservations', 'Reservations'], ['/users/payments', 'Payments'], ['/users/dashboard', 'Dashboard']]
       : [['/', 'Home'], ['/vehicles', 'Vehicles']]
   return (
     <header className={`topbar ${adminLayout ? 'topbar-admin' : ''}`}>
       {!adminLayout && <Logo onClick={() => navigate('/')} />}
-      {adminLayout
-        ? <div className="admin-breadcrumb"><span>Workspace</span><b>/</b><strong>{path.includes('vehicles') ? 'Vehicle management' : path.includes('reservations') ? 'Reservation management' : 'Dashboard'}</strong></div>
+      {adminLayout || customerLayout
+        ? <div className="admin-breadcrumb"><span>{adminLayout ? 'Workspace' : 'Your Drive'}</span><b>/</b><strong>{customerLayout ? (path.includes('/vehicles') ? 'Browse vehicles' : path.endsWith('/rentals') ? 'Active rentals' : path.endsWith('/history') ? 'Reservation history' : path.includes('/reservations') ? 'My reservations' : path.includes('payments') ? 'Payment history' : path.includes('profile') ? 'Profile' : 'Dashboard') : path.includes('/maintenance/predictions') ? 'Predictive maintenance' : path.includes('/maintenance/records') ? 'Vehicle maintenance records' : path === '/admin/maintenance' ? 'Fleet operations' : path.includes('/intelligence/demand') ? 'Demand intelligence' : path.includes('/intelligence/risk') ? 'Risk analysis' : path.includes('payments') ? 'Payment history' : path.endsWith('/reservations/history') ? 'Reservation history' : path.includes('reservations') ? 'Reservation management' : path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>
         : <nav className={menuOpen ? 'public-nav open' : 'public-nav'}>{customerLinks.map(([href, label]) => <button key={href} className={path === href ? 'nav-link active' : 'nav-link'} onClick={() => { navigate(href); setMenuOpen(false) }}>{label}</button>)}</nav>}
       <div className="topbar-right">
         <span className="connection-dot" title="Backend API" />
         {user ? <><button className="profile-button" onClick={() => navigate(user.role === 'admin' ? '/admin/dashboard' : '/users/dashboard')}><span className="avatar">{(user.full_name || user.username || 'U').slice(0, 1).toUpperCase()}</span><span className="profile-name">{user.full_name || user.username}<small>{user.role === 'admin' ? 'Administrator' : 'Customer'}</small></span></button><button className="icon-button logout-top" onClick={logout} title="Logout"><Icon name="logout" /></button></>
           : <button className="button button-primary button-compact" onClick={() => navigate('/auth/login')}>Sign in</button>}
-        <button className="menu-toggle" onClick={() => setMenuOpen((open) => !open)} aria-label="Toggle navigation"><span /><span /><span /></button>
+        <button className={adminLayout || customerLayout ? 'menu-toggle admin-menu-toggle' : 'menu-toggle'} onClick={adminLayout || customerLayout ? onMenuToggle : () => setMenuOpen((open) => !open)} aria-label={adminLayout ? 'Toggle admin navigation' : customerLayout ? 'Toggle customer navigation' : 'Toggle navigation'} aria-expanded={adminLayout || customerLayout ? undefined : menuOpen}><span /><span /><span /></button>
       </div>
     </header>
   )
 }
 
-function AdminSidebar({ path, navigate, logout }) {
-  const items = [['/admin/dashboard', 'dashboard', 'Dashboard'], ['/admin/vehicles', 'car', 'Vehicles'], ['/admin/reservations', 'calendar', 'Reservations']]
-  return <aside className="admin-sidebar">
+function AdminSidebar({ path, navigate, logout, open, onNavigate }) {
+  const intelligenceItems = [
+    ['/admin/maintenance', 'gear', 'Fleet Operations'],
+    ['/admin/intelligence/demand', 'chart', 'Demand Intelligence'],
+    ['/admin/maintenance/predictions', 'shield', 'Predictive Maintenance'],
+  ]
+  const paymentItems = [
+    ['/admin/payments', 'receipt', 'Payment History'],
+    ['/admin/reservations', 'calendar', 'Reservations'],
+    ['/admin/reservations/history', 'history', 'Reservation History'],
+  ]
+  const primaryItems = [
+    ['/admin/dashboard', 'dashboard', 'Dashboard'],
+    ['/admin/vehicles', 'car', 'Car Listing'],
+  ]
+  const isIntelligencePath = intelligenceItems.some(([href]) => path === href)
+  const isPaymentsPath = paymentItems.some(([href]) => path === href)
+  const [expandedGroup, setExpandedGroup] = useState(
+    isIntelligencePath ? 'intelligence' : isPaymentsPath ? 'payments' : null,
+  )
+
+  const renderGroup = (id, label, icon, items) => {
+    const expanded = expandedGroup === id
+    const hasActiveItem = items.some(([href]) => path === href)
+    return (
+      <section className="sidebar-group" key={id}>
+        <button
+          className={`sidebar-group-toggle${expanded ? ' expanded' : ''}${hasActiveItem ? ' has-active' : ''}`}
+          type="button"
+          aria-expanded={expanded}
+          aria-controls={`sidebar-${id}-links`}
+          onClick={() => setExpandedGroup(expanded ? null : id)}
+        >
+          <Icon name={icon} />
+          <span>{label}</span>
+          <Icon name="chevron" size={15} />
+        </button>
+        <div className="sidebar-submenu" id={`sidebar-${id}-links`} hidden={!expanded}>
+          {items.map(([href, itemIcon, itemLabel]) => {
+            const active = path === href
+            return (
+              <button
+                className={`sidebar-link sidebar-submenu-link${active ? ' selected' : ''}`}
+                key={href}
+                type="button"
+                aria-current={active ? 'page' : undefined}
+                onClick={() => { navigate(href); onNavigate?.() }}
+              >
+                <Icon name={itemIcon} size={16} />
+                <span>{itemLabel}</span>
+              </button>
+            )
+          })}
+        </div>
+      </section>
+    )
+  }
+
+  return <aside className={`admin-sidebar${open ? ' is-open' : ''}`}>
+    <div className="admin-sidebar-content">
     <Logo onClick={() => navigate('/admin/dashboard')} />
-    <div className="sidebar-caption">WORKSPACE</div>
-    <nav className="sidebar-nav">{items.map(([href, icon, label]) => <button className={path === href || (href.endsWith('vehicles') && path.startsWith('/admin/vehicles')) ? 'sidebar-link selected' : 'sidebar-link'} key={href} onClick={() => navigate(href)}><Icon name={icon} />{label}{label === 'Vehicles' && <span className="sidebar-count">›</span>}</button>)}</nav>
-    <div className="sidebar-lower"><span className="sidebar-caption">ACCOUNT</span><button className="sidebar-link" onClick={logout}><Icon name="logout" />Log out</button><div className="sidebar-note"><Icon name="shield" size={16} /><span>Admin workspace<small>Manage your fleet</small></span></div></div>
+    <div className="sidebar-caption">ADMIN MENU</div>
+    <nav className="sidebar-nav" aria-label="Admin navigation">
+      {primaryItems.map(([href, icon, label]) => {
+        const active = path === href || (href === '/admin/vehicles' && path.startsWith('/admin/vehicles/'))
+        return (
+          <button
+            className={`sidebar-link sidebar-primary-link${active ? ' selected' : ''}`}
+            key={href}
+            type="button"
+            aria-current={active ? 'page' : undefined}
+            onClick={() => { navigate(href); onNavigate?.() }}
+          >
+            <Icon name={icon} />
+            <span>{label}</span>
+          </button>
+        )
+      })}
+      {renderGroup('intelligence', 'AI Intelligence', 'brain', intelligenceItems)}
+      {renderGroup('payments', 'Payments', 'wallet', paymentItems)}
+    </nav>
+    <div className="sidebar-lower"><span className="sidebar-caption">ACCOUNT</span><button className="sidebar-link" onClick={() => { logout(); onNavigate?.() }}><Icon name="logout" />Log out</button><div className="sidebar-note"><Icon name="shield" size={16} /><span>Admin workspace<small>Manage your fleet</small></span></div></div>
     <small className="sidebar-version">DRIVERENT · FLEET PORTAL</small>
+    </div>
   </aside>
+}
+
+function CustomerSidebar({ user, path, navigate, logout, open, onNavigate }) {
+  const sections = [
+    {
+      title: 'MAIN',
+      items: [
+        ['/users/dashboard', 'dashboard', 'Dashboard'],
+        ['/users/vehicles', 'car', 'Browse Vehicles'],
+        ['/users/reservations', 'calendar', 'My Reservations'],
+      ],
+    },
+    {
+      title: 'RENTAL ACTIVITY',
+      items: [
+        ['/users/rentals', 'key', 'Active Rentals'],
+        ['/users/reservations/history', 'history', 'Reservation History'],
+      ],
+    },
+    {
+      title: 'ACCOUNT',
+      items: [
+        ['/users/profile', 'user', 'Profile'],
+        ['/users/payments', 'receipt', 'Payment History'],
+      ],
+    },
+  ]
+
+  return (
+    <aside className={`customer-sidebar${open ? ' is-open' : ''}`}>
+      <div className="customer-sidebar-content">
+        <Logo onClick={() => { navigate('/users/dashboard'); onNavigate?.() }} />
+        <div className="customer-sidebar-caption">YOUR DRIVE</div>
+        <nav className="customer-sidebar-nav" aria-label="Customer navigation">
+          {sections.map((section) => (
+            <section className="customer-nav-section" key={section.title}>
+              <h2>{section.title}</h2>
+              {section.items.map(([href, icon, label]) => {
+                const active = path === href
+                return (
+                  <button
+                    className={`customer-nav-link${active ? ' selected' : ''}`}
+                    type="button"
+                    key={href}
+                    aria-current={active ? 'page' : undefined}
+                    onClick={() => { navigate(href); onNavigate?.() }}
+                  >
+                    <Icon name={icon} size={17} />
+                    <span>{label}</span>
+                  </button>
+                )
+              })}
+            </section>
+          ))}
+        </nav>
+        <div className="customer-sidebar-profile">
+          <span className="avatar">{(user?.full_name || user?.username || 'U').slice(0, 1).toUpperCase()}</span>
+          <span><b>{user?.full_name || user?.username || 'Customer'}</b><small>Customer account</small></span>
+          <button type="button" onClick={logout} aria-label="Log out"><Icon name="logout" size={16} /></button>
+        </div>
+      </div>
+    </aside>
+  )
 }
 
 function Footer({ navigate }) {
@@ -246,7 +459,7 @@ function HomePage({ user, navigate, onOpenApiError, reloadKey }) {
   const vehiclesPath = user?.role === 'admin' ? '/admin/vehicles' : user ? '/users/vehicles' : '/vehicles'
   const dashboardRoute = user?.role === 'admin' ? '/admin/dashboard' : '/users/dashboard'
   const heroCar = cars[0]
-  const heroImage = heroCar ? getVehiclePhoto(heroCar) : STOCK_CAR_PHOTOS[0]
+  const heroImage = heroCar ? getVehiclePhoto(heroCar) : ''
   return <div className="public-page">
     <section className="home-hero">
       <div className="hero-copy">
@@ -257,40 +470,92 @@ function HomePage({ user, navigate, onOpenApiError, reloadKey }) {
         <div className="hero-trust"><span><Icon name="check" size={15} /> Real vehicle details</span><span><Icon name="shield" size={15} /> Clear daily pricing</span></div>
       </div>
       <div className="hero-visual">
-        <img className="hero-car-photo" src={heroImage} alt={heroCar ? `${heroCar.make} ${heroCar.model}` : 'Featured rental car'} onError={handleVehicleImageError} />
+        <div className="hero-car-placeholder" aria-label="No vehicle photo available"><Icon name="car" size={72} /></div>
+        {heroImage && <img className="hero-car-photo" src={heroImage} alt={`${heroCar.make} ${heroCar.model}`} onError={handleVehicleImageError} />}
         <div className="hero-photo-shade" />
         <div className="hero-visual-label"><span className="label-dot" />READY FOR THE ROAD</div>
         {heroCar && <button className="hero-car-caption" onClick={() => navigate(`${vehiclesPath}/${heroCar.id}`)}><span><small>FEATURED VEHICLE</small><b>{heroCar.make} {heroCar.model}</b></span><span className="hero-car-price">{money(heroCar.daily_rental_price)}<small> / day</small></span><span className="hero-car-arrow"><Icon name="arrow" size={17} /></span></button>}
       </div>
     </section>
+    <nav className="home-anchor-nav" aria-label="Explore DriveRent">
+      <a href="#about-us">About us</a>
+      <a href="#why-choose-us">Why choose us</a>
+      <a href="#faqs">FAQs</a>
+    </nav>
     <section className="home-section">
       <SectionHeading eyebrow="CHOOSE YOUR NEXT RIDE" title="A fleet for every kind of day" description="Browse the vehicles currently available and compare the details that matter." action="View all vehicles" onAction={() => navigate(vehiclesPath)} />
-      {loading ? <Loading label="Loading available vehicles" /> : cars.length ? <VehicleGrid cars={cars.slice(0, 3)} navigate={navigate} vehicleBasePath={vehiclesPath} /> : <EmptyState title="No vehicles available right now" description="Check back soon to see new vehicles in our fleet." />}
+      {loading ? <Loading label="Loading available vehicles" /> : cars.length ? <VehicleGrid cars={cars.slice(0, 3)} navigate={navigate} user={user} admin={user?.role === 'admin'} vehicleBasePath={vehiclesPath} /> : <EmptyState title="No vehicles available right now" description="Check back soon to see new vehicles in our fleet." />}
+    </section>
+    <section className="home-about" id="about-us">
+      <div className="home-about-copy">
+        <span className="eyebrow"><span className="eyebrow-line" />ABOUT DRIVERENT</span>
+        <h2>More clarity for<br />the road ahead.</h2>
+        <p>DriveRent makes it easier to find a rental car that suits your plans. Browse vehicles marked available, compare their details and daily rates, then send a reservation request with your dates.</p>
+        <button className="text-action" onClick={() => navigate(vehiclesPath)}>Get to know the fleet <Icon name="arrow" size={16} /></button>
+      </div>
+      <div className="home-about-note">
+        <span className="home-about-icon"><Icon name="key" size={22} /></span>
+        <p>A better rental experience starts with useful details and a clear next step.</p>
+        <span className="home-about-caption">YOUR JOURNEY, YOUR WAY</span>
+      </div>
+    </section>
+    <section className="home-why" id="why-choose-us">
+      <SectionHeading eyebrow="THE DRIVERENT DIFFERENCE" title="A rental experience built around you" description="The essentials are easy to find, so you can choose with confidence." />
+      <div className="home-why-grid">
+        <article className="home-why-card">
+          <span className="home-why-icon"><Icon name="shield" size={21} /></span>
+          <h3>Know what it costs</h3>
+          <p>See each vehicle’s daily rate up front and review an estimate when you choose your rental dates.</p>
+        </article>
+        <article className="home-why-card">
+          <span className="home-why-icon"><Icon name="car" size={21} /></span>
+          <h3>Compare the details</h3>
+          <p>Check vehicle photos, seating, fuel type, transmission and other listed specifications before you decide.</p>
+        </article>
+        <article className="home-why-card">
+          <span className="home-why-icon"><Icon name="check" size={21} /></span>
+          <h3>Browse current availability</h3>
+          <p>Start with vehicles currently listed as available and submit your preferred dates for confirmation.</p>
+        </article>
+      </div>
     </section>
     <section className="home-how"><div className="how-heading"><span className="eyebrow"><span className="eyebrow-line" />MADE FOR THE MILES AHEAD</span><h2>A more considered<br />way to rent.</h2><p>Good choices start with the right information. Explore real vehicles, see their specifications, and know the rental price before you decide.</p><button className="button button-dark" onClick={() => navigate(vehiclesPath)}>Explore the fleet <Icon name="arrow" size={16} /></button></div><div className="how-points"><HowPoint number="01" title="Find your fit" text="Search an available fleet and choose a vehicle for your plans." /><HowPoint number="02" title="See the full picture" text="Compare prices, specifications, availability, and vehicle images." /><HowPoint number="03" title="Get ready to go" text="Review your vehicle details and make the most of the journey." /></div></section>
+    <section className="home-faq" id="faqs">
+      <div className="home-faq-heading">
+        <span className="eyebrow"><span className="eyebrow-line" />GOOD TO KNOW</span>
+        <h2>Frequently asked<br />questions.</h2>
+        <p>Here are a few helpful details before you get started.</p>
+      </div>
+      <div className="home-faq-list">
+        <details>
+          <summary>How do I reserve a vehicle?<span aria-hidden="true">+</span></summary>
+          <p>Choose an available vehicle, select your pickup and return dates, then submit a reservation request. You’ll need to sign in to complete the request.</p>
+        </details>
+        <details>
+          <summary>How is the rental amount calculated?<span aria-hidden="true">+</span></summary>
+          <p>The estimate uses the vehicle’s listed daily rate and the number of rental days. If a security deposit applies, it is shown separately in the booking summary.</p>
+        </details>
+        <details>
+          <summary>Does choosing a vehicle confirm my booking?<span aria-hidden="true">+</span></summary>
+          <p>No. Selecting a vehicle starts a reservation request. Availability is checked when you submit your dates, and the system confirms whether it can be reserved.</p>
+        </details>
+        <details>
+          <summary>What details can I compare before booking?<span aria-hidden="true">+</span></summary>
+          <p>Vehicle listings can include photos, daily price, year, category, transmission, seating capacity, fuel type and other specifications.</p>
+        </details>
+      </div>
+    </section>
     <section className="home-cta"><div><span className="eyebrow">YOUR NEXT JOURNEY STARTS HERE</span><h2>Find a car for the<br />road ahead.</h2></div><button className="button button-white" onClick={() => navigate(user ? dashboardRoute : vehiclesPath)}>{user ? 'Go to your dashboard' : 'Browse available cars'} <Icon name="arrow" size={17} /></button></section>
   </div>
 }
 
-const STOCK_CAR_PHOTOS = [
-  'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=1600&q=85',
-  'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1600&q=85',
-  'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1600&q=85',
-  'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1600&q=85',
-]
-
 function getVehiclePhoto(car) {
   const uploaded = car?.primary_image || car?.images?.find((image) => Number(image.is_primary))?.image_path || car?.images?.[0]?.image_path
-  if (uploaded) return imageUrl(uploaded)
-  const index = Math.abs(Number(car?.id) || 0) % STOCK_CAR_PHOTOS.length
-  return STOCK_CAR_PHOTOS[index]
+  return uploaded ? imageUrl(uploaded) : ''
 }
 
 function handleVehicleImageError(event) {
-  const image = event.currentTarget
-  if (image.dataset.fallbackApplied) return
-  image.dataset.fallbackApplied = 'true'
-  image.src = STOCK_CAR_PHOTOS[0]
+  event.currentTarget.hidden = true
 }
 
 function SectionHeading({ eyebrow, title, description, action, onAction }) {
@@ -312,14 +577,14 @@ function CustomerDashboard({ user, navigate, reloadKey, vehicleBasePath = '/vehi
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [reloadKey])
-  const dashboardPhoto = cars.length ? getVehiclePhoto(cars[0]) : STOCK_CAR_PHOTOS[0]
+  const dashboardPhoto = cars.length ? getVehiclePhoto(cars[0]) : ''
   return <div className="customer-dashboard content-width">
-    <div className="welcome-banner"><div><span className="eyebrow light">YOUR DRIVERENT SPACE</span><h1>Welcome back,<br /><em>{user?.full_name || user?.username || 'driver'}.</em></h1><p>Your next journey starts with the right vehicle.</p><button className="button button-white" onClick={() => navigate(vehicleBasePath)}>Browse vehicles <Icon name="arrow" size={16} /></button></div><div className="welcome-car"><img src={dashboardPhoto} alt={cars[0] ? `${cars[0].make} ${cars[0].model}` : 'Featured rental car'} onError={handleVehicleImageError} /></div></div>
-    <section className="dashboard-content"><SectionHeading eyebrow="AVAILABLE NOW" title="Find a vehicle" description={`${cars.length} vehicle${cars.length === 1 ? '' : 's'} currently showing from the available fleet.`} action="View all" onAction={() => navigate(vehicleBasePath)} />{loading ? <Loading label="Loading available vehicles" /> : cars.length ? <VehicleGrid cars={cars} navigate={navigate} vehicleBasePath={vehicleBasePath} /> : <EmptyState title="Nothing available yet" description="New vehicles will show up here when they are ready." />}</section>
+    <div className="welcome-banner"><div><span className="eyebrow light">YOUR DRIVERENT SPACE</span><h1>Welcome back,<br /><em>{user?.full_name || user?.username || 'driver'}.</em></h1><p>Your next journey starts with the right vehicle.</p><button className="button button-white" onClick={() => navigate(vehicleBasePath)}>Browse vehicles <Icon name="arrow" size={16} /></button></div><div className="welcome-car">{dashboardPhoto ? <img src={dashboardPhoto} alt={`${cars[0].make} ${cars[0].model}`} onError={handleVehicleImageError} /> : <Icon name="car" size={72} />}</div></div>
+    <section className="dashboard-content"><SectionHeading eyebrow="AVAILABLE NOW" title="Find a vehicle" description={`${cars.length} vehicle${cars.length === 1 ? '' : 's'} currently showing from the available fleet.`} action="View all" onAction={() => navigate(vehicleBasePath)} />{loading ? <Loading label="Loading available vehicles" /> : cars.length ? <VehicleGrid cars={cars} navigate={navigate} user={user} vehicleBasePath={vehicleBasePath} /> : <EmptyState title="Nothing available yet" description="New vehicles will show up here when they are ready." />}</section>
   </div>
 }
 
-function VehicleListing({ navigate, reloadKey, admin, vehicleBasePath = admin ? '/admin/vehicles' : '/vehicles' }) {
+function VehicleListing({ navigate, reloadKey, admin, user, vehicleBasePath = admin ? '/admin/vehicles' : '/vehicles' }) {
   const params = new URLSearchParams(window.location.search)
   const [query, setQuery] = useState(params.get('search') || '')
   const [category, setCategory] = useState(params.get('category') || '')
@@ -379,27 +644,28 @@ function VehicleListing({ navigate, reloadKey, admin, vehicleBasePath = admin ? 
     <div className="listing-subtitle"><span><b>{result.meta.total}</b> vehicle{result.meta.total === 1 ? '' : 's'} {admin ? 'in fleet' : 'available'}</span>{!admin && <span><Icon name="shield" size={15} />Fleet availability updates from the system</span>}</div>
     {error && <ErrorMessage message={error} />}
     {loading ? <Loading label="Loading vehicles" /> : result.cars.length ? <>
-      <VehicleGrid cars={result.cars} navigate={navigate} admin={admin} vehicleBasePath={vehicleBasePath} />
+      <VehicleGrid cars={result.cars} navigate={navigate} admin={admin} user={user} vehicleBasePath={vehicleBasePath} />
       {result.meta.total_pages > 1 && <Pagination page={page} pages={result.meta.total_pages} onPage={setPage} />}
     </> : <EmptyState title={query || category || brand || status ? 'No vehicles match those filters' : 'No vehicles to show yet'} description={query || category || brand || status ? 'Try removing a filter or changing your search.' : admin ? 'Add a vehicle to start managing your rental fleet.' : 'Please check back later for available vehicles.'} />}
   </div>
 }
 
-function VehicleGrid({ cars, navigate, admin = false, vehicleBasePath = admin ? '/admin/vehicles' : '/vehicles' }) {
-  return <div className="vehicle-grid">{cars.map((car) => <VehicleCard key={car.id} car={car} admin={admin} onClick={() => navigate(`${vehicleBasePath}/${car.id}${window.location.search}`)} />)}</div>
+function VehicleGrid({ cars, navigate, admin = false, user, vehicleBasePath = admin ? '/admin/vehicles' : '/vehicles' }) {
+  return <div className="vehicle-grid">{cars.map((car) => <VehicleCard key={car.id} car={car} admin={admin} onClick={() => navigate(`${vehicleBasePath}/${car.id}${window.location.search}`)} onBook={() => navigate(user?.role === 'customer' ? `/users/reservations/create?car_id=${car.id}` : `/auth/login?next=${encodeURIComponent(`/users/reservations/create?car_id=${car.id}`)}`)} />)}</div>
 }
 
-function VehicleCard({ car, admin, onClick }) {
+function VehicleCard({ car, admin, onClick, onBook }) {
   const primary = getVehiclePhoto(car)
   return <article className="vehicle-card">
     <button className="vehicle-photo" onClick={onClick} aria-label={`View ${car.make} ${car.model}`}>
-      <img src={primary} alt={`${car.make} ${car.model}`} loading="lazy" onError={handleVehicleImageError} />
+      <span className="vehicle-photo-placeholder" aria-hidden="true"><Icon name="car" size={54} /></span>
+      {primary && <img src={primary} alt={`${car.make} ${car.model}`} loading="lazy" onError={handleVehicleImageError} />}
       <StatusPill status={car.status} /><span className="photo-category">{car.category}</span>
     </button>
     <div className="vehicle-card-content">
       <div className="vehicle-card-heading"><div><h3>{car.make} {car.model}</h3><p>{car.year} <span>·</span> {car.transmission || 'Automatic'}</p></div><span className="card-category">{car.category}</span></div>
       <div className="vehicle-specs"><span><Icon name="seat" size={15} />{car.seating_capacity || 5} seats</span><span><Icon name="fuel" size={15} />{car.fuel_type || 'Gasoline'}</span></div>
-      <div className="vehicle-card-footer"><div className="daily-price"><b>{money(car.daily_rental_price)}</b><span>/ day</span></div><button className="card-detail-link" onClick={onClick}>{admin ? 'Manage' : 'Details'}<Icon name="arrow" size={15} /></button></div>
+      <div className="vehicle-card-footer"><div className="daily-price"><b>{money(car.daily_rental_price)}</b><span>/ day</span></div><div className="vehicle-card-actions"><button className="card-detail-link" onClick={onClick}>{admin ? 'Manage' : 'Details'}<Icon name="arrow" size={15} /></button>{!admin && car.status === 'available' && <button className="card-book-link" onClick={onBook}>Book now</button>}</div></div>
     </div>
   </article>
 }
@@ -409,12 +675,11 @@ function StatusPill({ status = 'available' }) {
   return <span className={`status-pill status-${status}`}><i />{text}</span>
 }
 
-function VehicleDetails({ carId, admin, navigate, onChanged, setToast, setApiError, vehicleBasePath = admin ? '/admin/vehicles' : '/vehicles' }) {
+function VehicleDetails({ carId, admin, user, navigate, onChanged, setToast, setApiError, vehicleBasePath = admin ? '/admin/vehicles' : '/vehicles' }) {
   const [car, setCar] = useState(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [bookMessage, setBookMessage] = useState(false)
   const [selectedImage, setSelectedImage] = useState('')
   const [activeTab, setActiveTab] = useState('overview')
 
@@ -494,15 +759,14 @@ function VehicleDetails({ carId, admin, navigate, onChanged, setToast, setApiErr
     <div className="detail-heading"><div><div className="detail-breadcrumb">{car.category}<span>·</span>{car.year}<span>·</span>{car.transmission}</div><h1>{car.make} {car.model}</h1></div><div className="detail-heading-actions">{admin && <><button className="button button-outline" onClick={() => navigate(`/admin/vehicles/${car.id}/edit${window.location.search}`)}><Icon name="edit" size={16} />Edit vehicle</button><button className="button button-danger-outline" onClick={() => setConfirmDelete(true)}><Icon name="trash" size={16} />Delete</button></>}<StatusPill status={car.status} /></div></div>
     <div className="detail-top-grid">
       <div className="gallery">
-        <div className="gallery-main"><img src={selectedPhoto} alt={`${car.make} ${car.model}`} onError={handleVehicleImageError} />{!admin && <span className="gallery-badge"><Icon name="check" size={14} />Vehicle information</span>}</div>
+        <div className="gallery-main"><span className="vehicle-photo-placeholder" aria-hidden="true"><Icon name="car" size={72} />Photo unavailable</span>{selectedPhoto && <img src={selectedPhoto} alt={`${car.make} ${car.model}`} onError={handleVehicleImageError} />}{!admin && <span className="gallery-badge"><Icon name="check" size={14} />Vehicle information</span>}</div>
         <div className="gallery-thumbs">{images.map((image) => <div className={`gallery-thumb ${selectedImage === image.image_path ? 'selected' : ''}`} key={image.id}><button onClick={() => setSelectedImage(image.image_path)} aria-label={`Show image ${image.id}`}><img src={imageUrl(image.image_path)} alt={`${car.make} ${car.model} view`} /></button>{admin && <button className="thumb-remove" onClick={() => removeImage(image)} aria-label="Remove image"><Icon name="close" size={14} /></button>}</div>)}{!images.length && <span className="gallery-note">Add vehicle photos for more views</span>}{admin && <label className="gallery-add"><Icon name="plus" size={19} /><span>Add image</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={upload} /></label>}</div>
       </div>
       <aside className="detail-summary">
         <div className="detail-price"><b>{money(car.daily_rental_price)}</b><span>/ day</span></div>
         <p className="summary-caption">Rental price</p>
         <div className="detail-quick-specs"><div><Icon name="seat" /><span><b>{car.seating_capacity || '—'}</b><small>Seats</small></span></div><div><Icon name="gear" /><span><b>{car.transmission || '—'}</b><small>Transmission</small></span></div><div><Icon name="fuel" /><span><b>{car.fuel_type || '—'}</b><small>Fuel type</small></span></div></div>
-        {!admin && <button className="button button-primary book-button" onClick={() => setBookMessage(true)}>Book now <Icon name="arrow" size={17} /></button>}
-        {!admin && <div className="secure-note"><Icon name="shield" size={16} /><span>Booking is not available yet<small>Rental requests will be added in a future update.</small></span></div>}
+        {!admin && <button className="button button-primary book-button" disabled={car.status !== 'available'} onClick={() => navigate(user?.role === 'customer' ? `/users/reservations/create?car_id=${car.id}` : `/auth/login?next=${encodeURIComponent(`/users/reservations/create?car_id=${car.id}`)}`)}>{car.status === 'available' ? 'Book now' : 'Currently unavailable'} <Icon name="arrow" size={17} /></button>}
         <div className="summary-divider" />
         <dl className="summary-list"><div><dt>Security deposit</dt><dd>{money(car.security_deposit)}</dd></div><div><dt>Minimum rental</dt><dd>{car.minimum_rental_duration} {Number(car.minimum_rental_duration) === 1 ? 'day' : 'days'}</dd></div><div><dt>Availability</dt><dd><StatusPill status={car.status} /></dd></div></dl>
       </aside>
@@ -519,7 +783,6 @@ function VehicleDetails({ carId, admin, navigate, onChanged, setToast, setApiErr
       </section>
     </section>
     {confirmDelete && <Modal title="Delete this vehicle?" onClose={() => setConfirmDelete(false)}><p>Delete <b>{car.make} {car.model}</b> and its vehicle images? This action cannot be undone.</p><div className="modal-actions"><button className="button button-outline" onClick={() => setConfirmDelete(false)}>Cancel</button><button className="button button-danger" disabled={deleting} onClick={remove}>{deleting ? 'Deleting…' : 'Delete vehicle'}</button></div></Modal>}
-    {bookMessage && <Modal title="Booking coming soon" onClose={() => setBookMessage(false)}><p>Online booking is not part of this phase. This vehicle is available to browse, and booking features will be added later.</p><div className="modal-actions"><button className="button button-primary" onClick={() => setBookMessage(false)}>Got it</button></div></Modal>}
   </div>
 }
 
