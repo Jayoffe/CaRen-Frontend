@@ -10,11 +10,17 @@ function ReservationStatus({ status }) {
   return <span className={`status-pill status-${status}`}><i />{status}</span>
 }
 
-export default function MyReservations({ navigate }) {
+function localToday() {
+  const now = new Date()
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+}
+
+export default function MyReservations({ navigate, view = 'all' }) {
   const [reservations, setReservations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [updatingId, setUpdatingId] = useState(null)
+  const [notice, setNotice] = useState('')
 
   const refresh = useCallback(async () => {
     setError('')
@@ -42,6 +48,7 @@ export default function MyReservations({ navigate }) {
     try {
       await updateReservationStatus(id, 'cancelled')
       await refresh()
+      setNotice('Reservation cancelled.')
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -49,17 +56,32 @@ export default function MyReservations({ navigate }) {
     }
   }
 
+  const today = localToday()
+  const visibleReservations = reservations.filter((reservation) => {
+    if (view === 'active') {
+      return reservation.status === 'confirmed'
+        && reservation.start_date <= today
+        && reservation.end_date > today
+    }
+    if (view === 'history') {
+      return ['completed', 'cancelled', 'rejected'].includes(reservation.status)
+    }
+    return true
+  })
+  const pageTitle = view === 'active' ? 'Active rentals' : view === 'history' ? 'Reservation history' : 'My reservations'
+
   return (
     <div className="public-page content-width">
       <section className="home-section">
         <div className="detail-heading">
-          <div><div className="detail-breadcrumb">Your trips</div><h1>My reservations</h1></div>
+          <div><div className="detail-breadcrumb">Your trips</div><h1>{pageTitle}</h1></div>
           <button className="button button-primary" onClick={() => navigate('/users/vehicles')}>Browse vehicles</button>
         </div>
+        {notice && <div className="success-message" role="status">{notice}</div>}
         {error && <div className="global-error" role="alert">{error}</div>}
         {loading ? <div className="loading-state"><span className="spinner" />Loading reservations…</div>
-          : reservations.length ? <div className="vehicle-list-grid">
-            {reservations.map((reservation) => (
+          : visibleReservations.length ? <div className="vehicle-list-grid">
+            {visibleReservations.map((reservation) => (
               <article className="vehicle-card card-panel" key={reservation.id}>
                 <div className="detail-heading">
                   <h2>{reservation.make} {reservation.model}</h2>
@@ -76,7 +98,7 @@ export default function MyReservations({ navigate }) {
                 <small>Reservation #{reservation.id} · {reservation.status === 'pending' ? 'Awaiting admin confirmation' : `Daily rate ${money(reservation.daily_rate)}`}</small>
               </article>
             ))}
-          </div> : !error && <div className="empty-state"><h3>No reservations yet</h3><p>Choose a vehicle and dates to request your first reservation.</p><button className="button button-primary" onClick={() => navigate('/users/vehicles')}>Find a vehicle</button></div>}
+          </div> : !error && <div className="empty-state"><h3>{view === 'active' ? 'No active rentals' : view === 'history' ? 'No reservation history yet' : 'No reservations yet'}</h3><p>{view === 'active' ? 'Confirmed rentals in progress will appear here.' : view === 'history' ? 'Completed, cancelled, and rejected reservations will appear here.' : 'Choose a vehicle and dates to request your first reservation.'}</p><button className="button button-primary" onClick={() => navigate('/users/vehicles')}>{view === 'all' ? 'Find a vehicle' : 'Browse vehicles'}</button></div>}
       </section>
     </div>
   )
