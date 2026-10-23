@@ -9,6 +9,7 @@ function money(value) {
 export default function VehicleDetails({ carId, navigate }) {
   const [car, setCar] = useState(null)
   const [loading, setLoading] = useState(Boolean(carId))
+  const [error, setError] = useState('')
 
   useEffect(() => {
     let active = true
@@ -17,8 +18,11 @@ export default function VehicleDetails({ carId, navigate }) {
       .then((response) => {
         if (active) setCar(response?.data || null)
       })
-      .catch(() => {
-        if (active) setCar(null)
+      .catch((requestError) => {
+        if (active) {
+          setCar(null)
+          setError(requestError.message)
+        }
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -31,7 +35,7 @@ export default function VehicleDetails({ carId, navigate }) {
   }
 
   if (!car) {
-    return <div className="public-page content-width"><div className="empty-state"><h3>Vehicle not found</h3><p>This vehicle may no longer be available.</p><button className="button button-primary" onClick={() => navigate('/users/vehicles')}>Back to fleet</button></div></div>
+    return <div className="public-page content-width"><div className="empty-state" role={error ? 'alert' : 'status'}><h3>{error ? 'Unable to load vehicle' : 'Vehicle not found'}</h3><p>{error || 'This vehicle may no longer be available.'}</p><button className="button button-primary" onClick={() => navigate('/users/vehicles')}>Back to fleet</button></div></div>
   }
 
   return (
@@ -40,7 +44,8 @@ export default function VehicleDetails({ carId, navigate }) {
       <div className="detail-top-grid">
         <div className="gallery">
           <div className="gallery-main">
-            <img src={imageUrl(car.primary_image || car.images?.[0]?.image_path || '/assets/hero.png')} alt={`${car.make} ${car.model}`} onError={(event) => { event.currentTarget.src = '/assets/hero.png' }} />
+            <span className="vehicle-photo-placeholder" aria-hidden="true">Photo unavailable</span>
+            {(car.primary_image || car.images?.[0]?.image_path) && <img src={imageUrl(car.primary_image || car.images?.[0]?.image_path)} alt={`${car.make} ${car.model}`} onError={(event) => { event.currentTarget.hidden = true }} />}
           </div>
         </div>
         <aside className="detail-summary">
