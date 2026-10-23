@@ -1,22 +1,22 @@
 :root {
   font-family: 'Segoe UI', Arial, sans-serif;
-  color: #182940;
-  background: #f6f8fb;
+  color: #233344;
+  background: #f4f5f2;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-optical-sizing: auto;
   font-weight: 400;
-  --navy: #0b1d36;
-  --navy-2: #112a4a;
-  --blue: #1673e8;
-  --blue-dark: #075ac7;
-  --ink: #172a41;
-  --muted: #7c8ba0;
-  --line: #e4eaf1;
+  --navy: #172b3a;
+  --navy-2: #21394a;
+  --blue: #176b78;
+  --blue-dark: #105763;
+  --ink: #213344;
+  --muted: #71808c;
+  --line: #e0e5e5;
   --surface: #ffffff;
-  --canvas: #f5f8fc;
+  --canvas: #f4f5f2;
 }
 
 * {
@@ -25,7 +25,7 @@
 
 body {
   margin: 0;
-  min-width: 360px;
+  min-width: 320px;
   min-height: 100vh;
   background: var(--canvas);
 }
