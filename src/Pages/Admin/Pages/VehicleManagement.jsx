@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import { api, imageUrl } from '../../../Services/API/api.js'
 
+function vehicleImage(car) {
+  const path = car.primary_image || car.images?.[0]?.image_path
+  return path ? imageUrl(path) : ''
+}
+
 function money(value) {
   const n = Number(value || 0)
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: n % 1 ? 2 : 0 }).format(n)
@@ -91,14 +96,17 @@ export default function VehicleManagement({ navigate }) {
           <div className="vehicle-list-grid">
             {cars.map((car) => (
               <article key={car.id} className="vehicle-card card-panel">
-                <img
-                  src={imageUrl(car.primary_image || car.images?.[0]?.image_path || '/assets/hero.png')}
-                  alt={`${car.make} ${car.model}`}
-                  className="vehicle-card-image"
-                  onError={(event) => {
-                    event.currentTarget.src = '/assets/hero.png'
-                  }}
-                />
+                <div className="vehicle-card-image-wrap">
+                  <div className="vehicle-card-image-placeholder" aria-label="Vehicle photo unavailable">Photo unavailable</div>
+                  {vehicleImage(car) && <img
+                    src={vehicleImage(car)}
+                    alt={`${car.make} ${car.model}`}
+                    className="vehicle-card-image"
+                    onError={(event) => {
+                      event.currentTarget.hidden = true
+                    }}
+                  />}
+                </div>
                 <div className="vehicle-card-content">
                   <div className="vehicle-card-heading">
                     <div>
