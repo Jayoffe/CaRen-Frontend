@@ -11,7 +11,7 @@ const adminTransitions = {
   confirmed: [['completed', 'Complete'], ['cancelled', 'Cancel']],
 }
 
-export default function ReservationManagement() {
+export default function ReservationManagement({ historyView = false, setToast }) {
   const [reservations, setReservations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -45,6 +45,7 @@ export default function ReservationManagement() {
     try {
       await updateReservationStatus(id, status)
       await refresh()
+      setToast?.('Reservation status updated.')
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -70,7 +71,11 @@ export default function ReservationManagement() {
     <div className="admin-content">
       <section className="admin-panel">
         <div className="section-heading">
-          <div><h2>Reservation management</h2><p>Review customer requests and manage supported booking statuses.</p></div>
+          <div>
+            <span className="eyebrow">{historyView ? 'RECORDS' : 'BOOKING OPERATIONS'}</span>
+            <h1>{historyView ? 'Reservation History' : 'Reservations'}</h1>
+            <p>{historyView ? 'Review all customer reservations and their current statuses.' : 'Review customer requests and manage supported booking statuses.'}</p>
+          </div>
           <label className="form-field">
             <span>Filter status</span>
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
