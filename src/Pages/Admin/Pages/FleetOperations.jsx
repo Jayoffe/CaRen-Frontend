@@ -66,7 +66,7 @@ export default function FleetOperations({ navigate }) {
 				{cars.length ? <div className="maintenance-table-wrap"><table className="maintenance-table"><thead><tr><th>Vehicle</th><th>Category</th><th>Plate</th><th>Daily rate</th><th>Status</th></tr></thead><tbody>
 					{cars.map((car) => <tr key={car.id}><td><strong>{car.make} {car.model}</strong><small>{car.year}</small></td><td>{car.category}</td><td>{car.plate_number || '—'}</td><td>₱{Number(car.daily_rental_price).toLocaleString('en-PH')}</td><td><FleetStatus status={car.status} /></td></tr>)}
 				</tbody></table></div> : <div className="maintenance-empty">No vehicles are present in the fleet.</div>}
-				<p className="maintenance-demo-note">Service schedules are not included because the supplied active schema does not contain maintenance-record data.</p>
+				<p className="maintenance-demo-note">Service schedules, mileage tracking, and maintenance forecasts are managed from the maintenance workspace.</p>
 			</section>
 		</>}
 	</div>
