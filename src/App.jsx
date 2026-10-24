@@ -22,6 +22,7 @@ import RiskAnalysisPage from './Pages/Admin/Pages/RiskAnalysis.jsx'
 import PaymentManagementPage from './Pages/Admin/Pages/PaymentManagement.jsx'
 import PaymentHistoryPage from './Pages/Users/Pages/PaymentHistory.jsx'
 import UserProfilePage from './Pages/Users/Pages/UserProfile.jsx'
+import ChatWidget from '../../chatbot/frontend/ChatWidget.jsx'
 import './App.css'
 
 const EMPTY_CAR = {
@@ -90,13 +91,17 @@ function App() {
 
   const login = async (credentials) => {
     const response = await api.post('/api/login', credentials)
-    setUser(response.data)
-    setToast(`Welcome, ${response.data.full_name || response.data.username}.`)
+    const loggedInUser = response?.data ?? (response?.role ? response : null)
+    if (!loggedInUser || typeof loggedInUser !== 'object' || !loggedInUser.role) {
+      throw new Error('The login response did not include user information. Check that the backend API is up to date.')
+    }
+    setUser(loggedInUser)
+    setToast(`Welcome, ${loggedInUser.full_name || loggedInUser.username || loggedInUser.email || 'there'}.`)
     const requestedPath = new URLSearchParams(window.location.search).get('next')
     const nextPath = requestedPath?.startsWith('/users/reservations/create?car_id=')
       ? requestedPath
       : null
-    navigate(response.data.role === 'admin'
+    navigate(loggedInUser.role === 'admin'
       ? '/admin/dashboard'
       : nextPath || '/users/dashboard', true)
   }
@@ -205,7 +210,10 @@ function App() {
     notifications={notifications}
     navOpen={adminNavOpen}
     onCloseNavigation={() => setAdminNavOpen(false)}
-  >{content}</AdminLayout>
+  >
+    {content}
+    {user && <ChatWidget user={user} />}
+  </AdminLayout>
   if (isUserRoute) return <UserLayout
     user={user}
     sidebar={<CustomerSidebar user={user} path={path} navigate={navigate} logout={logout} open={customerNavOpen} onNavigate={() => setCustomerNavOpen(false)} />}
@@ -213,7 +221,10 @@ function App() {
     notifications={notifications}
     navOpen={customerNavOpen}
     onCloseNavigation={() => setCustomerNavOpen(false)}
-  >{content}</UserLayout>
+  >
+    {content}
+    {user && <ChatWidget user={user} />}
+  </UserLayout>
   return (
     <div className="app-frame">
       <div className="app-main">
@@ -221,6 +232,7 @@ function App() {
         {notifications}
         <main>{content}</main>
         {!adminLayout && <Footer navigate={navigate} />}
+        {user && <ChatWidget user={user} />}
       </div>
     </div>
   )
