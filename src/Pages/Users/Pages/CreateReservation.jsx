@@ -24,6 +24,7 @@ export default function CreateReservation({ navigate, carId }) {
     ? Math.round((Date.parse(endDate) - Date.parse(startDate)) / 86400000)
     : 0
   const amount = rentalDays > 0 ? rentalDays * Number(car?.daily_rental_price || 0) : 0
+  const vehicleImage = imageUrl(car?.primary_image || car?.images?.[0]?.image_path)
 
   useEffect(() => {
     let active = true
@@ -114,7 +115,9 @@ export default function CreateReservation({ navigate, carId }) {
               <div><h2>Booking summary</h2><p>Estimate based on the listed daily rate.</p></div>
             </div>
             <div className="booking-vehicle-summary">
-              <img className="row-thumb" src={imageUrl(car.primary_image || car.images?.[0]?.image_path)} alt="" />
+              <div className="row-thumb">
+                {vehicleImage ? <img src={vehicleImage} alt="" /> : <span aria-hidden="true">Photo unavailable</span>}
+              </div>
               <span><b>{car.make} {car.model}</b><small>{car.category} · {car.year}</small></span>
             </div>
             <div className="summary-lines">
