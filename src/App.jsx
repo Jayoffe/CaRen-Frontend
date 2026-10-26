@@ -22,7 +22,7 @@ import RiskAnalysisPage from './Pages/Admin/Pages/RiskAnalysis.jsx'
 import PaymentManagementPage from './Pages/Admin/Pages/PaymentManagement.jsx'
 import PaymentHistoryPage from './Pages/Users/Pages/PaymentHistory.jsx'
 import UserProfilePage from './Pages/Users/Pages/UserProfile.jsx'
-import ChatWidget from '../../chatbot/frontend/ChatWidget.jsx'
+import ChatWidget from './Components/ChatWidget.jsx'
 import './App.css'
 
 const EMPTY_CAR = {
