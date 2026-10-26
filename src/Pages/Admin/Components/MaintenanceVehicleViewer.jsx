@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
-import { Html, OrbitControls } from '@react-three/drei'
+import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 
 const CAMERA_POSITION = [4.8, 2.8, 5.8]
@@ -52,20 +52,22 @@ function cabinShape() {
 function ComponentPin({ component, selected, onSelect }) {
   const color = selected ? '#7de4ff' : '#81a8bb'
   return (
-    <Html position={component.position} center distanceFactor={8} zIndexRange={[30, 0]}>
-      <button
-        type="button"
-        className={`diag-pin${selected ? ' is-selected' : ''}`}
-        onClick={(event) => {
-          event.stopPropagation()
-          onSelect(component.key)
-        }}
-        aria-label={`Inspect ${component.label}`}
-        title={component.label}
-      >
-        <span style={{ '--pin-color': color }} />
-      </button>
-    </Html>
+    <group
+      position={component.position}
+      onClick={(event) => {
+        event.stopPropagation()
+        onSelect(component.key)
+      }}
+    >
+      <mesh castShadow>
+        <sphereGeometry args={[0.085, 18, 18]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={selected ? 1.1 : 0.5} />
+      </mesh>
+      <mesh position={[0, 0.14, 0]}>
+        <cylinderGeometry args={[0.016, 0.016, 0.18, 12]} />
+        <meshStandardMaterial color={selected ? '#dff9ff' : '#a7c7d5'} metalness={0.55} roughness={0.34} />
+      </mesh>
+    </group>
   )
 }
 

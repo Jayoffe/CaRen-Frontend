@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   generateMaintenancePredictions,
   getFleetVehicles,
@@ -9,9 +9,8 @@ import {
   updateMaintenanceRecord,
   updateVehicleMileage,
 } from '../../../Services/API/maintenanceAPI.js'
+import MaintenanceVehicleViewer from '../Components/MaintenanceVehicleViewer.jsx'
 import './MaintenancePredictions.css'
-
-const MaintenanceVehicleViewer = lazy(() => import('../Components/MaintenanceVehicleViewer.jsx'))
 
 const COMPONENTS = [
   { key: 'engine', label: 'Engine & lubrication', aliases: ['engine', 'oil', 'lubrication', 'spark plug', 'air filter'], position: [1.34, 0.91, 0] },
@@ -418,14 +417,12 @@ export default function MaintenancePredictions({ navigate }) {
             </aside>
 
             <main className="diag-main-column">
-              <Suspense fallback={<div className="diag-viewer-loading" role="status">Loading interactive 3D viewer…</div>}>
-                <MaintenanceVehicleViewer
-                  car={selectedVehicle}
-                  components={COMPONENTS}
-                  selectedComponent={selectedComponentKey}
-                  onSelect={(componentKey) => { setSelectedComponentKey(componentKey); setFormMode(''); setAssistantMessage('') }}
-                />
-              </Suspense>
+              <MaintenanceVehicleViewer
+                car={selectedVehicle}
+                components={COMPONENTS}
+                selectedComponent={selectedComponentKey}
+                onSelect={(componentKey) => { setSelectedComponentKey(componentKey); setFormMode(''); setAssistantMessage('') }}
+              />
               <section className="diag-spec-panel" aria-label="Vehicle specifications">
                 <div className="diag-panel-heading"><div><span className="diag-kicker">LIVE INVENTORY FIELDS</span><h2>Vehicle specifications</h2></div><span className="diag-source-label">Source: fleet inventory</span></div>
                 <div className="diag-spec-grid">
