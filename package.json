@@ -8,16 +8,13 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
-  },
-  "dependencies": {
-<<<<<<< HEAD
-    "@gsap/react": "^2.1.2",
-    "gsap": "^3.13.0",
-=======
-    "@react-three/drei": "^10.7.9",
-    "@react-three/fiber": "^9.8.2",
->>>>>>> 3e7a98f23071f0a5443b75b11890de14d791d706
-    "react": "^19.2.8",
+    },
+    "dependencies": {
+      "@gsap/react": "^2.1.2",
+      "gsap": "^3.13.0",
+      "@react-three/drei": "^10.7.9",
+      "@react-three/fiber": "^9.8.2",
+      "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "three": "^0.186.1"
   },
