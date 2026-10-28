@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useGSAP } from '@gsap/react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { api, imageUrl } from './api'
 import Login from './auth/Login'
 import SignUp from './auth/SignUp'
@@ -24,6 +27,8 @@ import PaymentHistoryPage from './Pages/Users/Pages/PaymentHistory.jsx'
 import UserProfilePage from './Pages/Users/Pages/UserProfile.jsx'
 import ChatWidget from './Components/ChatWidget.jsx'
 import './App.css'
+
+gsap.registerPlugin(useGSAP, ScrollTrigger)
 
 const EMPTY_CAR = {
   make: '', model: '', year: new Date().getFullYear(), category: 'SUV',
@@ -460,6 +465,8 @@ function HomePage({ user, navigate, onOpenApiError, reloadKey }) {
   const [cars, setCars] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const pageRef = useRef(null)
+  const fleetRef = useRef(null)
   useEffect(() => {
     let active = true
     api.get('/api/cars/available?per_page=6')
@@ -472,31 +479,90 @@ function HomePage({ user, navigate, onOpenApiError, reloadKey }) {
   const dashboardRoute = user?.role === 'admin' ? '/admin/dashboard' : '/users/dashboard'
   const heroCar = cars[0]
   const heroImage = heroCar ? getVehiclePhoto(heroCar) : ''
-  return <div className="public-page">
-    <section className="home-hero">
-      <div className="hero-copy">
-        <span className="eyebrow"><span className="eyebrow-line" />A BETTER WAY TO GET THERE</span>
-        <h1>The keys to<br /><em>what’s next.</em></h1>
-        <p>Find a car that fits the plan. Straightforward options, clear daily pricing, and a fleet ready for your next trip.</p>
-        <form className="hero-search" onSubmit={(event) => { event.preventDefault(); navigate(`${vehiclesPath}?search=${encodeURIComponent(search)}`) }}><Icon name="search" size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search make or model" /><button className="button button-primary">Explore fleet <Icon name="arrow" size={16} /></button></form>
-        <div className="hero-trust"><span><Icon name="check" size={15} /> Real vehicle details</span><span><Icon name="shield" size={15} /> Clear daily pricing</span></div>
+  const heroBackdropImage = heroImage || 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1920&q=85'
+  const fleetCars = cars.slice(0, 6)
+  const aboutCopy = 'Useful details and a clear next step make every journey easier to plan.'
+  const aboutWords = aboutCopy.split(' ')
+
+  useGSAP(() => {
+    const motion = gsap.matchMedia()
+    motion.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.utils.toArray('[data-scroll-image]', pageRef.current).forEach((image) => {
+        gsap.fromTo(image, { scale: 0.8, opacity: 0.2 }, {
+          scale: 1,
+          opacity: 1,
+          ease: 'none',
+          scrollTrigger: { trigger: image, start: 'top 90%', end: 'center 55%', scrub: true },
+        })
+      })
+
+      gsap.fromTo(gsap.utils.toArray('[data-reveal-word]', pageRef.current), { opacity: 0.16 }, {
+        opacity: 1,
+        ease: 'none',
+        stagger: 0.035,
+        scrollTrigger: { trigger: '.home-about-note', start: 'top 82%', end: 'center 52%', scrub: true },
+      })
+    })
+    return () => motion.revert()
+  }, { scope: pageRef, dependencies: [cars.length], revertOnUpdate: true })
+
+  const scrollFleet = (direction) => {
+    const container = fleetRef.current
+    const card = container?.querySelector('.home-fleet-card')
+    if (!container || !card) return
+    const gap = Number.parseFloat(window.getComputedStyle(container).columnGap) || 0
+    container.scrollBy({ left: direction * (card.getBoundingClientRect().width + gap), behavior: 'smooth' })
+  }
+
+  return <div className="public-page" ref={pageRef}>
+    <section className="home-hero home-hero--cinematic">
+      <div className="home-hero-media" aria-hidden="true">
+        <img src={heroBackdropImage} alt="" onError={handleVehicleImageError} />
       </div>
-      <div className="hero-visual">
-        <div className="hero-car-placeholder" aria-label="No vehicle photo available"><Icon name="car" size={72} /></div>
-        {heroImage && <img className="hero-car-photo" src={heroImage} alt={`${heroCar.make} ${heroCar.model}`} onError={handleVehicleImageError} />}
-        <div className="hero-photo-shade" />
-        <div className="hero-visual-label"><span className="label-dot" />READY FOR THE ROAD</div>
-        {heroCar && <button className="hero-car-caption" onClick={() => navigate(`${vehiclesPath}/${heroCar.id}`)}><span><small>FEATURED VEHICLE</small><b>{heroCar.make} {heroCar.model}</b></span><span className="hero-car-price">{money(heroCar.daily_rental_price)}<small> / day</small></span><span className="hero-car-arrow"><Icon name="arrow" size={17} /></span></button>}
+      <div className="home-hero-copy">
+        <h1>Your next <span className="home-heading-image" style={{ backgroundImage: `url("${heroBackdropImage}")` }}>ride</span><br />starts here.</h1>
+        <p>Find a car that fits your plans. Compare real vehicles, clear daily rates, and details that make choosing easier.</p>
+        <div className="home-hero-actions">
+          <form className="home-hero-search" role="search" onSubmit={(event) => { event.preventDefault(); navigate(`${vehiclesPath}?search=${encodeURIComponent(search.trim())}`) }}>
+            <Icon name="search" size={19} />
+            <input aria-label="Search available vehicles" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search make or model" />
+            <button type="submit" className="button">Explore fleet <Icon name="arrow" size={16} /></button>
+          </form>
+          <a className="home-hero-secondary" href="#how-it-works">How it works <Icon name="arrow" size={16} /></a>
+        </div>
       </div>
     </section>
     <nav className="home-anchor-nav" aria-label="Explore DriveRent">
-      <a href="#about-us">About us</a>
-      <a href="#why-choose-us">Why choose us</a>
-      <a href="#faqs">FAQs</a>
+      <a href="#available-fleet">Explore the fleet</a>
+      <a href="#why-choose-us">The experience</a>
+      <a href="#faqs">Common questions</a>
     </nav>
-    <section className="home-section">
-      <SectionHeading eyebrow="CHOOSE YOUR NEXT RIDE" title="A fleet for every kind of day" description="Browse the vehicles currently available and compare the details that matter." action="View all vehicles" onAction={() => navigate(vehiclesPath)} />
-      {loading ? <Loading label="Loading available vehicles" /> : cars.length ? <VehicleGrid cars={cars.slice(0, 3)} navigate={navigate} user={user} admin={user?.role === 'admin'} vehicleBasePath={vehiclesPath} /> : <EmptyState title="No vehicles available right now" description="Check back soon to see new vehicles in our fleet." />}
+    <section className="home-section home-fleet-section" id="available-fleet">
+      <div className="home-fleet-heading">
+        <SectionHeading eyebrow="A GOOD PLACE TO START" title="Find the right ride for the day" description="Explore the vehicles available now, with pricing and useful details upfront." action="View all vehicles" onAction={() => navigate(vehiclesPath)} />
+        {fleetCars.length > 3 && <div className="home-fleet-controls" aria-label="Featured vehicle carousel controls">
+          <button type="button" onClick={() => scrollFleet(-1)} aria-label="Show previous vehicles"><Icon name="arrow" size={18} /></button>
+          <button type="button" onClick={() => scrollFleet(1)} aria-label="Show next vehicles"><Icon name="arrow" size={18} /></button>
+        </div>}
+      </div>
+      {loading ? <Loading label="Loading available vehicles" /> : cars.length ? (
+        <div className="home-fleet-carousel" ref={fleetRef} role="region" aria-label="Available vehicles">
+          {fleetCars.map((car) => {
+            const photo = getVehiclePhoto(car)
+            return <article className="home-fleet-card" key={car.id}>
+              <button type="button" className="home-fleet-photo" onClick={() => navigate(`${vehiclesPath}/${car.id}`)} aria-label={`View ${car.make} ${car.model}`}>
+                <span className="home-fleet-placeholder" aria-hidden="true"><Icon name="car" size={38} /></span>
+                {photo && <img data-scroll-image src={photo} alt={`${car.make} ${car.model}`} loading="lazy" onError={handleVehicleImageError} />}
+              </button>
+              <div className="home-fleet-card-copy">
+                <div className="home-fleet-card-title"><div><h3>{car.make} {car.model}</h3><span>{[car.year, car.category].filter(Boolean).join(' · ') || 'Available now'}</span></div><strong>{money(car.daily_rental_price)}<small>/ day</small></strong></div>
+                <div className="home-fleet-card-specs"><span>{car.transmission || 'Transmission not listed'}</span><span>{car.seating_capacity || '—'} seats</span></div>
+                <button type="button" className="home-fleet-book" onClick={() => navigate(user ? `/users/reservations/create?car_id=${car.id}` : `${vehiclesPath}/${car.id}`)}>{user ? 'Choose this car' : 'View vehicle'} <Icon name="arrow" size={16} /></button>
+              </div>
+            </article>
+          })}
+        </div>
+      ) : <EmptyState title="No vehicles available right now" description="Check back soon to see new vehicles in our fleet." />}
     </section>
     <section className="home-about" id="about-us">
       <div className="home-about-copy">
@@ -506,32 +572,32 @@ function HomePage({ user, navigate, onOpenApiError, reloadKey }) {
         <button className="text-action" onClick={() => navigate(vehiclesPath)}>Get to know the fleet <Icon name="arrow" size={16} /></button>
       </div>
       <div className="home-about-note">
-        <span className="home-about-icon"><Icon name="key" size={22} /></span>
-        <p>A better rental experience starts with useful details and a clear next step.</p>
-        <span className="home-about-caption">YOUR JOURNEY, YOUR WAY</span>
+        {heroImage && <img data-scroll-image src={heroImage} alt={`${heroCar.make} ${heroCar.model}`} loading="lazy" onError={handleVehicleImageError} />}
+        <div className="home-about-note-copy">
+          <span className="home-about-icon"><Icon name="key" size={22} /></span>
+          <p aria-label={aboutCopy}><span aria-hidden="true">{aboutWords.map((word, index) => <span data-reveal-word key={`${word}-${index}`}>{word}{index < aboutWords.length - 1 ? ' ' : ''}</span>)}</span></p>
+          <span className="home-about-caption">A CLEARER WAY TO GET THERE</span>
+        </div>
       </div>
     </section>
     <section className="home-why" id="why-choose-us">
       <SectionHeading eyebrow="THE DRIVERENT DIFFERENCE" title="A rental experience built around you" description="The essentials are easy to find, so you can choose with confidence." />
-      <div className="home-why-grid">
-        <article className="home-why-card">
-          <span className="home-why-icon"><Icon name="shield" size={21} /></span>
-          <h3>Know what it costs</h3>
+      <div className="home-why-grid home-why-accordion">
+        <details className="home-why-card" open>
+          <summary><span className="home-why-icon"><Icon name="shield" size={21} /></span><h3>Know what it costs</h3><span className="home-why-toggle" aria-hidden="true">+</span></summary>
           <p>See each vehicle’s daily rate up front and review an estimate when you choose your rental dates.</p>
-        </article>
-        <article className="home-why-card">
-          <span className="home-why-icon"><Icon name="car" size={21} /></span>
-          <h3>Compare the details</h3>
+        </details>
+        <details className="home-why-card">
+          <summary><span className="home-why-icon"><Icon name="car" size={21} /></span><h3>Compare the details</h3><span className="home-why-toggle" aria-hidden="true">+</span></summary>
           <p>Check vehicle photos, seating, fuel type, transmission and other listed specifications before you decide.</p>
-        </article>
-        <article className="home-why-card">
-          <span className="home-why-icon"><Icon name="check" size={21} /></span>
-          <h3>Browse current availability</h3>
+        </details>
+        <details className="home-why-card">
+          <summary><span className="home-why-icon"><Icon name="check" size={21} /></span><h3>Browse current availability</h3><span className="home-why-toggle" aria-hidden="true">+</span></summary>
           <p>Start with vehicles currently listed as available and submit your preferred dates for confirmation.</p>
-        </article>
+        </details>
       </div>
     </section>
-    <section className="home-how"><div className="how-heading"><span className="eyebrow"><span className="eyebrow-line" />MADE FOR THE MILES AHEAD</span><h2>A more considered<br />way to rent.</h2><p>Good choices start with the right information. Explore real vehicles, see their specifications, and know the rental price before you decide.</p><button className="button button-dark" onClick={() => navigate(vehiclesPath)}>Explore the fleet <Icon name="arrow" size={16} /></button></div><div className="how-points"><HowPoint number="01" title="Find your fit" text="Search an available fleet and choose a vehicle for your plans." /><HowPoint number="02" title="See the full picture" text="Compare prices, specifications, availability, and vehicle images." /><HowPoint number="03" title="Get ready to go" text="Review your vehicle details and make the most of the journey." /></div></section>
+    <section className="home-how" id="how-it-works"><div className="how-heading"><span className="eyebrow"><span className="eyebrow-line" />MADE FOR THE MILES AHEAD</span><h2>A more considered<br />way to rent.</h2><p>{aboutCopy}</p><button className="button button-dark" onClick={() => navigate(vehiclesPath)}>Explore the fleet <Icon name="arrow" size={16} /></button></div><div className="how-points"><HowPoint number="01" title="Find your fit" text="Search an available fleet and choose a vehicle for your plans." /><HowPoint number="02" title="See the full picture" text="Compare prices, specifications, availability, and vehicle images." /><HowPoint number="03" title="Get ready to go" text="Review your vehicle details and make the most of the journey." /></div></section>
     <section className="home-faq" id="faqs">
       <div className="home-faq-heading">
         <span className="eyebrow"><span className="eyebrow-line" />GOOD TO KNOW</span>
