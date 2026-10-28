@@ -1,0 +1,1008 @@
+.maintenance-diagnostics {
+  --diag-bg: #09131d;
+  --diag-panel: #0f1b27;
+  --diag-panel-raised: #132331;
+  --diag-border: #253847;
+  --diag-text: #e1edf3;
+  --diag-muted: #8fa3b2;
+  --diag-blue: #71c7ee;
+  min-height: 100%;
+  padding: clamp(16px, 2vw, 28px);
+  color: var(--diag-text);
+  background:
+    radial-gradient(ellipse at 50% -22%, rgb(50 116 151 / 16%), transparent 47%),
+    radial-gradient(circle at 1px 1px, rgb(116 156 177 / 10%) 1px, transparent 0) 0 0 / 22px 22px,
+    var(--diag-bg);
+  font-family: Inter, "Segoe UI", sans-serif;
+}
+
+.maintenance-diagnostics h1,
+.maintenance-diagnostics h2,
+.maintenance-diagnostics h3,
+.maintenance-diagnostics p {
+  margin-top: 0;
+}
+
+.diag-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 1700px;
+  margin: 0 auto 20px;
+  padding: 0 0 18px;
+  border-bottom: 1px solid var(--diag-border);
+}
+
+.diag-brand-title h1 {
+  margin: 5px 0 6px;
+  color: #f1f7fb;
+  font-size: clamp(25px, 3vw, 34px);
+  font-weight: 650;
+  letter-spacing: -.7px;
+}
+
+.diag-brand-title p {
+  margin-bottom: 0;
+  color: var(--diag-muted);
+  font-size: 12px;
+}
+
+.diag-kicker {
+  display: block;
+  color: #80a8bd;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 1.35px;
+  line-height: 1.5;
+}
+
+.diag-header-actions {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+
+.diag-vehicle-select {
+  display: grid;
+  gap: 6px;
+  min-width: min(310px, 32vw);
+}
+
+.diag-vehicle-select > span {
+  color: #8fa3b2;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.diag-vehicle-select select,
+.diag-editor input,
+.diag-editor select,
+.diag-editor textarea,
+.diag-mileage-form input {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 11px;
+  border: 1px solid #344a5a;
+  border-radius: 5px;
+  color: #e1edf3;
+  background: #101e2a;
+  font: inherit;
+  font-size: 12px;
+}
+
+.diag-vehicle-select select:focus,
+.diag-editor input:focus,
+.diag-editor select:focus,
+.diag-editor textarea:focus,
+.diag-mileage-form input:focus {
+  outline: 2px solid rgb(113 199 238 / 45%);
+  outline-offset: 1px;
+}
+
+.diag-refresh-button,
+.diag-empty button,
+.diag-editor-actions button:last-child,
+.diag-mileage-form button:first-of-type {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #4ca2c8;
+  border-radius: 5px;
+  color: #071620;
+  background: #7ac7e7;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.diag-refresh-button:hover,
+.diag-empty button:hover,
+.diag-editor-actions button:last-child:hover,
+.diag-mileage-form button:first-of-type:hover {
+  background: #a6e1f7;
+}
+
+.diag-refresh-button:disabled,
+.diag-actions-grid button:disabled,
+.diag-assistant-button:disabled,
+.diag-mileage-form button:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
+.diag-alert,
+.diag-inline-error {
+  padding: 11px 14px;
+  border: 1px solid #78434a;
+  border-radius: 5px;
+  color: #ffd1d1;
+  background: #331e25;
+  font-size: 12px;
+}
+
+.diag-alert {
+  max-width: 1700px;
+  margin: 0 auto 15px;
+}
+
+.diag-inline-error {
+  margin-top: 10px;
+}
+
+.diag-loading,
+.diag-empty {
+  max-width: 1700px;
+  margin: 30px auto;
+  padding: 28px;
+  border: 1px solid var(--diag-border);
+  border-radius: 7px;
+  color: var(--diag-muted);
+  background: var(--diag-panel);
+}
+
+.diag-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.diag-empty h2 {
+  margin-bottom: 8px;
+  color: var(--diag-text);
+  font-size: 21px;
+}
+
+.diag-empty p {
+  font-size: 13px;
+}
+
+.diag-empty button {
+  margin-top: 8px;
+}
+
+.diag-summary-strip {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  max-width: 1700px;
+  margin: 0 auto 14px;
+  border: 1px solid var(--diag-border);
+  border-radius: 6px;
+  background: linear-gradient(100deg, #132430, #0d1924 60%);
+}
+
+.diag-overall-status {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+  padding: 14px 17px;
+}
+
+.diag-status-light {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #dfb36c;
+  box-shadow: 0 0 12px rgb(223 179 108 / 40%);
+}
+
+.diag-overall-status strong {
+  display: block;
+  margin-top: 4px;
+  color: #dbe9f0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.diag-summary-stat {
+  display: grid;
+  gap: 4px;
+  min-width: 112px;
+  padding: 12px 15px;
+  border-left: 1px solid var(--diag-border);
+}
+
+.diag-summary-stat strong {
+  color: #e5f0f5;
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.diag-summary-stat span {
+  color: #91a6b5;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.diag-workspace {
+  display: grid;
+  grid-template-columns: minmax(204px, 0.7fr) minmax(400px, 1.7fr) minmax(290px, 0.9fr);
+  align-items: start;
+  gap: 13px;
+  max-width: 1700px;
+  margin: 0 auto;
+}
+
+.diag-component-sidebar,
+.diag-viewer-panel,
+.diag-spec-panel,
+.diag-detail-panel,
+.diag-prediction-panel,
+.diag-assistant-panel,
+.diag-history-panel,
+.diag-mileage-panel {
+  border: 1px solid var(--diag-border);
+  border-radius: 6px;
+  background: linear-gradient(155deg, rgb(18 34 47 / 97%), rgb(12 24 34 / 98%));
+  box-shadow: 0 8px 28px rgb(0 0 0 / 12%);
+}
+
+.diag-component-sidebar {
+  overflow: hidden;
+}
+
+.diag-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 15px 12px;
+  border-bottom: 1px solid rgb(44 65 79 / 75%);
+}
+
+.diag-panel-heading h2,
+.diag-viewer-title h2 {
+  margin: 3px 0 0;
+  color: #e3eef3;
+  font-size: 14px;
+  font-weight: 620;
+}
+
+.diag-panel-heading > span,
+.diag-source-label {
+  color: #7790a0;
+  font-size: 9px;
+}
+
+.diag-component-list {
+  display: grid;
+  padding: 5px;
+}
+
+.diag-component-button {
+  position: relative;
+  display: grid;
+  grid-template-columns: 8px 1fr;
+  align-items: center;
+  gap: 4px 9px;
+  min-height: 47px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #b7c8d2;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.diag-component-button:hover {
+  background: #162938;
+}
+
+.diag-component-button.is-active {
+  border-color: #35657b;
+  color: #e3f7ff;
+  background: linear-gradient(90deg, rgb(55 133 170 / 22%), rgb(25 46 60 / 64%));
+}
+
+.diag-component-indicator {
+  grid-row: span 2;
+  width: 6px;
+  height: 6px;
+  border: 1px solid #7c9db0;
+  border-radius: 50%;
+}
+
+.diag-component-button.is-active .diag-component-indicator {
+  border-color: #7ee0ff;
+  background: #76d5f3;
+  box-shadow: 0 0 7px rgb(118 213 243 / 52%);
+}
+
+.diag-component-button > span:nth-child(2) {
+  font-size: 10px;
+  font-weight: 630;
+}
+
+.diag-component-button small {
+  grid-column: 2;
+  color: #8196a4;
+  font-size: 8px;
+}
+
+.diag-no-telemetry {
+  display: grid;
+  gap: 5px;
+  margin: 9px;
+  padding: 10px;
+  border: 1px solid #364753;
+  border-radius: 4px;
+  background: rgb(7 18 27 / 56%);
+}
+
+.diag-no-telemetry strong {
+  color: #d9bf89;
+  font-size: 9px;
+}
+
+.diag-no-telemetry span {
+  color: #8fa3b0;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.diag-main-column,
+.diag-detail-column {
+  display: grid;
+  gap: 13px;
+  min-width: 0;
+}
+
+.diag-viewer-panel {
+  overflow: hidden;
+  padding: 0;
+}
+
+.diag-viewer-loading {
+  display: grid;
+  min-height: 400px;
+  place-items: center;
+  border: 1px solid var(--diag-border);
+  border-radius: 6px;
+  color: var(--diag-muted);
+  background: var(--diag-panel);
+  font-size: 11px;
+}
+
+.diag-viewer-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 15px;
+  border-bottom: 1px solid rgb(44 65 79 / 75%);
+}
+
+.diag-viewer-title h2 {
+  font-size: 13px;
+}
+
+.diag-vehicle-representation {
+  max-width: 155px;
+  color: #8096a5;
+  font-size: 8px;
+  line-height: 1.5;
+  text-align: right;
+}
+
+.diag-canvas-wrap {
+  position: relative;
+  height: clamp(300px, 34vw, 430px);
+  overflow: hidden;
+  background: #07111b;
+}
+
+.diag-canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.diag-canvas-caption {
+  position: absolute;
+  right: 10px;
+  bottom: 9px;
+  left: 10px;
+  color: #8299a8;
+  font-size: 8px;
+  pointer-events: none;
+  text-align: center;
+  text-shadow: 0 1px 6px #07111b;
+}
+
+.diag-canvas-fallback {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: 30px;
+  color: #c1d2dc;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.diag-viewer-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--diag-border);
+  background: #0d1923;
+}
+
+.diag-viewer-controls button,
+.diag-actions-grid button,
+.diag-editor-actions button,
+.diag-mileage-form button,
+.diag-mileage-current button {
+  min-height: 31px;
+  padding: 6px 9px;
+  border: 1px solid #334a5a;
+  border-radius: 4px;
+  color: #c4d3dc;
+  background: #142532;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.diag-viewer-controls button:hover,
+.diag-actions-grid button:hover,
+.diag-editor-actions button:hover,
+.diag-mileage-form button:hover,
+.diag-mileage-current button:hover {
+  border-color: #5ba5c4;
+  color: #effaff;
+  background: #1b3444;
+}
+
+.diag-technical-note {
+  margin: 0;
+  padding: 8px 12px;
+  color: #d3be8e;
+  background: #27271f;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.diag-pin {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid rgb(133 175 194 / 55%);
+  border-radius: 50%;
+  background: rgb(6 20 30 / 86%);
+  cursor: pointer;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+
+.diag-pin span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pin-color);
+  box-shadow: 0 0 9px var(--pin-color);
+}
+
+.diag-pin:hover,
+.diag-pin.is-selected {
+  transform: scale(1.16);
+  border-color: #b8efff;
+  background: #17425a;
+}
+
+.diag-pin.is-selected span {
+  width: 10px;
+  height: 10px;
+  background: #9bebff;
+}
+
+.diag-state-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  margin: 13px 14px 0;
+  padding: 6px 8px;
+  border: 1px solid #405665;
+  border-radius: 3px;
+  color: #c6d5dd;
+  background: #172833;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.diag-state-badge > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #96a9b5;
+}
+
+.state-critical,
+.state-overdue {
+  border-color: #864851;
+  color: #ffced1;
+  background: #341f27;
+}
+
+.state-critical > span,
+.state-overdue > span {
+  background: #f0767d;
+}
+
+.state-due_soon,
+.state-needs_review {
+  border-color: #78643b;
+  color: #f0d69e;
+  background: #302a1d;
+}
+
+.state-due_soon > span,
+.state-needs_review > span {
+  background: #e4b95d;
+}
+
+.state-inspection_recorded,
+.state-service_recorded {
+  border-color: #355a70;
+  color: #a9d9f0;
+  background: #172936;
+}
+
+.state-inspection_recorded > span,
+.state-service_recorded > span {
+  background: #73c7ea;
+}
+
+.diag-status-explainer,
+.diag-prediction-panel > p,
+.diag-assistant-panel > p {
+  margin: 10px 14px;
+  color: #98aab5;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.diag-detail-facts {
+  display: grid;
+  padding: 5px 14px 12px;
+}
+
+.diag-data-field {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 29px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgb(46 66 80 / 58%);
+  font-size: 9px;
+}
+
+.diag-data-field:last-child {
+  border-bottom: 0;
+}
+
+.diag-data-field > span {
+  color: #8499a8;
+  flex: 0 0 auto;
+}
+
+.diag-data-field > strong {
+  overflow-wrap: anywhere;
+  color: #d6e2e8;
+  font-size: 9px;
+  font-weight: 550;
+  text-align: right;
+}
+
+.diag-finding-note {
+  margin: 0 14px 12px;
+  padding: 9px;
+  border-left: 2px solid #c89d52;
+  background: rgb(114 81 24 / 16%);
+}
+
+.diag-finding-note > span {
+  color: #d6b87f;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: .8px;
+}
+
+.diag-finding-note p {
+  margin: 6px 0 0;
+  color: #d6d1c2;
+  font-size: 9px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.diag-actions-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 14px 13px;
+}
+
+.diag-editor {
+  display: grid;
+  gap: 10px;
+  margin: 0 12px 12px;
+  padding: 11px;
+  border: 1px solid #355166;
+  border-radius: 5px;
+  background: #0b1721;
+}
+
+.diag-editor-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+}
+
+.diag-editor-heading h3 {
+  margin: 3px 0 0;
+  font-size: 12px;
+}
+
+.diag-editor label,
+.diag-mileage-form label {
+  display: grid;
+  gap: 5px;
+  color: #a8bac5;
+  font-size: 9px;
+}
+
+.diag-editor input,
+.diag-editor select,
+.diag-editor textarea,
+.diag-mileage-form input {
+  min-height: 34px;
+  padding: 7px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.diag-editor textarea {
+  resize: vertical;
+}
+
+.diag-editor-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.diag-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.diag-icon-button {
+  width: 26px;
+  height: 26px;
+  border: 1px solid #405565;
+  border-radius: 4px;
+  color: #cad8de;
+  background: #172633;
+  font-size: 19px;
+  cursor: pointer;
+}
+
+.diag-prediction-panel,
+.diag-assistant-panel {
+  overflow: hidden;
+  padding-bottom: 12px;
+}
+
+.diag-interval-note {
+  display: block;
+  margin: 8px 14px 0;
+  color: #9c9070;
+  font-size: 8px;
+  line-height: 1.55;
+}
+
+.diag-muted {
+  color: #91a4b0;
+  font-size: 10px;
+}
+
+.diag-assistant-response {
+  max-height: 210px;
+  overflow: auto;
+  margin: 10px 13px;
+  padding: 10px;
+  border: 1px solid #315066;
+  border-radius: 4px;
+  color: #d5e5ee;
+  background: #0a1822;
+  font-size: 10px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.diag-assistant-button {
+  min-height: 34px;
+  margin: 0 13px;
+  padding: 7px 10px;
+  border: 1px solid #468cad;
+  border-radius: 4px;
+  color: #d9f4ff;
+  background: #17384a;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.diag-assistant-button:hover {
+  background: #1d4b63;
+}
+
+.diag-spec-panel {
+  overflow: hidden;
+}
+
+.diag-spec-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 14px;
+  padding: 4px 14px 10px;
+}
+
+.diag-history-panel {
+  max-width: 1700px;
+  margin: 13px auto 0;
+  overflow: hidden;
+}
+
+.diag-history-list {
+  display: grid;
+}
+
+.diag-history-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.5fr) repeat(3, minmax(105px, .65fr));
+  gap: 13px;
+  padding: 12px 15px;
+  border-bottom: 1px solid rgb(44 65 79 / 65%);
+}
+
+.diag-history-row:last-child {
+  border-bottom: 0;
+}
+
+.diag-history-row > div {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.diag-history-row strong,
+.diag-history-row span {
+  color: #d5e2e8;
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
+.diag-history-row > div:first-child span {
+  color: #91a5b1;
+  line-height: 1.5;
+}
+
+.diag-history-row small {
+  color: #8095a2;
+  font-size: 8px;
+}
+
+.diag-history-empty {
+  padding: 17px 15px;
+  color: #95a8b3;
+  font-size: 10px;
+}
+
+.diag-mileage-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  max-width: 1700px;
+  margin: 13px auto 0;
+  padding: 13px 15px;
+}
+
+.diag-mileage-panel h2 {
+  margin: 3px 0;
+  font-size: 12px;
+}
+
+.diag-mileage-panel p {
+  margin: 0;
+  color: #8fa3af;
+  font-size: 9px;
+}
+
+.diag-mileage-current,
+.diag-mileage-form {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+
+.diag-mileage-current > strong {
+  padding: 8px 0;
+  color: #e1edf3;
+  font-size: 12px;
+}
+
+.diag-mileage-form label {
+  min-width: 145px;
+}
+
+@media (max-width: 1220px) {
+  .diag-workspace {
+    grid-template-columns: minmax(190px, .65fr) minmax(370px, 1.5fr);
+  }
+
+  .diag-detail-column {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .diag-detail-panel,
+  .diag-prediction-panel,
+  .diag-assistant-panel {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 820px) {
+  .diag-header {
+    display: grid;
+    align-items: stretch;
+  }
+
+  .diag-header-actions {
+    align-items: end;
+  }
+
+  .diag-vehicle-select {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .diag-summary-strip {
+    flex-wrap: wrap;
+  }
+
+  .diag-overall-status {
+    flex-basis: 100%;
+    border-bottom: 1px solid var(--diag-border);
+  }
+
+  .diag-summary-stat {
+    flex: 1 1 25%;
+    min-width: 90px;
+    border-left: 0;
+  }
+
+  .diag-summary-stat + .diag-summary-stat {
+    border-left: 1px solid var(--diag-border);
+  }
+
+  .diag-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .diag-component-sidebar {
+    order: 1;
+  }
+
+  .diag-main-column {
+    order: 0;
+  }
+
+  .diag-component-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .diag-detail-column {
+    order: 2;
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .diag-canvas-wrap {
+    height: clamp(290px, 65vw, 420px);
+  }
+}
+
+@media (max-width: 560px) {
+  .maintenance-diagnostics {
+    padding: 13px 10px 24px;
+  }
+
+  .diag-header-actions {
+    display: grid;
+  }
+
+  .diag-refresh-button {
+    width: 100%;
+  }
+
+  .diag-summary-stat {
+    padding: 10px 8px;
+  }
+
+  .diag-summary-stat span {
+    font-size: 8px;
+  }
+
+  .diag-component-list {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .diag-spec-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .diag-history-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .diag-mileage-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .diag-mileage-form {
+    flex-wrap: wrap;
+  }
+
+  .diag-mileage-form label {
+    flex: 1 1 100%;
+  }
+
+  .diag-editor-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diag-pin {
+    transition: none;
+  }
+}
