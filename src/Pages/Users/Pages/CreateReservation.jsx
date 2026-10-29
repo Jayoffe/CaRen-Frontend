@@ -12,7 +12,7 @@ function localDate(value) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
 }
 
-export default function CreateReservation({ navigate, carId }) {
+export default function CreateReservation({ navigate, carId, setToast }) {
   const [car, setCar] = useState(null)
   const [loading, setLoading] = useState(Boolean(carId))
   const [submitting, setSubmitting] = useState(false)
@@ -23,6 +23,7 @@ export default function CreateReservation({ navigate, carId }) {
   const rentalDays = startDate && endDate
     ? Math.round((Date.parse(endDate) - Date.parse(startDate)) / 86400000)
     : 0
+  const minimumDays = Math.max(1, Number(car?.minimum_rental_duration || 1))
   const amount = rentalDays > 0 ? rentalDays * Number(car?.daily_rental_price || 0) : 0
   const vehicleImage = imageUrl(car?.primary_image || car?.images?.[0]?.image_path)
 
@@ -49,9 +50,14 @@ export default function CreateReservation({ navigate, carId }) {
       setError('Choose a return date at least one day after pickup.')
       return
     }
+    if (rentalDays < minimumDays) {
+      setError(`This vehicle has a minimum rental of ${minimumDays} days.`)
+      return
+    }
     setSubmitting(true)
     try {
-      await createReservation({ car_id: Number(carId), start_date: startDate, end_date: endDate })
+      const response = await createReservation({ car_id: Number(carId), start_date: startDate, end_date: endDate })
+      setToast?.(response?.message || 'Reservation request submitted.')
       navigate('/users/reservations')
     } catch (requestError) {
       setError(requestError.message)
@@ -94,11 +100,14 @@ export default function CreateReservation({ navigate, carId }) {
             <div className="form-grid">
               <label className="form-field">
                 <span>Pickup date <i>*</i></span>
-                <input type="date" min={today} required value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+                <input type="date" min={today} required value={startDate} onChange={(event) => {
+                  setStartDate(event.target.value)
+                  if (endDate && endDate <= event.target.value) setEndDate('')
+                }} />
               </label>
               <label className="form-field">
                 <span>Return date <i>*</i></span>
-                <input type="date" min={startDate || today} required value={endDate} onChange={(event) => setEndDate(event.target.value)} />
+                <input type="date" min={startDate ? new Date(Date.parse(startDate) + 86400000).toISOString().slice(0, 10) : today} required value={endDate} onChange={(event) => setEndDate(event.target.value)} />
               </label>
             </div>
             <div className="editor-footer">
@@ -123,6 +132,7 @@ export default function CreateReservation({ navigate, carId }) {
             <div className="summary-lines">
               <p><span>Daily rate</span><b>{money(car.daily_rental_price)} / day</b></p>
               <p><span>Rental days</span><b>{rentalDays > 0 ? rentalDays : '—'}</b></p>
+              <p><span>Minimum rental</span><b>{minimumDays} day{minimumDays === 1 ? '' : 's'}</b></p>
               <p className="summary-total"><span>Estimated rental amount</span><b>{money(amount)}</b></p>
               {Number(car.security_deposit) > 0 && <small>Security deposit of {money(car.security_deposit)} may apply separately.</small>}
               {car.status !== 'available' && <p className="error-text">This vehicle is not currently available.</p>}
