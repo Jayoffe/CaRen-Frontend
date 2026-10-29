@@ -1,22 +1,22 @@
 :root {
-  font-family: 'Segoe UI', Arial, sans-serif;
-  color: #233344;
-  background: #f4f5f2;
+  font-family: 'Outfit', 'Segoe UI', Arial, sans-serif;
+  color: #202a28;
+  background: #f7f6f1;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-optical-sizing: auto;
   font-weight: 400;
-  --navy: #172b3a;
-  --navy-2: #21394a;
-  --blue: #176b78;
-  --blue-dark: #105763;
-  --ink: #213344;
-  --muted: #71808c;
-  --line: #e0e5e5;
+  --navy: #1d2c28;
+  --navy-2: #263f39;
+  --blue: #35564a;
+  --blue-dark: #243a34;
+  --ink: #202a28;
+  --muted: #68716c;
+  --line: #e5e6df;
   --surface: #ffffff;
-  --canvas: #f4f5f2;
+  --canvas: #f7f6f1;
 }
 
 * {
@@ -28,6 +28,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background: var(--canvas);
+  color: var(--ink);
 }
 
 button,
@@ -50,7 +51,7 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid rgb(22 115 232 / 25%);
+  outline: 3px solid rgb(53 86 74 / 28%);
   outline-offset: 2px;
 }
 
@@ -64,5 +65,5 @@ img {
 
 ::selection {
   color: #fff;
-  background: #287ee6;
+  background: #35564a;
 }

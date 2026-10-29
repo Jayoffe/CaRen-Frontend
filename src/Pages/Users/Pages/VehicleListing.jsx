@@ -14,7 +14,7 @@ function money(value) {
 export default function VehicleListing({ navigate }) {
   const [cars, setCars] = useState([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get('search') || '')
   const [category, setCategory] = useState('')
   const [transmission, setTransmission] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
