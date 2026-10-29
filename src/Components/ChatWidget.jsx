@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { api } from '../api'
+import { sendChatMessage } from '../Services/API/aiAPI.js'
 import MarkdownMessage from './MarkdownMessage.jsx'
 import './ChatWidget.css'
 
-const WELCOME_MESSAGE = 'Hi! I’m the DriveRent assistant. Ask me about available cars, rental prices, or rental requirements.'
+const WELCOME_MESSAGE = 'Hi! I’m the DriveRent AI assistant. Ask me about rentals, vehicle features, or general maintenance.'
 
 export default function ChatWidget({ user }) {
   const [open, setOpen] = useState(false)
@@ -39,14 +39,10 @@ export default function ChatWidget({ user }) {
     setRequestError(null)
     setLoading(true)
     try {
-      const response = await api.post('/api/chat', {
+      const result = await sendChatMessage({
         message: text,
         conversation_id: conversationId,
       })
-      const result = response.data
-      if (typeof result?.message !== 'string' || !result.message.trim()) {
-        throw new Error('The chat service returned an empty response.')
-      }
       setServiceStatus('online')
       setConversationId(result.conversation_id || null)
       setMessages((current) => [...current, { role: 'assistant', content: result.message }])
@@ -69,7 +65,7 @@ export default function ChatWidget({ user }) {
             <span className="dr-chat-avatar" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M4 13.5 5.6 8a2 2 0 0 1 1.9-1.4h9A2 2 0 0 1 18.4 8l1.6 5.5v5h-2v-2H6v2H4v-5.5Z" /><path d="M5 13.5h14M7 11h.01M17 11h.01" /></svg>
             </span>
-            <span className="dr-chat-title"><strong>DriveRent support</strong><small>Car rental assistance</small><span className={`dr-chat-status dr-chat-status-${serviceStatus}`} aria-live="polite"><i />{serviceStatus === 'unknown' ? 'Status unknown' : serviceStatus === 'online' ? 'Online' : 'Offline'}</span></span>
+            <span className="dr-chat-title"><strong>DriveRent AI assistant</strong><small>Rental and maintenance help</small><span className={`dr-chat-status dr-chat-status-${serviceStatus}`} aria-live="polite"><i />{serviceStatus === 'unknown' ? 'Status unknown' : serviceStatus === 'online' ? 'Online' : 'Offline'}</span></span>
             <div className="dr-chat-header-actions">
               <button type="button" onClick={() => setMinimized((current) => !current)} aria-label={minimized ? 'Expand chat' : 'Minimize chat'}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d={minimized ? 'M5 12h14M12 5l7 7-7 7' : 'M5 12h14'} /></svg>
@@ -112,7 +108,7 @@ export default function ChatWidget({ user }) {
                       event.currentTarget.form.requestSubmit()
                     }
                   }}
-                  placeholder="Ask about renting a car..."
+                  placeholder="Ask about rentals or maintenance..."
                   rows={1}
                   maxLength={4000}
                   disabled={loading}
@@ -121,7 +117,7 @@ export default function ChatWidget({ user }) {
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 4 16 8-16 8 3-8-3-8Zm3 8h13" /></svg>
                 </button>
               </form>
-              <p className="dr-chat-note">Rental questions only · Bookings aren’t created in chat</p>
+              <p className="dr-chat-note">Local AI assistance · Bookings aren’t created in chat</p>
             </>
           )}
         </section>
