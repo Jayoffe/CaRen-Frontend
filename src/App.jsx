@@ -15,6 +15,7 @@ import VehicleManagementPage from './Pages/Admin/Pages/VehicleManagement.jsx'
 import ReservationManagementPage from './Pages/Admin/Pages/ReservationManagement.jsx'
 import FleetOperationsPage from './Pages/Admin/Pages/FleetOperations.jsx'
 import MaintenanceManagementPage from './Pages/Admin/Pages/MaintenanceManagement.jsx'
+import MaintenanceDataCollectionPage from './Pages/Admin/Pages/MaintenanceDataCollection.jsx'
 import MaintenancePredictionsPage from './Pages/Admin/Pages/MaintenancePredictions.jsx'
 import VehicleRecommendationsPage from './Pages/Users/Pages/VehicleRecommendations.jsx'
 import DemandPricingIntelligencePage from './Pages/Admin/Pages/DemandPricingIntelligence.jsx'
@@ -168,6 +169,8 @@ function App() {
     content = <FleetOperationsPage navigate={navigate} />
   } else if (path === '/admin/maintenance/records') {
     content = <MaintenanceManagementPage navigate={navigate} />
+  } else if (path === '/admin/maintenance/data') {
+    content = <MaintenanceDataCollectionPage />
   } else if (path === '/admin/maintenance/predictions') {
     content = <MaintenancePredictionsPage navigate={navigate} />
   } else if (path === '/admin/intelligence/demand') {
@@ -305,6 +308,8 @@ function Navbar({ user, adminLayout, customerLayout = false, path, navigate, log
 function AdminSidebar({ path, navigate, logout, open, onNavigate }) {
   const intelligenceItems = [
     ['/admin/maintenance', 'gear', 'Fleet Operations'],
+    ['/admin/maintenance/records', 'gear', 'Service History'],
+    ['/admin/maintenance/data', 'history', 'Maintenance Evidence'],
     ['/admin/intelligence/demand', 'chart', 'Demand Intelligence'],
     ['/admin/maintenance/predictions', 'shield', 'Predictive Maintenance'],
   ]
