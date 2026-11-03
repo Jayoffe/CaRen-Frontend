@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { createPaymentCheckout, getReservations, updateReservationStatus } from '../../../Services/API/reservationAPI.js'
+import { getReservations, submitManualPayment, updateReservationStatus } from '../../../Services/API/reservationAPI.js'
 
 function money(value) {
   const amount = Number(value || 0)
@@ -83,10 +83,11 @@ export default function MyReservations({ navigate, view = 'all' }) {
     setPayingId(id)
     setError('')
     try {
-      const response = await createPaymentCheckout(id)
-      const checkoutUrl = response?.data?.checkout_url
-      if (!checkoutUrl) throw new Error('The payment service did not return a GCash checkout link.')
-      window.location.assign(checkoutUrl)
+      const reference = window.prompt('Send the exact rental amount to GCash 09979051769, then enter your GCash reference number:')
+      if (!reference?.trim()) return
+      await submitManualPayment(id, reference.trim())
+      await refresh()
+      setNotice('GCash payment submitted. An administrator will verify it before vehicle handover.')
     } catch (requestError) {
       setError(requestError.message)
       setPayingId(null)

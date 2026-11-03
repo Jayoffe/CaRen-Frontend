@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getReservations } from '../../../Services/API/reservationAPI.js'
+import { getReservations, verifyManualPayment } from '../../../Services/API/reservationAPI.js'
 
 function money(value) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value || 0))
@@ -9,6 +9,7 @@ export default function PaymentManagement() {
   const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [updatingId, setUpdatingId] = useState(null)
 
   useEffect(() => {
     let active = true
@@ -25,6 +26,20 @@ export default function PaymentManagement() {
     return () => { active = false }
   }, [])
 
+  async function verify(id, decision) {
+    setUpdatingId(id)
+    setError('')
+    try {
+      await verifyManualPayment(id, decision)
+      const results = await getReservations()
+      setPayments(results.filter((item) => Number(item.payment_required) === 1))
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
   const paidTotal = payments
     .filter((payment) => payment.payment_status === 'paid')
     .reduce((total, payment) => total + Number(payment.total_amount || 0), 0)
@@ -35,7 +50,7 @@ export default function PaymentManagement() {
         <div>
           <span className="eyebrow">FINANCE</span>
           <h1>Payment history</h1>
-          <p>GCash payments verified by PayMongo webhooks.</p>
+          <p>Manual GCash submissions for 09979051769.</p>
         </div>
       </header>
       <section className="maintenance-panel">
@@ -47,7 +62,7 @@ export default function PaymentManagement() {
           : payments.length ? (
             <div style={{ overflowX: 'auto' }}>
               <table className="reservation-table">
-                <thead><tr><th>Customer</th><th>Reservation</th><th>Vehicle</th><th>Amount</th><th>Status</th><th>Paid on</th></tr></thead>
+                <thead><tr><th>Customer</th><th>Reservation</th><th>Vehicle</th><th>Amount</th><th>Status</th><th>Paid on</th><th>Actions</th></tr></thead>
                 <tbody>{payments.map((payment) => (
                   <tr key={payment.id}>
                     <td>{payment.full_name || payment.username}<small>{payment.email}</small></td>
@@ -56,6 +71,7 @@ export default function PaymentManagement() {
                     <td>{money(payment.total_amount)}</td>
                     <td>{payment.payment_status}</td>
                     <td>{payment.payment_paid_at || 'Not paid'}</td>
+                    <td>{payment.payment_status === 'pending' && <><button className="button button-primary" disabled={updatingId === payment.id} onClick={() => verify(payment.id, 'approve')}>Verify</button> <button className="button button-outline" disabled={updatingId === payment.id} onClick={() => verify(payment.id, 'reject')}>Reject</button></>}</td>
                   </tr>
                 ))}</tbody>
               </table>
