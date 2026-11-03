@@ -20,6 +20,7 @@ export default function GoogleSignInButton({ onCredential, onError }) {
       if (!active || !window.google?.accounts?.id || !buttonRef.current) return
       window.google.accounts.id.initialize({
         client_id: clientId,
+        ux_mode: 'popup',
         callback: (response) => {
           if (response?.credential) callbacks.current.onCredential(response.credential)
           else callbacks.current.onError('Google did not return an identity credential.')
