@@ -11221,3 +11221,220 @@ body,
     transform: translateY(0);
   }
 }
+
+.google-auth-button {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.google-auth-button > div {
+  max-width: 100%;
+}
+
+.google-auth-button.is-loading {
+  opacity: .7;
+}
+
+.google-auth-help {
+  margin: 0;
+  color: #5b6065;
+  font-size: .85rem;
+  line-height: 1.5;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #686d71;
+  font-size: .8rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  height: 1px;
+  flex: 1;
+  background: #d7d9da;
+  content: "";
+}
+
+.rental-special-request,
+.rental-agreement-acceptance > label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: #282d31;
+  line-height: 1.5;
+}
+
+.rental-special-request input,
+.rental-agreement-acceptance input {
+  width: 18px;
+  height: 18px;
+  margin: 3px 0 0;
+  accent-color: #356b57;
+  flex: 0 0 auto;
+}
+
+.rental-special-request span,
+.rental-special-request small {
+  display: block;
+}
+
+.rental-special-request small,
+.rental-agreement-acceptance p {
+  color: #5b6065;
+  font-size: .9rem;
+  line-height: 1.55;
+}
+
+.rental-agreement-acceptance {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid #d7d9da;
+  border-radius: 12px;
+}
+
+.rental-agreement-acceptance h3,
+.rental-agreement-acceptance p {
+  margin: 0;
+}
+
+.rental-availability {
+  padding: 11px 14px;
+  border-radius: 8px;
+  background: #f0f1ef;
+  color: #393e3c;
+  font-size: .9rem;
+}
+
+.rental-availability.is-available {
+  background: #e7f2eb;
+  color: #24543c;
+}
+
+.rental-availability.is-unavailable {
+  background: #f8e9e7;
+  color: #842f27;
+}
+
+.special-rental-note {
+  color: #755320;
+  font-size: .88rem;
+}
+
+.reservation-payment-status {
+  color: #4a5054;
+  font-size: .9rem;
+}
+
+.inline-action {
+  margin-left: 8px;
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: #24543c;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.reservation-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contract-dialog-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(20 24 22 / 58%);
+}
+
+.rental-contract-print {
+  width: min(760px, 100%);
+  max-height: min(86vh, 900px);
+  overflow: auto;
+  padding: 28px;
+  border-radius: 12px;
+  background: #fff;
+  color: #252a28;
+  box-shadow: 0 16px 48px rgb(20 24 22 / 22%);
+}
+
+.rental-contract-print header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.rental-contract-print header > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rental-contract-print pre {
+  margin: 22px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  line-height: 1.7;
+}
+
+@media (max-width: 640px) {
+  .contract-dialog-backdrop {
+    padding: 12px;
+  }
+
+  .rental-contract-print {
+    max-height: 92vh;
+    padding: 18px;
+  }
+
+  .rental-contract-print header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .contract-dialog-backdrop,
+  .contract-dialog-backdrop * {
+    visibility: visible !important;
+  }
+
+  .contract-dialog-backdrop {
+    position: absolute;
+    inset: 0;
+    display: block;
+    padding: 0;
+    background: #fff;
+  }
+
+  .rental-contract-print {
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .rental-contract-print header > div {
+    display: none;
+  }
+}

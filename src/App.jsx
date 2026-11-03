@@ -95,8 +95,7 @@ function App() {
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [adminNavOpen, customerNavOpen])
 
-  const login = async (credentials) => {
-    const response = await api.post('/api/login', credentials)
+  const finishLogin = (response) => {
     const loggedInUser = response?.data ?? (response?.role ? response : null)
     if (!loggedInUser || typeof loggedInUser !== 'object' || !loggedInUser.role) {
       throw new Error('The login response did not include user information. Check that the backend API is up to date.')
@@ -111,6 +110,9 @@ function App() {
       ? '/admin/dashboard'
       : nextPath || '/users/dashboard', true)
   }
+
+  const login = async (credentials) => finishLogin(await api.post('/api/login', credentials))
+  const loginWithGoogle = async (credential) => finishLogin(await api.post('/api/google-auth', { credential }))
 
   const logout = async () => {
     setApiError('')
@@ -138,8 +140,8 @@ function App() {
     content = user
       ? <Redirect navigate={navigate} to={admin ? '/admin/dashboard' : '/users/dashboard'} />
       : path === '/auth/sign-up'
-        ? <SignUp navigate={navigate} />
-        : <Login onLogin={login} navigate={navigate} onError={setApiError} error={apiError} />
+        ? <SignUp navigate={navigate} onGoogleLogin={loginWithGoogle} />
+        : <Login onLogin={login} onGoogleLogin={loginWithGoogle} navigate={navigate} onError={setApiError} error={apiError} />
   } else if (path === '/') {
     content = <HomePage {...shared} onOpenApiError={setApiError} reloadKey={reloadKey} />
   } else if (path === '/dashboard') {

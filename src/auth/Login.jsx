@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import GoogleSignInButton from './GoogleSignInButton.jsx'
 
-export default function Login({ onLogin, navigate, onError, error }) {
+export default function Login({ onLogin, onGoogleLogin, navigate, onError, error }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -30,6 +31,19 @@ export default function Login({ onLogin, navigate, onError, error }) {
     }
   }
 
+  const googleCredential = async (credential) => {
+    setFormError('')
+    onError('')
+    setLoading(true)
+    try {
+      await onGoogleLogin(credential)
+    } catch (requestError) {
+      setFormError(requestError.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return <div className="login-page">
     <section className="login-visual">
       <div className="login-brand"><button className="logo" onClick={() => navigate('/')} aria-label="DriveRent home"><span className="logo-symbol">D</span><span>Drive<span>Rent</span></span></button></div>
@@ -42,6 +56,8 @@ export default function Login({ onLogin, navigate, onError, error }) {
       <div><span className="eyebrow">YOUR ACCOUNT</span><h2>Welcome back</h2><p>Enter your account details to continue.</p></div>
       {success && <div className="auth-success" role="status">{success}</div>}
       {(formError || error) && <div className="error-message" role="alert">{formError || error}</div>}
+      <GoogleSignInButton onCredential={googleCredential} onError={setFormError} />
+      <div className="auth-divider"><span>or use email</span></div>
       <label className="form-field"><span>Email address or username</span><input type="text" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required /></label>
       <label className="form-field"><span>Password</span><div className="password-input"><input autoComplete="current-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" required /><button type="button" onClick={() => setShowPassword((show) => !show)}>{showPassword ? 'Hide' : 'Show'}</button></div></label>
       <button className="button button-primary login-submit" disabled={loading}>{loading ? <><span className="button-spinner" />Signing in…</> : 'Sign in'}</button>

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { api } from '../api'
+import GoogleSignInButton from './GoogleSignInButton.jsx'
 
-export default function SignUp({ navigate }) {
+export default function SignUp({ navigate, onGoogleLogin }) {
   const [values, setValues] = useState({ full_name: '', email: '', password: '', confirm_password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -32,6 +33,18 @@ export default function SignUp({ navigate }) {
     }
   }
 
+  const googleCredential = async (credential) => {
+    setError('')
+    setLoading(true)
+    try {
+      await onGoogleLogin(credential)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return <div className="login-page">
     <section className="login-visual">
       <div className="login-brand"><button className="logo" onClick={() => navigate('/')} aria-label="DriveRent home"><span className="logo-symbol">D</span><span>Drive<span>Rent</span></span></button></div>
@@ -43,6 +56,8 @@ export default function SignUp({ navigate }) {
     <form className="login-form signup-form" onSubmit={submit}>
       <div><span className="eyebrow">YOUR ACCOUNT</span><h2>Create account</h2><p>Enter your details to get started.</p></div>
       {error && <div className="error-message" role="alert">{error}</div>}
+      <GoogleSignInButton onCredential={googleCredential} onError={setError} />
+      <div className="auth-divider"><span>or use email</span></div>
       <label className="form-field"><span>Full name</span><input name="full_name" autoComplete="name" value={values.full_name} onChange={update} maxLength="150" required /></label>
       <label className="form-field"><span>Email address</span><input name="email" type="email" autoComplete="email" value={values.email} onChange={update} maxLength="255" required /></label>
       <label className="form-field"><span>Password</span><div className="password-input"><input name="password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={values.password} onChange={update} minLength="8" required /><button type="button" onClick={() => setShowPassword((show) => !show)}>{showPassword ? 'Hide' : 'Show'}</button></div></label>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getReservations, updateReservationStatus } from '../../../Services/API/reservationAPI.js'
+import { getReservations, updateReservationStatus, updateVehicleUse } from '../../../Services/API/reservationAPI.js'
 
 function money(value) {
   const amount = Number(value || 0)
@@ -8,7 +8,12 @@ function money(value) {
 
 const adminTransitions = {
   pending: [['confirmed', 'Confirm'], ['rejected', 'Reject']],
-  confirmed: [['completed', 'Complete'], ['cancelled', 'Cancel']],
+  confirmed: [['cancelled', 'Cancel']],
+}
+
+function localToday() {
+  const now = new Date()
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
 }
 
 export default function ReservationManagement({ historyView = false, setToast }) {
@@ -18,6 +23,7 @@ export default function ReservationManagement({ historyView = false, setToast })
   const [statusFilter, setStatusFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [updatingId, setUpdatingId] = useState(null)
+  const today = localToday()
 
   const refresh = useCallback(async () => {
     setError('')
@@ -46,6 +52,20 @@ export default function ReservationManagement({ historyView = false, setToast })
       await updateReservationStatus(id, status)
       await refresh()
       setToast?.('Reservation status updated.')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
+  async function updateUse(id, action) {
+    setUpdatingId(id)
+    setError('')
+    try {
+      await updateVehicleUse(id, action)
+      await refresh()
+      setToast?.(action === 'checkout' ? 'Vehicle handover recorded.' : 'Vehicle return recorded.')
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -97,14 +117,31 @@ export default function ReservationManagement({ historyView = false, setToast })
                 <tr key={reservation.id}>
                   <td><b>{reservation.full_name || reservation.username}</b><small>{reservation.email}</small></td>
                   <td>{reservation.make} {reservation.model}</td>
-                  <td>{reservation.start_date} → {reservation.end_date}<small>{reservation.rental_days} days</small></td>
-                  <td>{money(reservation.total_amount)}</td>
+                  <td>{reservation.start_date} → {reservation.end_date}<small>{reservation.rental_days} days</small>
+                    {Number(reservation.special_duration_request) === 1 && <small className="special-rental-note">Special duration request</small>}
+                  </td>
+                  <td>{money(reservation.total_amount)}<small>GCash: {reservation.payment_status}</small></td>
                   <td><span className={`status-pill status-${reservation.status}`}><i />{reservation.status}</span></td>
-                  <td><div className="reservation-actions">{(adminTransitions[reservation.status] || []).map(([status, label]) => (
+                  <td><div className="reservation-actions">{(adminTransitions[reservation.status] || [])
+                    .filter(([status]) => status !== 'cancelled' || (reservation.payment_status !== 'paid' && !reservation.checked_out_at))
+                    .map(([status, label]) => (
                     <button key={status} className={status === 'rejected' || status === 'cancelled' ? 'button button-outline' : 'button button-primary'} disabled={updatingId === reservation.id} onClick={() => updateStatus(reservation.id, status)}>
                       {updatingId === reservation.id ? 'Saving…' : label}
                     </button>
-                  ))}</div></td>
+                  ))}
+                    {reservation.status === 'confirmed' && reservation.checked_out_at && (
+                      <button className="button button-primary" disabled={updatingId === reservation.id} onClick={() => updateUse(reservation.id, 'return')}>
+                        {updatingId === reservation.id ? 'Saving…' : 'Mark returned'}
+                      </button>
+                    )}
+                    {reservation.status === 'confirmed' && !reservation.checked_out_at
+                      && ['paid', 'not_required'].includes(reservation.payment_status)
+                      && reservation.start_date <= today && reservation.end_date > today && (
+                        <button className="button button-primary" disabled={updatingId === reservation.id} onClick={() => updateUse(reservation.id, 'checkout')}>
+                          {updatingId === reservation.id ? 'Saving…' : 'Check out vehicle'}
+                        </button>
+                    )}
+                  </div></td>
                 </tr>
               ))}</tbody>
             </table>
