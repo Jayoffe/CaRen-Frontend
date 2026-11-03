@@ -100,6 +100,9 @@ function App() {
     if (!loggedInUser || typeof loggedInUser !== 'object' || !loggedInUser.role) {
       throw new Error('The login response did not include user information. Check that the backend API is up to date.')
     }
+    if (response?.access_token) {
+      window.sessionStorage.setItem('access_token', response.access_token)
+    }
     setUser(loggedInUser)
     setToast(`Welcome, ${loggedInUser.full_name || loggedInUser.username || loggedInUser.email || 'there'}.`)
     const requestedPath = new URLSearchParams(window.location.search).get('next')
@@ -118,6 +121,7 @@ function App() {
     setApiError('')
     try {
       await api.post('/api/logout', {})
+      window.sessionStorage.removeItem('access_token')
       setUser(null)
       setToast('You have been signed out.')
       navigate('/auth/login')

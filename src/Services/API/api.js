@@ -5,6 +5,10 @@ async function request(endpoint, options = {}) {
   const isFormData = options.body instanceof FormData
   const isUrlEncoded = options.body instanceof URLSearchParams
   const headers = new Headers(options.headers || {})
+  const accessToken = window.sessionStorage.getItem('access_token')
+  if (accessToken && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${accessToken}`)
+  }
   if (isUrlEncoded && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')
   } else if (!isFormData && !isUrlEncoded && options.body !== undefined && !headers.has('Content-Type')) {
