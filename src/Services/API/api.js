@@ -3,8 +3,11 @@ export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.
 
 async function request(endpoint, options = {}) {
   const isFormData = options.body instanceof FormData
+  const isUrlEncoded = options.body instanceof URLSearchParams
   const headers = new Headers(options.headers || {})
-  if (!isFormData && options.body !== undefined && !headers.has('Content-Type')) {
+  if (isUrlEncoded && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')
+  } else if (!isFormData && !isUrlEncoded && options.body !== undefined && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
 
@@ -52,7 +55,7 @@ export const api = {
   post: (endpoint, body, options = {}) => request(endpoint, {
     ...options,
     method: 'POST',
-    body: body instanceof FormData ? body : JSON.stringify(body),
+    body: body instanceof FormData || body instanceof URLSearchParams ? body : JSON.stringify(body),
   }),
   put: (endpoint, body, options = {}) => request(endpoint, {
     ...options,

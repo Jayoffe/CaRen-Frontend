@@ -18,11 +18,11 @@ export default function SignUp({ navigate, onGoogleLogin }) {
     }
     setLoading(true)
     try {
-      const response = await api.post('/api/register', {
+      const response = await api.post('/api/register', new URLSearchParams({
         full_name: values.full_name.trim(),
         email: values.email.trim(),
         password: values.password,
-      })
+      }))
       if (response?.success !== true) throw new Error('The API did not confirm account creation.')
       window.sessionStorage.setItem('authSuccess', 'Your account was created successfully. Please sign in.')
       navigate('/auth/login')

@@ -111,8 +111,8 @@ function App() {
       : nextPath || '/users/dashboard', true)
   }
 
-  const login = async (credentials) => finishLogin(await api.post('/api/login', credentials))
-  const loginWithGoogle = async (credential) => finishLogin(await api.post('/api/google-auth', { credential }))
+  const login = async (credentials) => finishLogin(await api.post('/api/login', new URLSearchParams(credentials)))
+  const loginWithGoogle = async (credential) => finishLogin(await api.post('/api/google-auth', new URLSearchParams({ credential })))
 
   const logout = async () => {
     setApiError('')
