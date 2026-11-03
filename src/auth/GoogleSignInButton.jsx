@@ -34,13 +34,6 @@ export default function GoogleSignInButton({ onCredential, onError }) {
         shape: 'rectangular',
         width: 320,
       })
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed?.() && notification.getNotDisplayedReason?.()) {
-          callbacks.current.onError(`Google sign-in could not open: ${notification.getNotDisplayedReason()}.`)
-        } else if (notification.isSkippedMoment?.() && notification.getSkippedReason?.()) {
-          callbacks.current.onError(`Google sign-in was cancelled: ${notification.getSkippedReason()}.`)
-        }
-      })
       setScriptReady(true)
     }
 
