@@ -43,7 +43,7 @@ export default function CreateReservation({ navigate, carId, setToast }) {
       })
       .catch((requestError) => {
         if (active) {
-          setAvailability(false)
+          setAvailability(null)
           setError(requestError.message)
         }
       })
