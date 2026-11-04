@@ -276,9 +276,9 @@ export default function InspectionStage({ rig, vehicle, components, selectedKey,
       <Canvas
         className="pm-canvas"
         frameloop="demand"
-        dpr={[1, 1.75]}
+        dpr={[1, 1.25]}
         camera={{ fov: 34, near: 0.05, far: 80, position: [6, 3, -6] }}
-        gl={{ antialias: true, powerPreference: 'high-performance' }}
+        gl={{ antialias: false, powerPreference: 'default' }}
         onCreated={({ gl }) => {
           gl.domElement.addEventListener('webglcontextlost', (event) => { event.preventDefault(); setWebglError(true) }, { once: true })
         }}

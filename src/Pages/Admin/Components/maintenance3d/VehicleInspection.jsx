@@ -21,6 +21,17 @@ function StageMessage({ children, onBack, onRetry }) {
   )
 }
 
+function normalizeBodyType(vehicle) {
+  const value = String(vehicle?.body_type || vehicle?.category || '').trim().toLowerCase()
+  if (/motor|bike|scooter/.test(value)) return 'motorcycle'
+  if (/mini-?van|\bmpv\b|multi-?purpose/.test(value)) return 'minivan'
+  if (/pick-?up|truck/.test(value)) return 'pickup'
+  if (/\bvan\b/.test(value)) return 'van'
+  if (/\bsuv\b|crossover|4x4|off-?road/.test(value)) return 'suv'
+  if (/sedan|saloon|hatch|coupe|compact|economy|convertible|wagon|\bcar\b/.test(value)) return 'sedan'
+  return null
+}
+
 /**
  * One vehicle's inspection view. Mounted with key={vehicleId}, so switching
  * vehicles discards all component state; responses are also checked against
@@ -70,7 +81,7 @@ export default function VehicleInspection({ vehicleId, onBack }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const bodyType = data?.vehicle.body_type
+  const bodyType = normalizeBodyType(data?.vehicle)
   const rig = useMemo(() => (bodyType === undefined ? null : rigFor(bodyType)), [bodyType])
   const vehicle = data?.vehicle
   const components = data?.components || []
