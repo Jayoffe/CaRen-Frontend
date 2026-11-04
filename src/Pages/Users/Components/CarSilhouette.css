@@ -1,0 +1,17 @@
+.car-silhouette {
+  width: min(64%, 200px);
+  height: auto;
+}
+
+.car-silhouette-body {
+  fill: #cfd5ca;
+}
+
+.car-silhouette-glass,
+.car-silhouette-hub {
+  fill: #eef0ea;
+}
+
+.car-silhouette-tyre {
+  fill: #7e8a81;
+}

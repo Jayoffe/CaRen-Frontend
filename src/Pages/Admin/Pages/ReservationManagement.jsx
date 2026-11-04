@@ -20,7 +20,7 @@ export default function ReservationManagement({ historyView = false, setToast })
   const [reservations, setReservations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState(() => new URLSearchParams(window.location.search).get('status') || 'all')
   const [search, setSearch] = useState('')
   const [updatingId, setUpdatingId] = useState(null)
   const today = localToday()
@@ -83,6 +83,7 @@ export default function ReservationManagement({ historyView = false, setToast })
       reservation.email,
       reservation.make,
       reservation.model,
+      reservation.variant_color,
       reservation.plate_number,
     ].some((value) => String(value || '').toLowerCase().includes(searchTerm)))
   ))
@@ -116,7 +117,7 @@ export default function ReservationManagement({ historyView = false, setToast })
               <tbody>{visibleReservations.map((reservation) => (
                 <tr key={reservation.id}>
                   <td><b>{reservation.full_name || reservation.username}</b><small>{reservation.email}</small></td>
-                  <td>{reservation.make} {reservation.model}</td>
+                  <td>{reservation.make} {reservation.model}{reservation.variant_color && <small>{reservation.variant_color}</small>}</td>
                   <td>{reservation.start_date} → {reservation.end_date}<small>{reservation.rental_days} days</small>
                     {Number(reservation.special_duration_request) === 1 && <small className="special-rental-note">Special duration request</small>}
                   </td>

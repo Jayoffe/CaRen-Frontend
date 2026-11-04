@@ -1,13 +1,47 @@
 import { useCallback, useEffect, useState } from 'react'
+import { imageUrl } from '../../../Services/API/api.js'
 import { getReservations, submitManualPayment, updateReservationStatus } from '../../../Services/API/reservationAPI.js'
+import CarSilhouette from '../Components/CarSilhouette.jsx'
+import { AgreementDialog, CancelDialog, PaymentDialog } from '../Components/ReservationDialogs.jsx'
+import './MyReservations.css'
+
+const SKELETON_CARDS = [1, 2]
+
+const VIEW_COPY = {
+  all: {
+    title: 'My reservations',
+    lede: 'Track your requests, pay once approved, and keep your agreements in one place.',
+    emptyTitle: 'No reservations yet',
+    emptyBody: 'Choose a vehicle and dates to request your first reservation.',
+    emptyAction: 'Find a vehicle',
+  },
+  active: {
+    title: 'Active rentals',
+    lede: 'Approved rentals running today.',
+    emptyTitle: 'No active rentals',
+    emptyBody: 'Confirmed rentals in progress will appear here.',
+    emptyAction: 'Browse vehicles',
+  },
+  history: {
+    title: 'Reservation history',
+    lede: 'Your completed, cancelled, and rejected reservations.',
+    emptyTitle: 'No reservation history yet',
+    emptyBody: 'Completed, cancelled, and rejected reservations will appear here.',
+    emptyAction: 'Browse vehicles',
+  },
+}
+
+const PAYMENT_LABELS = { unpaid: 'Unpaid', pending: 'Being verified', paid: 'Paid', not_required: 'Not required' }
 
 function money(value) {
   const amount = Number(value || 0)
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: amount % 1 ? 2 : 0 }).format(amount)
 }
 
-function ReservationStatus({ status }) {
-  return <span className={`status-pill status-${status}`}><i />{status}</span>
+function formatDate(value) {
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value || '—'
+  return new Intl.DateTimeFormat('en-PH', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).format(date)
 }
 
 function localToday() {
@@ -15,14 +49,113 @@ function localToday() {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
 }
 
+function needsPayment(reservation) {
+  return reservation.status === 'confirmed' && Number(reservation.payment_required) === 1
+}
+
+/** What the customer should expect next, in one sentence. */
+function nextStep(reservation) {
+  const special = Number(reservation.special_duration_request) === 1
+  if (reservation.checked_out_at && !reservation.returned_at && reservation.status === 'confirmed') {
+    return { text: `You have this vehicle. Return it by ${formatDate(reservation.end_date)}.` }
+  }
+  switch (reservation.status) {
+    case 'pending':
+      return { text: `${special ? 'Special duration request. ' : ''}Waiting for administrator approval. You pay after it is approved.` }
+    case 'confirmed':
+      if (needsPayment(reservation) && reservation.payment_status === 'unpaid') return { tone: 'attention', text: 'Approved. Pay with GCash to continue. Payment must be verified before vehicle handover.' }
+      if (reservation.payment_status === 'pending') return { text: 'Payment submitted. An administrator is verifying it.' }
+      return { tone: 'good', text: 'All set. Bring a valid driver license at pickup.' }
+    case 'completed':
+      return { text: 'Rental completed.' }
+    case 'cancelled':
+      return { text: 'This reservation was cancelled.' }
+    case 'rejected':
+      return { text: 'This request was not approved. You can choose other dates or another vehicle.' }
+    default:
+      return null
+  }
+}
+
+function ReservationCard({ reservation, navigate, onAgreement, onPay, onCancel }) {
+  const name = `${reservation.make} ${reservation.model}`
+  const meta = [reservation.year, reservation.category, reservation.variant_color].filter(Boolean).join(' · ')
+  const days = Number(reservation.rental_days)
+  const step = nextStep(reservation)
+  const showPayment = ['pending', 'confirmed', 'completed'].includes(reservation.status) && Number(reservation.payment_required) === 1
+  const canPay = needsPayment(reservation) && reservation.payment_status === 'unpaid'
+  const canCancel = ['pending', 'confirmed'].includes(reservation.status) && !reservation.checked_out_at && reservation.payment_status !== 'paid'
+
+  return (
+    <article className="rv-card">
+      <button type="button" className="rv-photo" onClick={() => navigate(`/users/vehicles/${reservation.car_id}`)} aria-label={`View ${name}`}>
+        <span className="rv-photo-empty" aria-hidden="true"><CarSilhouette category={reservation.category} /></span>
+        {reservation.primary_image && <img
+          src={imageUrl(reservation.primary_image)}
+          alt=""
+          loading="lazy"
+          onError={(event) => { event.currentTarget.hidden = true }}
+        />}
+      </button>
+      <div className="rv-card-body">
+        <div className="rv-card-head">
+          <div>
+            <div className="rv-title">
+              <h2>{name}</h2>
+              <span className={`rv-status rv-status-${reservation.status}`}>{reservation.status}</span>
+            </div>
+            <p>Reservation #{reservation.id}{meta && ` · ${meta}`}</p>
+          </div>
+          <div className="rv-total">
+            <b>{money(reservation.total_amount)}</b>
+            <small>{days} {days === 1 ? 'day' : 'days'} at {money(reservation.daily_rate)}</small>
+          </div>
+        </div>
+
+        <dl className="rv-facts">
+          <div><dt>Pickup</dt><dd>{formatDate(reservation.start_date)}</dd></div>
+          <div><dt>Return</dt><dd>{formatDate(reservation.end_date)}</dd></div>
+          {showPayment && <div><dt>GCash payment</dt><dd>{PAYMENT_LABELS[reservation.payment_status] || reservation.payment_status}</dd></div>}
+        </dl>
+
+        {step && <p className={`rv-next${step.tone ? ` rv-next-${step.tone}` : ''}`}>{step.text}</p>}
+
+        <div className="rv-actions">
+          {canCancel && <button type="button" className="rv-btn-cancel" onClick={() => onCancel(reservation)}>Cancel reservation</button>}
+          {reservation.contract_text && <button type="button" className="rv-btn rv-btn-outline" onClick={() => onAgreement(reservation)}>View agreement</button>}
+          {canPay && <button type="button" className="rv-btn rv-btn-primary" onClick={() => onPay(reservation)}>Pay with GCash</button>}
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function ReservationSkeletons() {
+  return (
+    <div className="rv-list" role="status" aria-label="Loading reservations">
+      {SKELETON_CARDS.map((key) => (
+        <div className="rv-card rv-skeleton" key={key} aria-hidden="true">
+          <div className="rv-photo rv-shimmer" />
+          <div className="rv-card-body">
+            <span className="rv-shimmer rv-line-title" />
+            <span className="rv-shimmer rv-line-meta" />
+            <span className="rv-shimmer rv-line-facts" />
+            <span className="rv-shimmer rv-line-next" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function MyReservations({ navigate, view = 'all' }) {
   const [reservations, setReservations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [updatingId, setUpdatingId] = useState(null)
   const [notice, setNotice] = useState('')
-  const [payingId, setPayingId] = useState(null)
-  const [contract, setContract] = useState(null)
+  const [agreementFor, setAgreementFor] = useState(null)
+  const [cancelFor, setCancelFor] = useState(null)
+  const [payFor, setPayFor] = useState(null)
 
   const refresh = useCallback(async () => {
     setError('')
@@ -65,33 +198,30 @@ export default function MyReservations({ navigate, view = 'all' }) {
     }
   }, [paymentResult, refresh])
 
-  async function cancel(id) {
-    setUpdatingId(id)
-    setError('')
-    try {
-      await updateReservationStatus(id, 'cancelled')
-      await refresh()
-      setNotice('Reservation cancelled.')
-    } catch (requestError) {
-      setError(requestError.message)
-    } finally {
-      setUpdatingId(null)
+  async function confirmCancel() {
+    await updateReservationStatus(cancelFor.id, 'cancelled')
+    setCancelFor(null)
+    setNotice('Reservation cancelled.')
+    await refresh()
+  }
+
+  async function submitPayment(reference) {
+    await submitManualPayment(payFor.id, reference)
+    setPayFor(null)
+    setNotice('GCash payment submitted. An administrator will verify it before vehicle handover.')
+    await refresh()
+  }
+
+  function openDialog(setter) {
+    return (reservation) => {
+      setNotice('')
+      setter(reservation)
     }
   }
 
-  async function pay(id) {
-    setPayingId(id)
-    setError('')
-    try {
-      const reference = window.prompt('Send the exact rental amount to GCash 09979051769, then enter your GCash reference number:')
-      if (!reference?.trim()) return
-      await submitManualPayment(id, reference.trim())
-      await refresh()
-      setNotice('GCash payment submitted. An administrator will verify it before vehicle handover.')
-    } catch (requestError) {
-      setError(requestError.message)
-      setPayingId(null)
-    }
+  function retry() {
+    setLoading(true)
+    refresh()
   }
 
   const today = localToday()
@@ -106,69 +236,66 @@ export default function MyReservations({ navigate, view = 'all' }) {
     }
     return true
   })
-  const pageTitle = view === 'active' ? 'Active rentals' : view === 'history' ? 'Reservation history' : 'My reservations'
+  const copy = VIEW_COPY[view] || VIEW_COPY.all
+  const loadFailed = error && !reservations.length
+
   return (
-    <div className="public-page content-width">
-      <section className="home-section">
-        <div className="detail-heading">
-          <div><div className="detail-breadcrumb">Your trips</div><h1>{pageTitle}</h1></div>
-          <button className="button button-primary" onClick={() => navigate('/users/vehicles')}>Browse vehicles</button>
+    <div className="public-page content-width rv">
+      <header className="rv-header">
+        <div>
+          <span className="rv-eyebrow">Your trips</span>
+          <h1>{copy.title}</h1>
+          <p>{copy.lede}</p>
         </div>
-        {paymentResult === 'success' && <div className="success-message" role="status">Payment submitted. The reservation will update after PayMongo verifies the GCash payment. <button type="button" className="inline-action" onClick={refresh}>Refresh payment status</button></div>}
-        {paymentResult === 'cancelled' && <div className="global-error" role="status">Payment was not completed. You can try GCash checkout again when your reservation is approved.</div>}
-        {notice && <div className="success-message" role="status">{notice}</div>}
-        {error && <div className="global-error" role="alert">{error}</div>}
-        {loading ? <div className="loading-state"><span className="spinner" />Loading reservations…</div>
-          : visibleReservations.length ? <div className="vehicle-list-grid">
+        <button type="button" className="rv-btn rv-btn-primary" onClick={() => navigate('/users/vehicles')}>Browse vehicles</button>
+      </header>
+
+      {paymentResult === 'success' && <div className="rv-banner rv-banner-good" role="status">Payment submitted. The reservation will update after PayMongo verifies the GCash payment. <button type="button" className="rv-btn-link" onClick={refresh}>Refresh payment status</button></div>}
+      {paymentResult === 'cancelled' && <div className="rv-banner rv-banner-bad" role="status">Payment was not completed. You can try GCash checkout again when your reservation is approved.</div>}
+      {notice && <div className="rv-banner rv-banner-good" role="status">{notice}</div>}
+      {error && !loadFailed && <div className="rv-banner rv-banner-bad" role="alert">{error}</div>}
+
+      {loading ? <ReservationSkeletons />
+        : loadFailed ? (
+          <div className="rv-state" role="alert">
+            <h2>We couldn't load your reservations</h2>
+            <p>{error}</p>
+            <button type="button" className="rv-btn rv-btn-primary" onClick={retry}>Try again</button>
+          </div>
+        ) : visibleReservations.length ? (
+          <div className="rv-list">
             {visibleReservations.map((reservation) => (
-              <article className="vehicle-card card-panel" key={reservation.id}>
-                <div className="detail-heading">
-                  <h2>{reservation.make} {reservation.model}</h2>
-                  <ReservationStatus status={reservation.status} />
-                </div>
-                <p>{reservation.start_date} → {reservation.end_date} · {reservation.rental_days} day{Number(reservation.rental_days) === 1 ? '' : 's'}</p>
-                {Number(reservation.special_duration_request) === 1 && <p className="special-rental-note">
-                  {reservation.status === 'pending' ? 'Special duration request. Waiting for administrator approval.' : 'Special duration request.'}
-                </p>}
-                {Number(reservation.payment_required) === 1 && <p className="reservation-payment-status">GCash payment: <b>{reservation.payment_status}</b></p>}
-                <div className="vehicle-card-footer">
-                  <b>{money(reservation.total_amount)}</b>
-                  <div className="reservation-card-actions">
-                    {reservation.contract_text && <button className="button button-outline" onClick={() => setContract(reservation)}>View agreement</button>}
-                    {reservation.status === 'confirmed' && Number(reservation.payment_required) === 1 && reservation.payment_status !== 'paid' &&
-                      <button className="button button-primary" disabled={payingId === reservation.id} onClick={() => pay(reservation.id)}>
-                        {payingId === reservation.id ? 'Opening GCash…' : 'Pay with GCash'}
-                      </button>}
-                    {['pending', 'confirmed'].includes(reservation.status)
-                      && !reservation.checked_out_at
-                      && reservation.payment_status !== 'paid' &&
-                    <button className="button button-outline" disabled={updatingId === reservation.id} onClick={() => cancel(reservation.id)}>
-                      {updatingId === reservation.id ? 'Cancelling…' : 'Cancel reservation'}
-                    </button>}
-                  </div>
-                </div>
-                <small>Reservation #{reservation.id} · {reservation.status === 'pending' ? 'Awaiting admin confirmation' : `Daily rate ${money(reservation.daily_rate)}`}</small>
-                {reservation.checked_out_at && <small>Vehicle checked out. Return must be recorded by the administrator before it becomes rentable again.</small>}
-              </article>
+              <ReservationCard
+                key={reservation.id}
+                reservation={reservation}
+                navigate={navigate}
+                onAgreement={openDialog(setAgreementFor)}
+                onPay={openDialog(setPayFor)}
+                onCancel={openDialog(setCancelFor)}
+              />
             ))}
-          </div> : !error && <div className="empty-state"><h3>{view === 'active' ? 'No active rentals' : view === 'history' ? 'No reservation history yet' : 'No reservations yet'}</h3><p>{view === 'active' ? 'Confirmed rentals in progress will appear here.' : view === 'history' ? 'Completed, cancelled, and rejected reservations will appear here.' : 'Choose a vehicle and dates to request your first reservation.'}</p><button className="button button-primary" onClick={() => navigate('/users/vehicles')}>{view === 'all' ? 'Find a vehicle' : 'Browse vehicles'}</button></div>}
-      </section>
-      {contract && (
-        <div className="contract-dialog-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setContract(null)
-        }}>
-          <section className="rental-contract-print" role="dialog" aria-modal="true" aria-labelledby="rental-contract-title">
-            <header>
-              <h2 id="rental-contract-title">Rental agreement</h2>
-              <div>
-                <button className="button button-outline" onClick={() => window.print()}>Print agreement</button>
-                <button className="button button-outline" onClick={() => setContract(null)}>Close</button>
-              </div>
-            </header>
-            <pre>{contract.contract_text}</pre>
-          </section>
-        </div>
-      )}
+          </div>
+        ) : (
+          <div className="rv-state">
+            <h2>{copy.emptyTitle}</h2>
+            <p>{copy.emptyBody}</p>
+            <button type="button" className="rv-btn rv-btn-primary" onClick={() => navigate('/users/vehicles')}>{copy.emptyAction}</button>
+          </div>
+        )}
+
+      {agreementFor && <AgreementDialog reservation={agreementFor} onClose={() => setAgreementFor(null)} />}
+      {cancelFor && <CancelDialog
+        reservation={cancelFor}
+        dates={`${formatDate(cancelFor.start_date)} to ${formatDate(cancelFor.end_date)}`}
+        onConfirm={confirmCancel}
+        onClose={() => setCancelFor(null)}
+      />}
+      {payFor && <PaymentDialog
+        reservation={payFor}
+        amount={money(payFor.total_amount)}
+        onSubmit={submitPayment}
+        onClose={() => setPayFor(null)}
+      />}
     </div>
   )
 }

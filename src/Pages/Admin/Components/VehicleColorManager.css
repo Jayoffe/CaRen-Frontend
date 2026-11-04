@@ -1,0 +1,203 @@
+.vcm {
+  --vcm-ink: #202a28;
+  --vcm-muted: #5f6964;
+  --vcm-line: #e5e6df;
+  --vcm-green: #35564a;
+}
+
+.vcm-error {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid #f0d6d6;
+  border-radius: 8px;
+  color: #9a3d44;
+  background: #fff5f5;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.vcm-note {
+  margin: 0;
+  color: var(--vcm-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.vcm-rows {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--vcm-line);
+  list-style: none;
+}
+
+.vcm-row,
+.vcm-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.vcm-field {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.vcm-field-color {
+  flex: 1 1 130px;
+}
+
+.vcm-field-stock {
+  flex: 0 0 76px;
+}
+
+.vcm-field > span {
+  color: var(--vcm-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.vcm-field input,
+.vcm-photos select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #d8ded7;
+  border-radius: 8px;
+  color: var(--vcm-ink);
+  background: #fff;
+  font-size: 14px;
+}
+
+.vcm-field input:focus,
+.vcm-photos select:focus {
+  border-color: #829987;
+  box-shadow: 0 0 0 3px rgb(53 86 74 / 12%);
+  outline: 0;
+}
+
+.vcm-upload,
+.vcm-add-button,
+.vcm-remove {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .2s ease, border-color .2s ease, color .2s ease;
+}
+
+.vcm-upload {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #d8ded7;
+  color: var(--vcm-green);
+  background: #fff;
+}
+
+.vcm-upload:hover {
+  border-color: #97a99b;
+  background: #f5f7f3;
+}
+
+.vcm-upload:focus-within {
+  outline: 2px solid #829987;
+  outline-offset: 2px;
+}
+
+.vcm-upload.is-busy {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.vcm-upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.vcm-remove {
+  border: 0;
+  color: #9a3d44;
+  background: none;
+}
+
+.vcm-remove:hover:not(:disabled) {
+  background: #fdf0f0;
+}
+
+.vcm-add-button {
+  border: 0;
+  color: #fff;
+  background: #263f39;
+}
+
+.vcm-add-button:hover:not(:disabled) {
+  background: #192f2a;
+}
+
+.vcm button:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.vcm button:focus-visible {
+  outline: 2px solid #829987;
+  outline-offset: 2px;
+}
+
+.vcm-photos {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--vcm-line);
+}
+
+.vcm-photos h3 {
+  margin: 0 0 3px;
+  color: var(--vcm-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.vcm-photos ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vcm-photos li {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.vcm-photos img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  background: #eef0ea;
+  object-fit: cover;
+}
+
+.vcm-photos select {
+  min-height: 34px;
+  padding: 0 6px;
+  font-size: 13px;
+}
+
+/* Colour and stock share the first line; photo and remove actions sit below. */
+.vcm-row .vcm-field-color {
+  flex: 1 1 calc(100% - 96px);
+}

@@ -15,6 +15,8 @@ import CreateReservationPage from './Pages/Users/Pages/CreateReservation.jsx'
 import MyReservationsPage from './Pages/Users/Pages/MyReservations.jsx'
 import AdminDashboardPage from './Pages/Admin/Pages/AdminDashboard.jsx'
 import VehicleManagementPage from './Pages/Admin/Pages/VehicleManagement.jsx'
+import VehicleDetailAdminPage from './Pages/Admin/Pages/VehicleDetailAdmin.jsx'
+import { invalidImage, parseFeatures } from './Services/vehicleData.js'
 import ReservationManagementPage from './Pages/Admin/Pages/ReservationManagement.jsx'
 import FleetOperationsPage from './Pages/Admin/Pages/FleetOperations.jsx'
 import MaintenanceManagementPage from './Pages/Admin/Pages/MaintenanceManagement.jsx'
@@ -27,6 +29,7 @@ import PaymentManagementPage from './Pages/Admin/Pages/PaymentManagement.jsx'
 import PaymentHistoryPage from './Pages/Users/Pages/PaymentHistory.jsx'
 import UserProfilePage from './Pages/Users/Pages/UserProfile.jsx'
 import ChatWidget from './Components/ChatWidget.jsx'
+import VehicleColorManager from './Pages/Admin/Components/VehicleColorManager.jsx'
 import './App.css'
 
 gsap.registerPlugin(useGSAP, ScrollTrigger)
@@ -199,7 +202,7 @@ function App() {
   } else if (/^\/admin\/vehicles\/\d+\/edit$/.test(path)) {
     content = <VehicleEditor {...shared} navigate={navigate} onSaved={refresh} carId={path.split('/')[3]} />
   } else if (/^\/admin\/vehicles\/\d+$/.test(path)) {
-    content = <VehicleDetails {...shared} navigate={navigate} carId={path.split('/')[3]} admin onChanged={refresh} />
+    content = <VehicleDetailAdminPage {...shared} navigate={navigate} carId={path.split('/')[3]} onChanged={refresh} />
   } else if (/^\/vehicles\/\d+$/.test(path)) {
     content = <VehicleDetails {...shared} navigate={navigate} carId={path.split('/')[2]} admin={admin} onChanged={refresh} />
   } else if (path === '/unauthorized') {
@@ -304,7 +307,7 @@ function Navbar({ user, adminLayout, customerLayout = false, path, navigate, log
     <header className={`topbar ${adminLayout ? 'topbar-admin' : ''}`}>
       {!adminLayout && <Logo onClick={() => navigate('/')} />}
       {adminLayout || customerLayout
-        ? <div className="admin-breadcrumb"><span>{adminLayout ? 'Workspace' : 'Your Drive'}</span><b>/</b><strong>{customerLayout ? (path.includes('/vehicles') ? 'Browse vehicles' : path.endsWith('/rentals') ? 'Active rentals' : path.endsWith('/history') ? 'Reservation history' : path.includes('/reservations') ? 'My reservations' : path.includes('payments') ? 'Payment history' : path.includes('profile') ? 'Profile' : 'Dashboard') : path.includes('/maintenance/predictions') ? 'Predictive maintenance' : path.includes('/maintenance/records') ? 'Vehicle maintenance records' : path === '/admin/maintenance' ? 'Fleet operations' : path.includes('/intelligence/demand') ? 'Demand intelligence' : path.includes('/intelligence/risk') ? 'Risk analysis' : path.includes('payments') ? 'Payment history' : path.endsWith('/reservations/history') ? 'Reservation history' : path.includes('reservations') ? 'Reservation management' : path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>
+        ? <div className="admin-breadcrumb"><span>{adminLayout ? 'Workspace' : 'Your Drive'}</span><b>/</b><strong>{customerLayout ? (path.endsWith('/reservations/create') ? 'New reservation' : path.includes('/recommendations') ? 'Vehicle finder' : path.includes('/vehicles') ? 'Browse vehicles' : path.endsWith('/rentals') ? 'Active rentals' : path.endsWith('/history') ? 'Reservation history' : path.includes('/reservations') ? 'My reservations' : path.includes('payments') ? 'Payment history' : path.includes('profile') ? 'Profile' : 'Dashboard') : path.includes('/maintenance/predictions') ? 'Predictive maintenance' : path.includes('/maintenance/data') ? 'Maintenance evidence' : path.includes('/maintenance/records') ? 'Vehicle maintenance records' : path === '/admin/maintenance' ? 'Fleet operations' : path.includes('/intelligence/demand') ? 'Demand intelligence' : path.includes('/intelligence/risk') ? 'Risk analysis' : path.includes('payments') ? 'Payment history' : path.endsWith('/reservations/history') ? 'Reservation history' : path.includes('reservations') ? 'Reservation management' : path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>
         : <nav className={menuOpen ? 'public-nav open' : 'public-nav'}>{customerLinks.map(([href, label]) => <button key={href} className={path === href ? 'nav-link active' : 'nav-link'} onClick={() => { navigate(href); setMenuOpen(false) }}>{label}</button>)}</nav>}
       <div className="topbar-right">
         <span className="connection-dot" title="Backend API" />
@@ -435,7 +438,6 @@ function CustomerSidebar({ user, path, navigate, logout, open, onNavigate }) {
     <aside className={`customer-sidebar${open ? ' is-open' : ''}`}>
       <div className="customer-sidebar-content">
         <Logo onClick={() => { navigate('/users/dashboard'); onNavigate?.() }} />
-        <div className="customer-sidebar-caption">YOUR DRIVE</div>
         <nav className="customer-sidebar-nav" aria-label="Customer navigation">
           {sections.map((section) => (
             <section className="customer-nav-section" key={section.title}>
@@ -987,6 +989,9 @@ function VehicleEditor({ carId, navigate, setToast, setApiError, onSaved }) {
         <div className="editor-column">
           <section className="form-panel"><FormSection number="03" title="Rental information" description="Pricing and availability" /><div className="form-stack"><FormField label="Daily rental price" required><CurrencyInput name="daily_rental_price" value={values.daily_rental_price} onChange={update} /></FormField><FormField label="Security deposit"><CurrencyInput name="security_deposit" value={values.security_deposit} onChange={update} /></FormField><FormField label="Minimum rental duration"><select name="minimum_rental_duration" value={values.minimum_rental_duration} onChange={update}><option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option><option value="7">7 days</option></select></FormField><FormField label="Availability status"><select name="status" value={values.status} onChange={update}><option value="available">Available</option><option value="rented">Rented</option><option value="maintenance">Maintenance</option><option value="unavailable">Unavailable</option></select></FormField></div></section>
           <section className="form-panel"><FormSection number="04" title="Vehicle images" description="JPEG, PNG, or WebP · maximum 5 MB each" /><label className="drop-area"><span className="upload-symbol"><Icon name="image" size={23} /></span><b>Choose vehicle images</b><span>Browse from your computer</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={selectFiles} /></label>{files.length > 0 && <div className="image-preview-grid">{files.map((file) => <div className="image-preview" key={`${file.name}-${file.lastModified}`}><img src={previews.find((preview) => preview.file === file)?.url} alt={file.name} /><button type="button" aria-label={`Remove ${file.name}`} onClick={() => setFiles((selected) => selected.filter((item) => item !== file))}><Icon name="close" size={13} /></button><small>{file.name}</small></div>)}</div>}{existingImages.length > 0 && <div className="existing-image-grid">{existingImages.map((image) => <div className="image-preview" key={image.id}><img src={imageUrl(image.image_path)} alt="Current vehicle" /><button type="button" aria-label="Remove current image" onClick={() => removeExistingImage(image)}><Icon name="close" size={13} /></button>{Number(image.is_primary) === 1 && <span className="primary-tag">Primary</span>}</div>)}</div>}</section>
+          {editing
+            ? <VehicleColorManager carId={carId} images={existingImages} onImagesChange={setExistingImages} />
+            : <section className="form-panel"><FormSection number="05" title="Colours and stock" description="Save this vehicle first, then edit it to add colours and stock." /></section>}
         </div>
       </div>
       <div className="editor-footer"><button type="button" className="button button-outline" onClick={() => navigate(`${editing ? `/admin/vehicles/${carId}` : '/admin/vehicles'}${window.location.search}`)}>Cancel</button><button className="button button-primary" disabled={saving}>{saving ? 'Saving…' : editing ? 'Save changes' : 'Save vehicle'}<Icon name="arrow" size={16} /></button></div>
@@ -1033,25 +1038,6 @@ function Modal({ title, children, onClose }) {
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [onClose])
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button className="modal-close" onClick={onClose} aria-label="Close dialog"><Icon name="close" /></button><span className="modal-icon"><Icon name="alert" /></span><h2 id="modal-title">{title}</h2>{children}</section></div>
-}
-
-function parseFeatures(features) {
-  if (Array.isArray(features)) return features
-  if (!features) return []
-  try {
-    const parsed = JSON.parse(features)
-    if (Array.isArray(parsed)) return parsed
-  } catch {
-    return String(features).split(',').map((feature) => feature.trim()).filter(Boolean)
-  }
-  return []
-}
-
-function invalidImage(files) {
-  const file = files.find((item) =>
-    !['image/jpeg', 'image/png', 'image/webp'].includes(item.type) || item.size > 5 * 1024 * 1024,
-  )
-  return file ? `${file.name} must be a JPEG, PNG, or WebP image no larger than 5 MB.` : ''
 }
 
 function formatDate(value) {

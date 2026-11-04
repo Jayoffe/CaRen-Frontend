@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, imageUrl } from '../../../Services/API/api.js'
+import CarSilhouette from '../Components/CarSilhouette.jsx'
+import { FuelIcon, GearboxIcon, OutlineIcon, SeatsIcon } from '../Components/VehicleSpecIcons.jsx'
+import './VehicleListing.css'
+
+// The API's largest page. Filtering happens here in the browser, so the whole fleet has to be loaded.
+const FLEET_PAGE_SIZE = 48
+const SKELETON_CARDS = [1, 2, 3]
 
 function vehicleImage(car) {
   const path = car.primary_image || car.images?.[0]?.image_path
@@ -11,6 +18,68 @@ function money(value) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: n % 1 ? 2 : 0 }).format(n)
 }
 
+const SearchIcon = ({ size }) => <OutlineIcon size={size}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.800-3.800" /></OutlineIcon>
+
+function VehicleSkeletons() {
+  return (
+    <div className="vl-grid" role="status" aria-label="Finding available vehicles">
+      {SKELETON_CARDS.map((key) => (
+        <div className="vl-card vl-skeleton" key={key} aria-hidden="true">
+          <div className="vl-photo vl-shimmer" />
+          <div className="vl-card-body">
+            <span className="vl-shimmer vl-line-title" />
+            <span className="vl-shimmer vl-line-meta" />
+            <span className="vl-shimmer vl-line-specs" />
+            <span className="vl-shimmer vl-line-action" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function VehicleCard({ car, navigate }) {
+  const name = `${car.make} ${car.model}`
+  const photo = vehicleImage(car)
+  const meta = [car.category, car.year].filter(Boolean).join(' · ')
+  const openDetails = () => navigate(`/users/vehicles/${car.id}`)
+
+  return (
+    <article className="vl-card">
+      <button className="vl-photo" type="button" onClick={openDetails} aria-label={`View ${name} details`}>
+        <span className="vl-photo-empty" aria-hidden="true">
+          <CarSilhouette category={car.category} />
+          <small>Photo coming soon</small>
+        </span>
+        {photo && <img
+          src={photo}
+          alt={name}
+          loading="lazy"
+          onError={(event) => { event.currentTarget.hidden = true }}
+        />}
+      </button>
+      <div className="vl-card-body">
+        <div className="vl-card-heading">
+          <div>
+            <h3>{name}</h3>
+            {meta && <p>{meta}</p>}
+          </div>
+          <span className="vl-price"><b>{money(car.daily_rental_price)}</b><small>per day</small></span>
+        </div>
+        <ul className="vl-specs" aria-label="Vehicle specifications">
+          {car.transmission && <li><GearboxIcon />{car.transmission}</li>}
+          {car.fuel_type && <li><FuelIcon />{car.fuel_type}</li>}
+          {car.seating_capacity && <li><SeatsIcon />{car.seating_capacity} seats</li>}
+        </ul>
+        <div className="vl-actions">
+          <button type="button" className="vl-details" onClick={openDetails} aria-label={`View ${name} details`}>View details</button>
+          <button type="button" className="vl-reserve" onClick={() => navigate(`/users/reservations/create?car_id=${car.id}`)} aria-label={`Reserve ${name}`}>Reserve</button>
+        </div>
+      </div>
+    </article>
+  )
+}
+
 export default function VehicleListing({ navigate }) {
   const [cars, setCars] = useState([])
   const [loading, setLoading] = useState(true)
@@ -20,10 +89,11 @@ export default function VehicleListing({ navigate }) {
   const [maxPrice, setMaxPrice] = useState('')
   const [sort, setSort] = useState('recommended')
   const [error, setError] = useState('')
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let active = true
-    api.get('/api/cars/available')
+    api.get(`/api/cars/available?per_page=${FLEET_PAGE_SIZE}`)
       .then((response) => {
         if (active) setCars(response?.data || [])
       })
@@ -34,7 +104,7 @@ export default function VehicleListing({ navigate }) {
         if (active) setLoading(false)
       })
     return () => { active = false }
-  }, [])
+  }, [attempt])
 
   const categories = useMemo(
     () => [...new Set(cars.map((car) => car.category).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
@@ -62,6 +132,9 @@ export default function VehicleListing({ navigate }) {
     })
   }, [cars, category, maxPrice, search, sort, transmission])
 
+  const hasFilters = Boolean(search || category || transmission || maxPrice)
+  const showControls = !error && (loading || cars.length > 0)
+
   function clearFilters() {
     setSearch('')
     setCategory('')
@@ -70,127 +143,114 @@ export default function VehicleListing({ navigate }) {
     setSort('recommended')
   }
 
+  function retry() {
+    setError('')
+    setLoading(true)
+    setAttempt((value) => value + 1)
+  }
+
   return (
-    <div className="public-page content-width customer-vehicles-page">
-      <section className="customer-vehicles-hero">
-        <div>
-          <span className="eyebrow">YOUR NEXT DRIVE STARTS HERE</span>
-          <h1>Find the right ride<br />for your plans.</h1>
-          <p>Compare available vehicles, explore the details, and choose the one that feels right for your journey.</p>
-        </div>
-        <div className="customer-vehicles-hero-note" aria-hidden="true">
-          <span>THE DRIVE YOU WANT</span>
-          <b>Starts here.</b>
-          <small>Browse the fleet ↓</small>
-        </div>
-      </section>
+    <div className="public-page content-width vl">
+      <header className="vl-header">
+        <span className="vl-eyebrow">The available fleet</span>
+        <h1>Choose your vehicle</h1>
+        <p>Compare what's ready to rent, then reserve the one that fits your trip.</p>
+      </header>
 
-      <section className="customer-vehicles-content" aria-label="Browse available vehicles">
-        <div className="customer-vehicles-heading">
-          <div><span className="eyebrow">THE AVAILABLE FLEET</span><h2>Choose your vehicle</h2></div>
-          {!loading && !error && <span className="customer-vehicles-total">{cars.length} available</span>}
-        </div>
-
-        <div className="customer-vehicle-filters">
-          <label className="customer-vehicle-search">
-            <span className="customer-vehicle-search-icon" aria-hidden="true">⌕</span>
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search make, model, year…"
-              aria-label="Search available vehicles"
-            />
-          </label>
-          <label className="customer-vehicle-select">
-            <span>Transmission</span>
-            <select value={transmission} onChange={(event) => setTransmission(event.target.value)}>
-              <option value="">Any transmission</option>
-              {transmissions.map((value) => <option key={value} value={value}>{value}</option>)}
-            </select>
-          </label>
-          <label className="customer-vehicle-price-filter">
-            <span>Max daily rate</span>
-            <input
-              type="number"
-              min="0"
-              value={maxPrice}
-              onChange={(event) => setMaxPrice(event.target.value)}
-              placeholder="No limit"
-              aria-label="Maximum daily rental rate"
-            />
-          </label>
-          <label className="customer-vehicle-select customer-vehicle-sort">
-            <span>Sort by</span>
-            <select value={sort} onChange={(event) => setSort(event.target.value)}>
-              <option value="recommended">Recommended</option>
-              <option value="price-low">Price: low to high</option>
-              <option value="price-high">Price: high to low</option>
-              <option value="newest">Newest year</option>
-              <option value="name">Vehicle name</option>
-            </select>
-          </label>
-        </div>
-
-        <div className="customer-vehicle-categories" aria-label="Filter by vehicle category">
-          <button type="button" className={!category ? 'selected' : ''} aria-pressed={!category} onClick={() => setCategory('')}>All vehicles <span>{cars.length}</span></button>
-          {categories.map((value) => {
-            const count = cars.filter((car) => car.category === value).length
-            return <button type="button" key={value} className={category === value ? 'selected' : ''} aria-pressed={category === value} onClick={() => setCategory(category === value ? '' : value)}>{value} <span>{count}</span></button>
-          })}
-        </div>
-
-        {error && <div className="global-error" role="alert">{error}</div>}
-        {loading ? (
-          <div className="customer-vehicles-loading"><span className="spinner" />Finding available vehicles…</div>
-        ) : error ? null : filteredCars.length ? (
-          <>
-            <div className="customer-vehicles-results-label" aria-live="polite">
-              Showing <b>{filteredCars.length}</b> of <b>{cars.length}</b> vehicles
-              {(search || category || transmission || maxPrice) && <button type="button" onClick={clearFilters}>Clear filters</button>}
-            </div>
-            <div className="customer-vehicle-grid">
-              {filteredCars.map((car) => (
-                <article key={car.id} className="customer-vehicle-card">
-                  <button className="customer-vehicle-photo" type="button" onClick={() => navigate(`/users/vehicles/${car.id}`)} aria-label={`View ${car.make} ${car.model} details`}>
-                    <span className="customer-vehicle-photo-placeholder" aria-hidden="true">{car.category || 'DriveRent fleet'}</span>
-                    {vehicleImage(car) && <img
-                      src={vehicleImage(car)}
-                      alt={`${car.make} ${car.model}`}
-                      loading="lazy"
-                      onError={(event) => { event.currentTarget.hidden = true }}
-                    />}
-                    <span className="customer-vehicle-available"><i />Available</span>
-                    {car.category && <span className="customer-vehicle-category-tag">{car.category}</span>}
-                  </button>
-                  <div className="customer-vehicle-card-content">
-                    <div className="customer-vehicle-card-heading">
-                      <div><h3>{car.make} {car.model}</h3><p>{car.year || 'Year not listed'}</p></div>
-                      <span className="customer-vehicle-card-price"><b>{money(car.daily_rental_price)}</b><small>/ day</small></span>
-                    </div>
-                    <div className="customer-vehicle-specs">
-                      <span><b>{car.transmission || '—'}</b><small>Transmission</small></span>
-                      <span><b>{car.fuel_type || '—'}</b><small>Fuel type</small></span>
-                      <span><b>{car.seating_capacity || '—'} seats</b><small>Capacity</small></span>
-                    </div>
-                    <div className="customer-vehicle-card-actions">
-                      <button type="button" className="customer-vehicle-details" onClick={() => navigate(`/users/vehicles/${car.id}`)}>View details <span aria-hidden="true">→</span></button>
-                      <button type="button" className="customer-vehicle-book" onClick={() => navigate(`/users/reservations/create?car_id=${car.id}`)}>Reserve</button>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="customer-vehicles-empty">
-            <span aria-hidden="true">⌕</span>
-            <h3>{cars.length ? 'No vehicles match those filters' : 'No vehicles available right now'}</h3>
-            <p>{cars.length ? 'Try another search or clear a filter to see more of the fleet.' : 'Please check back soon to see vehicles as they become available.'}</p>
-            {cars.length > 0 && <button className="button button-outline" type="button" onClick={clearFilters}>Clear filters</button>}
+      {showControls && (
+        <section className="vl-controls" aria-label="Filter vehicles">
+          <div className="vl-filters">
+            <label className="vl-field vl-field-search">
+              <span>Search</span>
+              <div className="vl-input">
+                <SearchIcon />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Make, model, or year"
+                />
+              </div>
+            </label>
+            <label className="vl-field">
+              <span>Transmission</span>
+              <select value={transmission} onChange={(event) => setTransmission(event.target.value)}>
+                <option value="">Any</option>
+                {transmissions.map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </label>
+            <label className="vl-field">
+              <span>Max daily rate</span>
+              <div className="vl-input">
+                <b aria-hidden="true">₱</b>
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  inputMode="numeric"
+                  value={maxPrice}
+                  onChange={(event) => setMaxPrice(event.target.value)}
+                  placeholder="No limit"
+                />
+              </div>
+            </label>
           </div>
-        )}
-      </section>
+
+          {loading && (
+            <div className="vl-chips" aria-hidden="true">
+              {SKELETON_CARDS.map((key) => <span className="vl-shimmer vl-chip-placeholder" key={key} />)}
+            </div>
+          )}
+          {categories.length > 0 && (
+            <div className="vl-chips" role="group" aria-label="Filter by vehicle category">
+              <button type="button" className={!category ? 'selected' : ''} aria-pressed={!category} onClick={() => setCategory('')}>All <span>{cars.length}</span></button>
+              {categories.map((value) => {
+                const count = cars.filter((car) => car.category === value).length
+                return <button type="button" key={value} className={category === value ? 'selected' : ''} aria-pressed={category === value} onClick={() => setCategory(category === value ? '' : value)}>{value} <span>{count}</span></button>
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {error ? (
+        <div className="vl-state" role="alert">
+          <h2>We couldn't load the fleet</h2>
+          <p>{error}</p>
+          <button type="button" className="vl-reserve" onClick={retry}>Try again</button>
+        </div>
+      ) : loading ? (
+        <VehicleSkeletons />
+      ) : filteredCars.length ? (
+        <section aria-label="Available vehicles">
+          <div className="vl-results-bar">
+            <p aria-live="polite">
+              {hasFilters ? <>Showing <b>{filteredCars.length}</b> of <b>{cars.length}</b> vehicles</> : <><b>{cars.length}</b> {cars.length === 1 ? 'vehicle' : 'vehicles'} ready to rent</>}
+              {hasFilters && <button type="button" className="vl-clear" onClick={clearFilters}>Clear filters</button>}
+            </p>
+            <label className="vl-sort">
+              <span>Sort by</span>
+              <select value={sort} onChange={(event) => setSort(event.target.value)}>
+                <option value="recommended">Recommended</option>
+                <option value="price-low">Price: low to high</option>
+                <option value="price-high">Price: high to low</option>
+                <option value="newest">Newest year</option>
+                <option value="name">Vehicle name</option>
+              </select>
+            </label>
+          </div>
+          <div className="vl-grid">
+            {filteredCars.map((car) => <VehicleCard key={car.id} car={car} navigate={navigate} />)}
+          </div>
+        </section>
+      ) : (
+        <div className="vl-state">
+          <span className="vl-state-icon"><SearchIcon size={22} /></span>
+          <h2>{cars.length ? 'No vehicles match those filters' : 'No vehicles available right now'}</h2>
+          <p>{cars.length ? 'Try another search or clear a filter to see more of the fleet.' : 'Please check back soon to see vehicles as they become available.'}</p>
+          {cars.length > 0 && <button type="button" className="vl-reserve" onClick={clearFilters}>Clear filters</button>}
+        </div>
+      )}
     </div>
   )
 }
