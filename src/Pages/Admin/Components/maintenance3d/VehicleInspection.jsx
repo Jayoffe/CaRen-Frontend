@@ -82,7 +82,10 @@ export default function VehicleInspection({ vehicleId, onBack }) {
   }, [])
 
   const bodyType = normalizeBodyType(data?.vehicle)
-  const rig = useMemo(() => (bodyType === undefined ? null : rigFor(bodyType)), [bodyType])
+  const make = data?.vehicle.make
+  const model = data?.vehicle.model
+  // Make and model pick a real 3D asset (e.g. Toyota Fortuner) where one exists.
+  const rig = useMemo(() => (bodyType === undefined ? null : rigFor(bodyType, { make, model })), [bodyType, make, model])
   const vehicle = data?.vehicle
   const components = data?.components || []
   const selected = components.find((component) => component.key === selectedKey) || null
