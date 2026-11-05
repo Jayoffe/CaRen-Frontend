@@ -56,6 +56,34 @@ const CAR_SPECS = {
   },
 }
 
+// Toyota Fortuner (2nd generation, Philippine market): 4,795 L x 1,855 W x 1,835 H mm,
+// 2,750 mm wheelbase, 265/60 R18 tyres. Used for the fallback shell and to scale the 3D asset.
+const FORTUNER_SPEC = {
+  length: 4.795, width: 1.855, wheelRadius: 0.39, tireWidth: 0.265, clearance: 0.22,
+  frontAxle: 1.5, rearAxle: -1.25, engine: [1.72, 0.74], engineSize: [0.6, 0.46, 0.66],
+  profile: [[2.38, 0.44], [2.42, 0.7], [2.39, 0.98], [2.24, 1.06], [1.3, 1.12], [0.6, 1.7], [-2.1, 1.78], [-2.33, 1.5], [-2.4, 0.92], [-2.38, 0.47]],
+  windows: [[1.22, 1.16], [0.62, 1.64], [-2.05, 1.71], [-2.26, 1.48], [-2.29, 1.16]],
+  windshield: [[1.3, 1.12], [0.6, 1.7]],
+  rearWindow: [[-2.1, 1.78], [-2.33, 1.5]],
+  lamps: { front: 0.9, rear: 1.2 },
+  // Fallback styling: black roof and pillars, gloss-black rims, side steps, door decals and the Leader front kit.
+  styling: 'leader', roofColor: '#121417', rimColor: '#1a1d21', spokes: 6,
+}
+
+/**
+ * Real 3D assets, matched on the vehicle's make and model. Drop the .glb into
+ * Front-End/public/models/. The model is scaled to `spec.length`, centred and
+ * set on the ground automatically; if it faces backwards, set `rotationY` to Math.PI.
+ * Until the file exists the coded fallback shell is shown instead.
+ */
+const VEHICLE_ASSETS = [
+  {
+    matches: (vehicle) => /toyota/i.test(vehicle?.make || '') && /fortuner/i.test(vehicle?.model || ''),
+    spec: FORTUNER_SPEC,
+    asset: { url: `${import.meta.env.BASE_URL}models/toyota-fortuner.glb`, rotationY: 0 },
+  },
+]
+
 export const MOTORCYCLE_SPEC = {
   length: 2.15, wheelRadius: 0.31, tireWidth: 0.12, frontAxle: 0.72, rearAxle: -0.7,
 }
@@ -76,8 +104,7 @@ export function heightAt(points, x) {
   return best
 }
 
-function carRig(type) {
-  const base = CAR_SPECS[type]
+function carRig(type, base = CAR_SPECS[type], asset = null) {
   // Keep the engine (including its cover) below the hood line at its position.
   const hood = heightAt(base.profile, base.engine[0]) ?? base.engine[1] + 1
   const s = { ...base, engine: [base.engine[0], Math.min(base.engine[1], hood - base.engineSize[1] / 2 - 0.2)] }
@@ -91,6 +118,7 @@ function carRig(type) {
   return {
     kind: 'car',
     type,
+    asset,
     spec: { ...s, half, track },
     height: Math.max(...s.profile.map(([, y]) => y)),
     components: {
@@ -135,8 +163,10 @@ function motorcycleRig() {
   }
 }
 
-export function rigFor(bodyType) {
+export function rigFor(bodyType, vehicle) {
   if (bodyType === 'motorcycle') return motorcycleRig()
+  const known = VEHICLE_ASSETS.find((entry) => entry.matches(vehicle))
+  if (known) return carRig('suv', known.spec, known.asset)
   return CAR_SPECS[bodyType] ? carRig(bodyType) : null
 }
 
