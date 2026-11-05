@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { imageUrl } from '../../../Services/API/api.js'
-import { getReservations, submitManualPayment, updateReservationStatus } from '../../../Services/API/reservationAPI.js'
+import { createPaymentCheckout, getReservations, updateReservationStatus } from '../../../Services/API/reservationAPI.js'
 import CarSilhouette from '../Components/CarSilhouette.jsx'
 import { AgreementDialog, CancelDialog, PaymentDialog } from '../Components/ReservationDialogs.jsx'
 import './MyReservations.css'
@@ -205,11 +205,11 @@ export default function MyReservations({ navigate, view = 'all' }) {
     await refresh()
   }
 
-  async function submitPayment(reference) {
-    await submitManualPayment(payFor.id, reference)
-    setPayFor(null)
-    setNotice('GCash payment submitted. An administrator will verify it before vehicle handover.')
-    await refresh()
+  async function startPayment() {
+    const response = await createPaymentCheckout(payFor.id)
+    const checkoutUrl = response?.data?.checkout_url
+    if (!checkoutUrl) throw new Error('The online GCash checkout link was not returned.')
+    window.location.assign(checkoutUrl)
   }
 
   function openDialog(setter) {
@@ -250,7 +250,7 @@ export default function MyReservations({ navigate, view = 'all' }) {
         <button type="button" className="rv-btn rv-btn-primary" onClick={() => navigate('/users/vehicles')}>Browse vehicles</button>
       </header>
 
-      {paymentResult === 'success' && <div className="rv-banner rv-banner-good" role="status">Payment submitted. The reservation will update after PayMongo verifies the GCash payment. <button type="button" className="rv-btn-link" onClick={refresh}>Refresh payment status</button></div>}
+      {paymentResult === 'success' && <div className="rv-banner rv-banner-good" role="status">Payment submitted. The reservation will update after Xendit confirms the GCash payment. <button type="button" className="rv-btn-link" onClick={refresh}>Refresh payment status</button></div>}
       {paymentResult === 'cancelled' && <div className="rv-banner rv-banner-bad" role="status">Payment was not completed. You can try GCash checkout again when your reservation is approved.</div>}
       {notice && <div className="rv-banner rv-banner-good" role="status">{notice}</div>}
       {error && !loadFailed && <div className="rv-banner rv-banner-bad" role="alert">{error}</div>}
@@ -293,7 +293,7 @@ export default function MyReservations({ navigate, view = 'all' }) {
       {payFor && <PaymentDialog
         reservation={payFor}
         amount={money(payFor.total_amount)}
-        onSubmit={submitPayment}
+        onCheckout={startPayment}
         onClose={() => setPayFor(null)}
       />}
     </div>

@@ -66,7 +66,7 @@ export default function PaymentManagement() {
                 <tbody>{payments.map((payment) => (
                   <tr key={payment.id}>
                     <td>{payment.full_name || payment.username}<small>{payment.email}</small></td>
-                    <td>#{payment.id}<small>{payment.payment_reference || 'GCash via PayMongo'}</small></td>
+                    <td>#{payment.id}<small>{payment.payment_reference || 'GCash online payment'}</small></td>
                     <td>{payment.make} {payment.model}</td>
                     <td>{money(payment.total_amount)}</td>
                     <td>{payment.payment_status}</td>

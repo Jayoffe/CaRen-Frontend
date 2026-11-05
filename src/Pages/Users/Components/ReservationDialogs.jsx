@@ -1,8 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-const GCASH_NUMBER = '09979051769'
-
 // Rendered on <body> so that printing the agreement can hide the whole app behind it.
 function Dialog({ className = '', labelledBy, busy = false, onClose, children }) {
   const ref = useRef(null)
@@ -154,32 +152,16 @@ export function CancelDialog({ reservation, dates, onConfirm, onClose }) {
   )
 }
 
-export function PaymentDialog({ reservation, amount, onSubmit, onClose }) {
-  const [reference, setReference] = useState('')
+export function PaymentDialog({ reservation, amount, onCheckout, onClose }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [copied, setCopied] = useState(false)
-
-  async function copyNumber() {
-    try {
-      await navigator.clipboard.writeText(GCASH_NUMBER)
-      setCopied(true)
-    } catch {
-      setCopied(false)
-    }
-  }
 
   async function submit(event) {
     event.preventDefault()
-    const value = reference.trim()
-    if (!value) {
-      setError('Enter the reference number from your GCash receipt.')
-      return
-    }
     setBusy(true)
     setError('')
     try {
-      await onSubmit(value)
+      await onCheckout()
     } catch (requestError) {
       setError(requestError.message)
       setBusy(false)
@@ -189,38 +171,19 @@ export function PaymentDialog({ reservation, amount, onSubmit, onClose }) {
   return (
     <Dialog className="rv-small" labelledBy="rv-pay-title" busy={busy} onClose={onClose}>
       <form className="rv-small-body" onSubmit={submit} noValidate>
-        <h2 id="rv-pay-title">Pay with GCash</h2>
+        <h2 id="rv-pay-title">Pay online with GCash</h2>
         <p>{reservation.make} {reservation.model}, reservation #{reservation.id}</p>
         <dl className="rv-pay-summary">
           <div>
             <dt>Exact amount</dt>
             <dd className="rv-pay-amount">{amount}</dd>
           </div>
-          <div>
-            <dt>Send to GCash number</dt>
-            <dd>
-              {GCASH_NUMBER}
-              <button type="button" className="rv-btn-link" onClick={copyNumber}>{copied ? 'Copied' : 'Copy'}</button>
-            </dd>
-          </div>
         </dl>
-        <label className="rv-field">
-          <span>GCash reference number</span>
-          <input
-            data-autofocus
-            type="text"
-            autoComplete="off"
-            maxLength={80}
-            value={reference}
-            aria-invalid={Boolean(error)}
-            onChange={(event) => setReference(event.target.value)}
-          />
-        </label>
         {error && <p className="rv-field-error" role="alert">{error}</p>}
-        <p className="rv-hint">An administrator checks your payment before vehicle handover.</p>
+        <p className="rv-hint">Xendit will open a secure checkout where you can choose GCash. Vehicle handover remains blocked until payment is confirmed.</p>
         <div className="rv-small-actions">
-          <button type="button" className="rv-btn rv-btn-outline" disabled={busy} onClick={onClose}>Not now</button>
-          <button type="submit" className="rv-btn rv-btn-primary" disabled={busy}>{busy ? 'Submitting…' : 'Submit payment'}</button>
+          <button type="button" className="rv-btn rv-btn-outline" data-autofocus disabled={busy} onClick={onClose}>Not now</button>
+          <button type="submit" className="rv-btn rv-btn-primary" disabled={busy}>{busy ? 'Opening checkout...' : 'Continue to payment'}</button>
         </div>
       </form>
     </Dialog>

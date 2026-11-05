@@ -40,7 +40,7 @@ export default function PaymentHistory() {
                   <thead><tr><th>Reservation</th><th>Vehicle</th><th>Amount</th><th>Payment status</th><th>Paid on</th></tr></thead>
                   <tbody>{reservations.map((item) => (
                     <tr key={item.id}>
-                      <td>#{item.id}<small>{item.payment_reference || 'GCash via PayMongo'}</small></td>
+                      <td>#{item.id}<small>{item.payment_reference || 'GCash online payment'}</small></td>
                       <td>{item.make} {item.model}</td>
                       <td>{money(item.total_amount)}</td>
                       <td>{item.payment_status}</td>
