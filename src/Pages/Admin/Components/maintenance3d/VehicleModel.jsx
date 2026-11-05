@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
+import FortunerModel from './FortunerModel.jsx'
 import { archLip, archLiners, bodyGeometry, carSurface, cornerLamp, endPanel, panelSeams, sidePanel, sideWindow, topGlass, wheelGeometry, windowTop } from './carBody.js'
 
 const HIGHLIGHT = '#36b6ff'
@@ -729,5 +730,6 @@ function MotorcycleModel({ rig, paint, xray, interaction }) {
 }
 
 export default function VehicleModel(props) {
+  if (props.rig.asset) return <FortunerModel {...props} />
   return props.rig.kind === 'motorcycle' ? <MotorcycleModel {...props} /> : <CarModel {...props} />
 }
