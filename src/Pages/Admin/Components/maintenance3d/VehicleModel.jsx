@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
-import { heightAt } from './rigs.js'
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
+import { archLip, archLiners, bodyGeometry, carSurface, cornerLamp, endPanel, panelSeams, sidePanel, sideWindow, topGlass, wheelGeometry, windowTop } from './carBody.js'
 
 const HIGHLIGHT = '#36b6ff'
 const HOVER = '#8fd3ff'
@@ -8,7 +9,7 @@ const HOVER = '#8fd3ff'
 // Highlight / ghost state for the component group a mesh belongs to.
 const PartState = createContext({ active: false, hovered: false, ghost: false })
 
-function Mat({ color, metalness = 0.35, roughness = 0.55, emissive = '#000000', emissiveIntensity = 0 }) {
+function Mat({ color, metalness = 0.35, roughness = 0.55, emissive = '#000000', emissiveIntensity = 0, side = THREE.FrontSide }) {
   const { active, hovered, ghost } = useContext(PartState)
   return (
     <meshStandardMaterial
@@ -21,6 +22,7 @@ function Mat({ color, metalness = 0.35, roughness = 0.55, emissive = '#000000', 
       transparent={ghost}
       opacity={ghost ? 0.16 : 1}
       depthWrite={!ghost}
+      side={side}
     />
   )
 }
@@ -92,102 +94,6 @@ function profileShape(points, axles, wheelRadius, bottom) {
   return shape
 }
 
-const SECTION = [ // normalised half cross-section: [u (width), v (height)], bottom centre to roof centre
-  [0, 0], [0.82, 0], [0.93, 0.03], [0.985, 0.1], [1, 0.22], [1, 'belt'], [0.86, 0.985], [0.72, 1], [0, 1],
-]
-
-function bodyFrame(spec) {
-  const belt = Math.min(...spec.windows.map(([, y]) => y)) - 0.03
-  const frontX = Math.max(...spec.profile.map(([x]) => x))
-  const rearX = Math.min(...spec.profile.map(([x]) => x))
-  const half = Math.max(frontX, -rearX)
-  const archRadius = spec.wheelRadius + 0.07
-  const planFactor = (x) => 1 - 0.12 * Math.pow(Math.abs(x) / half, 6)
-  const bottomAt = (x) => [spec.frontAxle, spec.rearAxle].reduce((bottom, axle) => {
-    const dx = x - axle
-    return Math.abs(dx) < archRadius ? Math.max(bottom, spec.wheelRadius + Math.sqrt(archRadius * archRadius - dx * dx)) : bottom
-  }, spec.clearance)
-  // Half-width of the body surface at (x, y): used to lay windows and trim onto it.
-  const surfaceZ = (x, y) => {
-    const top = heightAt(spec.profile, x) ?? belt
-    const u = y <= belt ? 1 : 1 - 0.14 * THREE.MathUtils.clamp((y - belt) / Math.max(top - belt, 0.01), 0, 1)
-    return (spec.width / 2) * planFactor(x) * u
-  }
-  return { belt, frontX, rearX, planFactor, bottomAt, surfaceZ }
-}
-
-/** Smooth body loft: cross-sections along x with rounded corners, tuck-under and tumblehome. */
-function loftBody(spec) {
-  const frame = bodyFrame(spec)
-  const { frontX, rearX } = frame
-  const xs = []
-  const steps = 140
-  for (let index = 0; index <= steps; index += 1) {
-    const t = index / steps
-    xs.push(rearX + (frontX - rearX) * (0.5 - 0.5 * Math.cos(Math.PI * t))) // denser at the ends
-  }
-  const ring = []
-  const positions = []
-  xs.forEach((x) => {
-    const top = Math.max(heightAt(spec.profile, x) ?? frame.belt, frame.bottomAt(x) + 0.05)
-    const bottom = Math.min(frame.bottomAt(x), top - 0.05)
-    const span = top - bottom
-    const beltV = THREE.MathUtils.clamp((frame.belt - bottom) / span, 0.25, 0.97)
-    const halfWidth = (spec.width / 2) * frame.planFactor(x)
-    const section = SECTION.map(([u, v]) => [u, v === 'belt' ? beltV : v])
-    const points = [
-      ...section.map(([u, v]) => [-u, v]),
-      ...section.slice(0, -1).reverse().map(([u, v]) => [u, v]),
-    ].filter((point, index, all) => index === 0 || point[0] !== all[index - 1][0] || point[1] !== all[index - 1][1])
-    ring.length = points.length
-    points.forEach(([u, v]) => positions.push(x, bottom + v * span, u * halfWidth))
-  })
-
-  const perRing = ring.length
-  const indices = []
-  for (let slice = 0; slice < xs.length - 1; slice += 1) {
-    for (let index = 0; index < perRing - 1; index += 1) {
-      const a = slice * perRing + index
-      const b = a + perRing
-      indices.push(a, a + 1, b, a + 1, b + 1, b)
-    }
-  }
-  // End caps (front and rear faces) as triangle fans from each ring's centroid.
-  const vertexCount = positions.length / 3
-  ;[[0, false], [xs.length - 1, true]].forEach(([slice, flip], cap) => {
-    let cx = 0; let cy = 0; let cz = 0
-    for (let index = 0; index < perRing; index += 1) {
-      const offset = (slice * perRing + index) * 3
-      cx += positions[offset]; cy += positions[offset + 1]; cz += positions[offset + 2]
-    }
-    positions.push(cx / perRing, cy / perRing, cz / perRing)
-    const centre = vertexCount + cap
-    for (let index = 0; index < perRing - 1; index += 1) {
-      const a = slice * perRing + index
-      if (flip) indices.push(centre, a, a + 1)
-      else indices.push(centre, a + 1, a)
-    }
-  })
-
-  const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
-  geometry.setIndex(indices)
-  geometry.computeVertexNormals()
-  return geometry
-}
-
-/** Side-window shape laid onto the body surface. */
-function windowGeometry(spec, side) {
-  const { surfaceZ } = bodyFrame(spec)
-  const geometry = new THREE.ShapeGeometry(new THREE.Shape(spec.windows.map(([x, y]) => new THREE.Vector2(x, y))), 8)
-  const position = geometry.attributes.position
-  for (let index = 0; index < position.count; index += 1) {
-    position.setZ(index, side * (surfaceZ(position.getX(index), position.getY(index)) + 0.022))
-  }
-  geometry.computeVertexNormals()
-  return geometry
-}
-
 function extrude(shape, depth, bevel = 0.05) {
   const geometry = new THREE.ExtrudeGeometry(shape, {
     depth: depth - bevel * 2,
@@ -207,60 +113,60 @@ function useDisposeOnChange(value) {
   return value
 }
 
-/** Glass quad along a profile segment, spanning the vehicle width. */
-function GlassPanel({ segment, width }) {
-  const [[x1, y1], [x2, y2]] = segment
-  const dx = x2 - x1
-  const dy = y2 - y1
-  const length = Math.hypot(dx, dy)
-  const offset = 0.012 / length
+function Wheel({ position, radius, width, spokes = 5, rimColor = '#c8ced4', side = 1 }) {
+  const parts = useMemo(() => wheelGeometry(radius, width, spokes), [radius, width, spokes])
+  useEffect(() => () => {
+    Object.values(parts).forEach((part) => part?.dispose?.())
+  }, [parts])
   return (
-    <group position={[(x1 + x2) / 2 + dy * offset, (y1 + y2) / 2 - dx * offset, 0]} rotation={[0, 0, Math.atan2(dy, dx)]}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[length * 0.96, width]} />
-        <meshPhysicalMaterial color="#0d1b26" roughness={0.08} metalness={0.2} side={THREE.DoubleSide} />
+    <group position={position} scale={[1, 1, side]}>
+      <mesh geometry={parts.tire}>
+        <Mat color="#17181a" roughness={0.88} metalness={0.02} side={THREE.DoubleSide} />
       </mesh>
-    </group>
-  )
-}
-
-function Wheel({ position, radius, width, spokes = 5, rimColor = '#b9c1c8' }) {
-  const tube = Math.min(width / 2, radius * 0.3)
-  const rimRadius = radius - tube * 2
-  return (
-    <group position={position}>
-      <mesh scale={[1, 1, width / 2 / tube]}>
-        <torusGeometry args={[radius - tube, tube, 14, 40]} />
-        <Mat color="#1b1d20" roughness={0.92} metalness={0.05} />
+      <mesh geometry={parts.barrel}>
+        <Mat color="#2b2f34" metalness={0.65} roughness={0.5} side={THREE.DoubleSide} />
       </mesh>
-      <mesh>
-        <torusGeometry args={[rimRadius, 0.022, 8, 36]} />
-        <Mat color={rimColor} metalness={0.8} roughness={0.28} />
+      <mesh position={[0, 0, parts.lipZ]}>
+        <torusGeometry args={[parts.lipRadius, 0.0095, 8, 56]} />
+        <Mat color={rimColor} metalness={0.95} roughness={0.2} />
       </mesh>
-      {Array.from({ length: spokes }, (_, index) => (
-        <mesh key={index} rotation={[0, 0, (index / spokes) * Math.PI * 2]} position={[0, 0, 0]}>
-          <boxGeometry args={[0.035, rimRadius * 2, 0.03]} />
-          <Mat color={rimColor} metalness={0.8} roughness={0.3} />
-        </mesh>
-      ))}
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[radius * 0.16, radius * 0.16, width * 0.7, 16]} />
-        <Mat color="#4a5158" metalness={0.7} roughness={0.35} />
+      <mesh geometry={parts.spokes}>
+        <Mat color={rimColor} metalness={0.95} roughness={0.26} />
+      </mesh>
+      <mesh geometry={parts.lugs}>
+        <Mat color="#3c4147" metalness={0.8} roughness={0.35} />
+      </mesh>
+      <mesh geometry={parts.centre}>
+        <Mat color="#1f2226" metalness={0.5} roughness={0.35} />
       </mesh>
     </group>
   )
 }
 
 function BrakeAssembly({ position, radius, side, caliperAngle = 0.5 }) {
+  const caliper = useMemo(() => {
+    const spread = 0.42
+    const shape = new THREE.Shape()
+    shape.absarc(0, 0, radius * 1.02, caliperAngle - spread, caliperAngle + spread, false)
+    shape.absarc(0, 0, radius * 0.66, caliperAngle + spread, caliperAngle - spread, true)
+    shape.closePath()
+    const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.07, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.006, bevelSegments: 2, curveSegments: 10 })
+    geometry.translate(0, 0, -0.035)
+    return geometry
+  }, [radius, caliperAngle])
+  useEffect(() => () => caliper.dispose(), [caliper])
   return (
     <group position={position}>
       <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[radius, radius, 0.028, 32]} />
-        <Mat color="#8e959c" metalness={0.85} roughness={0.32} />
+        <cylinderGeometry args={[radius, radius, 0.026, 40]} />
+        <Mat color="#9aa1a8" metalness={0.92} roughness={0.34} />
       </mesh>
-      <mesh position={[Math.cos(caliperAngle) * radius * 0.82, Math.sin(caliperAngle) * radius * 0.82, side * 0.02]} rotation={[0, 0, caliperAngle]}>
-        <boxGeometry args={[0.07, radius * 0.75, 0.07]} />
-        <Mat color="#b23a2f" metalness={0.4} roughness={0.45} />
+      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, side * 0.018]}>
+        <cylinderGeometry args={[radius * 0.42, radius * 0.46, 0.026, 28]} />
+        <Mat color="#4a5057" metalness={0.75} roughness={0.42} />
+      </mesh>
+      <mesh geometry={caliper} position={[0, 0, side * 0.005]}>
+        <Mat color="#b5322a" metalness={0.35} roughness={0.42} />
       </mesh>
     </group>
   )
@@ -308,6 +214,105 @@ function Tube({ points, radius, color, metalness = 0.75, roughness = 0.35 }) {
   )
 }
 
+const noHit = { raycast: () => null }
+const GLASS = { color: '#51707f', roughness: 0.16, metalness: 1, envMapIntensity: 0.95 }
+const TRIM = { color: '#0d0e10', roughness: 0.62, metalness: 0.15 }
+const CHROME = { color: '#d8dde2', roughness: 0.14, metalness: 1 }
+
+/** Every painted-on and bolted-on exterior detail: glass, trim, seams, mirrors and handles. */
+function useExterior(s) {
+  const exterior = useMemo(() => {
+    const surface = carSurface(s)
+    const { belt, sideZ, topY } = surface
+    const windowXs = s.windows.map(([x]) => x)
+    const windowFront = Math.max(...windowXs)
+    const windowRear = Math.min(...windowXs)
+    const doorRear = Math.max(windowRear + 0.06, s.rearAxle + surface.archRadius + 0.04)
+    const pillarX = (windowFront + doorRear) / 2 - 0.02
+    const handleXs = s.type === 'van' ? [pillarX + (windowRear - pillarX) * 0.1] : [pillarX + 0.14, doorRear + 0.14]
+    const sills = {
+      x0: s.frontAxle - surface.archRadius - 0.01,
+      x1: s.rearAxle + surface.archRadius + 0.01,
+    }
+    const lampFront = {
+      y0: s.lamps.front - 0.085,
+      y1: s.lamps.front + 0.035,
+      inner: s.width * 0.24,
+      reach: 0.42,
+    }
+    const lampRear = {
+      y0: s.lamps.rear - 0.08,
+      y1: s.lamps.rear + 0.075,
+      inner: s.width * 0.2,
+      reach: 0.34,
+    }
+    const noseY = s.lamps.front
+    const geometry = {
+      body: bodyGeometry(surface),
+      seams: panelSeams(surface, s),
+      liners: archLiners(surface, s),
+      lips: mergeGeometries([s.frontAxle, ...(s.bed ? [] : [s.rearAxle])].flatMap((axle) => [-1, 1].map((side) => archLip(surface, s, axle, side)))),
+      glass: [-1, 1].map((side) => sideWindow(surface, s.windows, { side })),
+      frames: [-1, 1].map((side) => sideWindow(surface, s.windows, { side, grow: 0.022, offset: 0.0055 })),
+      pillars: [-1, 1].map((side) => sidePanel(surface, { x0: pillarX - 0.03, x1: pillarX + 0.03, y0: belt + 0.03, y1: windowTop(s.windows, pillarX) - 0.004, side, offset: 0.0115, columns: 3, rows: 8 })),
+      sills: [-1, 1].map((side) => sidePanel(surface, { x0: sills.x0, x1: sills.x1, y0: s.clearance + 0.012, y1: s.clearance + 0.098, side, offset: 0.0045, columns: 30, rows: 4 })),
+      windshield: topGlass(surface, { segment: s.windshield, frontU: 0.8, backU: 0.625 }),
+      windshieldFrame: topGlass(surface, { segment: s.windshield, frontU: 0.8, backU: 0.625, offset: 0.004, grow: 0.024 }),
+      rearGlass: s.rearWindow && topGlass(surface, { segment: s.rearWindow, frontU: 0.62, backU: 0.78 }),
+      rearFrame: s.rearWindow && topGlass(surface, { segment: s.rearWindow, frontU: 0.62, backU: 0.78, offset: 0.004, grow: 0.024 }),
+      grille: endPanel(surface, { end: 1, width: s.width * 0.235, y0: noseY - 0.19, y1: noseY - 0.055, round: 6, offset: 0.006 }),
+      intake: endPanel(surface, { end: 1, width: s.width * 0.3, y0: s.clearance + 0.125, y1: s.clearance + 0.235, round: 5, offset: 0.006 }),
+      headlamps: [-1, 1].map((side) => cornerLamp(surface, { end: 1, side, ...lampFront })),
+      lampLenses: [-1, 1].map((side) => cornerLamp(surface, { end: 1, side, ...lampFront, y0: lampFront.y0 + 0.018, y1: lampFront.y1 - 0.02, reach: lampFront.reach - 0.035, inner: lampFront.inner + 0.018, offset: 0.0115 })),
+      lampStrips: [-1, 1].map((side) => cornerLamp(surface, { end: 1, side, ...lampFront, y0: lampFront.y0 + 0.024, y1: lampFront.y0 + 0.042, reach: lampFront.reach - 0.055, inner: lampFront.inner + 0.03, offset: 0.0145, round: 12 })),
+      taillamps: surface.hasTail ? [-1, 1].map((side) => cornerLamp(surface, { end: -1, side, ...lampRear })) : [],
+      tailStrips: surface.hasTail ? [-1, 1].map((side) => cornerLamp(surface, { end: -1, side, ...lampRear, y0: lampRear.y0 + 0.058, y1: lampRear.y0 + 0.092, reach: lampRear.reach - 0.04, inner: lampRear.inner + 0.03, offset: 0.0125, round: 12 })) : [],
+      slats: mergeGeometries([0.25, 0.5, 0.75].map((t) => {
+        const y = noseY - 0.19 + 0.135 * t
+        return endPanel(surface, { end: 1, width: s.width * 0.21, y0: y - 0.0045, y1: y + 0.0045, offset: 0.0095, columns: 22, rows: 1 })
+      })),
+      plate: surface.hasTail ? endPanel(surface, { end: -1, width: 0.24, y0: s.lamps.rear - 0.3, y1: s.lamps.rear - 0.19, round: 8, offset: 0.012, columns: 8, rows: 4 }) : null,
+      plateRecess: surface.hasTail ? endPanel(surface, { end: -1, width: 0.27, y0: s.lamps.rear - 0.325, y1: s.lamps.rear - 0.165, round: 8, offset: 0.007, columns: 8, rows: 4 }) : null,
+      rearValance: surface.hasTail ? endPanel(surface, { end: -1, width: s.width * 0.34, y0: s.clearance + 0.17, y1: s.clearance + 0.25, round: 5, offset: 0.006 }) : null,
+    }
+    const wiperBase = s.windshield[0][0] - 0.04
+    const wiperPoint = (x, z) => [x, topY(x, Math.abs(z)) + 0.016, z]
+    return {
+      surface,
+      geometry,
+      handles: handleXs.flatMap((x) => [-1, 1].map((side) => ({ x, y: belt - 0.1, z: side * (sideZ(x, belt - 0.1) + 0.012), key: `${x}${side}` }))),
+      chromeLine: [-1, 1].map((side) => {
+        const points = []
+        for (let step = 0; step <= 24; step += 1) {
+          const x = THREE.MathUtils.lerp(windowFront - 0.1, windowRear + 0.07, step / 24)
+          points.push(new THREE.Vector3(x, belt + 0.012, side * (sideZ(x, belt + 0.012) + 0.0065)))
+        }
+        return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 36, 0.0055, 5, false)
+      }),
+      mirrors: [-1, 1].map((side) => {
+        const x = windowFront - 0.12
+        const y = belt + 0.1
+        const z = sideZ(x, y)
+        return { key: side, side, root: [x, y, side * z], housing: [x + 0.015, y + 0.006, side * (z + 0.098)] }
+      }),
+      wipers: [
+        [wiperPoint(wiperBase, -0.34), wiperPoint(wiperBase + 0.01, 0.03)],
+        [wiperPoint(wiperBase, 0.2), wiperPoint(wiperBase + 0.01, 0.56)],
+      ],
+    }
+  }, [s])
+  useEffect(() => () => {
+    const dispose = (value) => {
+      if (!value) return
+      if (Array.isArray(value)) value.forEach(dispose)
+      else if (value.isBufferGeometry) value.dispose()
+    }
+    Object.values(exterior.geometry).forEach(dispose)
+    dispose(exterior.chromeLine)
+  }, [exterior])
+  return exterior
+}
+
 function CarModel({ rig, paint, xray, interaction }) {
   const s = rig.spec
   const { half, track, width, wheelRadius: R, tireWidth } = s
@@ -315,10 +320,8 @@ function CarModel({ rig, paint, xray, interaction }) {
   const [ew, eh, ed] = s.engineSize
   const axles = [s.frontAxle, s.rearAxle]
 
-  const body = useDisposeOnChange(useMemo(() => loftBody(s), [s]))
-  const surfaceZ = useMemo(() => bodyFrame(s).surfaceZ, [s])
-  const leftWindows = useDisposeOnChange(useMemo(() => windowGeometry(s, -1), [s]))
-  const rightWindows = useDisposeOnChange(useMemo(() => windowGeometry(s, 1), [s]))
+  const { geometry: shell, handles, chromeLine, mirrors, wipers } = useExterior(s)
+  const body = shell.body
   const bedSide = useDisposeOnChange(useMemo(() => (s.bed
     ? extrude(profileShape([[s.bed.front, s.clearance + 0.12], [s.bed.front, s.bed.top], [s.bed.rear, s.bed.top], [s.bed.rear, s.clearance + 0.12]], [s.frontAxle, s.rearAxle], s.wheelRadius, s.clearance + 0.12), 0.07, 0.015)
     : new THREE.BufferGeometry()), [s]))
@@ -328,10 +331,11 @@ function CarModel({ rig, paint, xray, interaction }) {
     <meshPhysicalMaterial
       key={xray ? 'xray' : 'solid'}
       color={paint}
-      metalness={0.45}
-      roughness={0.32}
-      clearcoat={0.9}
-      clearcoatRoughness={0.18}
+      metalness={0.62}
+      roughness={0.34}
+      clearcoat={1}
+      clearcoatRoughness={0.05}
+      envMapIntensity={1.15}
       transparent={xray}
       opacity={xray ? 0.14 : 1}
       depthWrite={!xray}
@@ -368,27 +372,91 @@ function CarModel({ rig, paint, xray, interaction }) {
             <boxGeometry args={[0.07, s.bed.top - s.clearance - 0.12, width - 0.1]} />
             {bodyMaterial}
           </mesh>
+          {!xray && (
+            <group {...noHit}>
+              {[-1, 1].map((side) => (
+                <mesh key={side} position={[(s.bed.front + s.bed.rear) / 2, s.bed.top + 0.008, side * (width / 2 - 0.035)]} {...noHit}>
+                  <boxGeometry args={[s.bed.front - s.bed.rear + 0.02, 0.022, 0.095]} />
+                  <meshStandardMaterial {...TRIM} />
+                </mesh>
+              ))}
+              <mesh position={[s.bed.rear + 0.035, s.bed.top + 0.008, 0]} {...noHit}>
+                <boxGeometry args={[0.095, 0.022, width - 0.09]} />
+                <meshStandardMaterial {...TRIM} />
+              </mesh>
+              <mesh position={[s.bed.rear - 0.003, s.clearance + 0.2, 0]} {...noHit}>
+                <boxGeometry args={[0.03, 0.15, width * 0.96]} />
+                <meshStandardMaterial {...TRIM} />
+              </mesh>
+              <mesh position={[s.bed.rear - 0.002, s.bed.top - 0.32, 0]} {...noHit}>
+                <boxGeometry args={[0.012, 0.12, 0.3]} />
+                <meshStandardMaterial color="#e6e8e3" emissive="#8b8d89" emissiveIntensity={0.55} roughness={0.5} />
+              </mesh>
+            </group>
+          )}
         </group>
       )}
 
       {!xray && (
         <group>
-          {[leftWindows, rightWindows].map((geometry) => (
-            <mesh key={geometry.uuid} geometry={geometry}>
-              <meshPhysicalMaterial color="#0d1b26" roughness={0.08} metalness={0.2} side={THREE.DoubleSide} />
+          <mesh geometry={shell.liners} {...noHit}>
+            <meshStandardMaterial color="#08090a" roughness={0.95} side={THREE.DoubleSide} />
+          </mesh>
+          <mesh geometry={shell.lips} {...noHit}><meshStandardMaterial {...TRIM} /></mesh>
+          <mesh geometry={shell.seams} {...noHit}><meshStandardMaterial color="#050607" roughness={0.9} /></mesh>
+          {shell.sills.map((geometry) => (
+            <mesh key={geometry.uuid} geometry={geometry} {...noHit}><meshStandardMaterial {...TRIM} side={THREE.DoubleSide} /></mesh>
+          ))}
+          {shell.frames.map((geometry) => (
+            <mesh key={geometry.uuid} geometry={geometry} {...noHit}><meshStandardMaterial {...TRIM} side={THREE.DoubleSide} /></mesh>
+          ))}
+          {shell.glass.map((geometry) => (
+            <mesh key={geometry.uuid} geometry={geometry} {...noHit}><meshPhysicalMaterial {...GLASS} clearcoat={1} side={THREE.DoubleSide} /></mesh>
+          ))}
+          {shell.pillars.map((geometry) => (
+            <mesh key={geometry.uuid} geometry={geometry} {...noHit}><meshStandardMaterial {...TRIM} side={THREE.DoubleSide} /></mesh>
+          ))}
+          {chromeLine.map((geometry) => (
+            <mesh key={geometry.uuid} geometry={geometry} {...noHit}><meshStandardMaterial {...CHROME} /></mesh>
+          ))}
+
+          <mesh geometry={shell.windshieldFrame} {...noHit}><meshStandardMaterial {...TRIM} side={THREE.DoubleSide} /></mesh>
+          <mesh geometry={shell.windshield} {...noHit}><meshPhysicalMaterial {...GLASS} clearcoat={1} side={THREE.DoubleSide} /></mesh>
+          {shell.rearGlass && (
+            <>
+              <mesh geometry={shell.rearFrame} {...noHit}><meshStandardMaterial {...TRIM} side={THREE.DoubleSide} /></mesh>
+              <mesh geometry={shell.rearGlass} {...noHit}><meshPhysicalMaterial {...GLASS} clearcoat={1} side={THREE.DoubleSide} /></mesh>
+            </>
+          )}
+          {wipers.map(([from, to]) => (
+            <Rod key={from.join()} from={from} to={to} radius={0.006} color="#08090a" metalness={0.2} roughness={0.7} segments={6} />
+          ))}
+
+          <mesh geometry={shell.grille} {...noHit}><meshStandardMaterial color="#08090b" roughness={0.55} metalness={0.3} side={THREE.DoubleSide} /></mesh>
+          <mesh geometry={shell.slats} {...noHit}><meshStandardMaterial color="#5a6168" roughness={0.3} metalness={0.9} side={THREE.DoubleSide} /></mesh>
+          <mesh geometry={shell.intake} {...noHit}><meshStandardMaterial color="#0a0b0d" roughness={0.75} side={THREE.DoubleSide} /></mesh>
+          {shell.rearValance && <mesh geometry={shell.rearValance} {...noHit}><meshStandardMaterial {...TRIM} side={THREE.DoubleSide} /></mesh>}
+          {shell.plateRecess && <mesh geometry={shell.plateRecess} {...noHit}><meshStandardMaterial {...TRIM} side={THREE.DoubleSide} /></mesh>}
+          {shell.plate && <mesh geometry={shell.plate} {...noHit}><meshStandardMaterial color="#e6e8e3" emissive="#8b8d89" emissiveIntensity={0.55} roughness={0.5} side={THREE.DoubleSide} /></mesh>}
+
+          {handles.map(({ x, y, z, key }) => (
+            <mesh key={key} position={[x, y, z]} rotation={[0, 0, Math.PI / 2]} {...noHit}>
+              <capsuleGeometry args={[0.013, 0.095, 4, 10]} />
+              <meshPhysicalMaterial color={paint} metalness={0.62} roughness={0.34} clearcoat={1} />
             </mesh>
           ))}
-          <GlassPanel segment={s.windshield} width={width * 0.8} />
-          {s.rearWindow && <GlassPanel segment={s.rearWindow} width={width * 0.76} />}
-          <mesh position={[half + 0.01, s.lamps.front - 0.14, 0]}>
-            <boxGeometry args={[0.03, 0.16, width * 0.42]} />
-            <meshStandardMaterial color="#15181b" roughness={0.6} />
-          </mesh>
-          {[-1, 1].map((side) => (
-            <mesh key={side} position={[s.windshield[0][0] - 0.05, s.windshield[0][1] + 0.08, side * (width / 2 * 0.95 + 0.06)]}>
-              <boxGeometry args={[0.12, 0.09, 0.1]} />
-              {bodyMaterial}
-            </mesh>
+          {mirrors.map(({ key, side, root, housing }) => (
+            <group key={key}>
+              <Rod from={root} to={housing} radius={0.013} color="#0d0e10" metalness={0.2} roughness={0.6} segments={8} />
+              <mesh position={housing} scale={[0.06, 0.052, 0.102]} {...noHit}>
+                <sphereGeometry args={[1, 24, 16]} />
+                <meshPhysicalMaterial color={paint} metalness={0.62} roughness={0.34} clearcoat={1} />
+              </mesh>
+              <mesh position={[housing[0] - 0.045, housing[1], housing[2]]} rotation={[0, Math.PI / 2 + side * 0.08, 0]} scale={[0.082, 0.04, 1]} {...noHit}>
+                <circleGeometry args={[1, 24]} />
+                <meshPhysicalMaterial color="#7f8b92" metalness={1} roughness={0.08} side={THREE.DoubleSide} />
+              </mesh>
+            </group>
           ))}
         </group>
       )}
@@ -403,11 +471,24 @@ function CarModel({ rig, paint, xray, interaction }) {
           <Mat color="#26292d" metalness={0.3} roughness={0.5} />
         </mesh>
         {[-0.3, -0.1, 0.1, 0.3].map((offset) => (
-          <mesh key={offset} position={[ex - ew * 0.15, ey + eh / 2 + 0.06, offset * ed * 0.9]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.03, 0.03, ew * 0.55, 10]} />
-            <Mat color="#9aa3ab" metalness={0.8} roughness={0.3} />
-          </mesh>
+          <group key={offset}>
+            <mesh position={[ex - ew * 0.15, ey + eh / 2 + 0.06, offset * ed * 0.9]} rotation={[0, 0, Math.PI / 2]}>
+              <cylinderGeometry args={[0.03, 0.03, ew * 0.55, 10]} />
+              <Mat color="#9aa3ab" metalness={0.8} roughness={0.3} />
+            </mesh>
+            <Tube points={[[ex - ew * 0.42, ey + eh / 2 + 0.06, offset * ed * 0.9], [ex - ew * 0.56, ey + eh * 0.35, offset * ed * 0.9], [ex - ew * 0.52, ey + eh * 0.05, offset * ed * 0.75]]} radius={0.016} color="#b9bfc5" metalness={0.85} roughness={0.28} />
+          </group>
         ))}
+        {[-0.22, -0.11, 0, 0.11, 0.22].map((offset) => (
+          <mesh key={offset} position={[ex, ey, ed / 2 + 0.004]} rotation={[0, 0, 0]}>
+            <boxGeometry args={[ew * 0.9, 0.012, 0.012]} />
+            <Mat color="#454b52" metalness={0.7} roughness={0.45} />
+          </mesh>
+        )).map((rib, index) => <group key={index} position={[0, (index - 2) * 0.06, 0]}>{rib}</group>)}
+        <mesh position={[ex + ew / 2 + 0.045, ey + eh * 0.26, -ed * 0.28]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.055, 0.055, 0.09, 18]} />
+          <Mat color="#9ca4ab" metalness={0.8} roughness={0.32} />
+        </mesh>
         <mesh position={[ex + ew / 2 + 0.02, ey - eh * 0.15, ed * 0.2]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.08, 0.08, 0.05, 20]} />
           <Mat color="#2e3338" metalness={0.6} roughness={0.4} />
@@ -440,6 +521,8 @@ function CarModel({ rig, paint, xray, interaction }) {
           <cylinderGeometry args={[0.05, 0.05, 0.14, 14]} />
           <Mat color="#d9dde0" roughness={0.3} metalness={0.1} />
         </mesh>
+        <Tube points={[[half - 0.31, ey + eh * 0.38, width * 0.2], [ex + ew * 0.6, ey + eh * 0.5, width * 0.14], [ex + ew / 2 - 0.04, ey + eh * 0.42, ed * 0.3]]} radius={0.022} color="#1c1f22" metalness={0.1} roughness={0.75} />
+        <Tube points={[[half - 0.31, ey - eh * 0.42, -width * 0.2], [ex + ew * 0.62, ey - eh * 0.46, -width * 0.15], [ex + ew / 2 - 0.02, ey - eh * 0.3, -ed * 0.3]]} radius={0.022} color="#1c1f22" metalness={0.1} roughness={0.75} />
       </Part>
 
       <Part id="transmission" interaction={interaction}>
@@ -487,22 +570,41 @@ function CarModel({ rig, paint, xray, interaction }) {
 
       {wheels.map(([id, axle, side]) => (
         <Part key={id} id={id} interaction={interaction}>
-          <Wheel position={[axle, R, wheelZ[side]]} radius={R} width={tireWidth} />
+          <Wheel position={[axle, R, wheelZ[side]]} radius={R} width={tireWidth} side={side === 'left' ? -1 : 1} />
         </Part>
       ))}
 
       <Part id="lighting" interaction={interaction}>
-        {[-1, 1].map((side) => (
-          <group key={side}>
-            <mesh position={[half - 0.05, s.lamps.front, side * (surfaceZ(half - 0.05, s.lamps.front) - 0.3)]}>
-              <boxGeometry args={[0.05, 0.11, 0.34]} />
-              <Mat color="#eef3f6" emissive="#cfe6ff" emissiveIntensity={0.5} metalness={0.2} roughness={0.15} />
-            </mesh>
-            <mesh position={[-half + 0.04, s.lamps.rear, side * (surfaceZ(-half + 0.04, s.lamps.rear) - 0.24)]}>
-              <boxGeometry args={[0.05, 0.12, 0.3]} />
-              <Mat color="#9e1b1b" emissive="#d42a2a" emissiveIntensity={0.45} roughness={0.25} />
-            </mesh>
-          </group>
+        {shell.headlamps.map((geometry) => (
+          <mesh key={geometry.uuid} geometry={geometry}>
+            <Mat color="#0b0d10" metalness={0.5} roughness={0.25} side={THREE.DoubleSide} />
+          </mesh>
+        ))}
+        {shell.lampLenses.map((geometry) => (
+          <mesh key={geometry.uuid} geometry={geometry}>
+            <Mat color="#7c8c98" emissive="#9db8cc" emissiveIntensity={0.1} metalness={0.95} roughness={0.08} side={THREE.DoubleSide} />
+          </mesh>
+        ))}
+        {shell.lampStrips.map((geometry) => (
+          <mesh key={geometry.uuid} geometry={geometry}>
+            <Mat color="#ffffff" emissive="#eaf4ff" emissiveIntensity={1.5} roughness={0.2} side={THREE.DoubleSide} />
+          </mesh>
+        ))}
+        {shell.taillamps.map((geometry) => (
+          <mesh key={geometry.uuid} geometry={geometry}>
+            <Mat color="#4f0a0e" emissive="#8f141c" emissiveIntensity={0.35} metalness={0.55} roughness={0.14} side={THREE.DoubleSide} />
+          </mesh>
+        ))}
+        {shell.tailStrips.map((geometry) => (
+          <mesh key={geometry.uuid} geometry={geometry}>
+            <Mat color="#ff3b3f" emissive="#ff2a30" emissiveIntensity={1.15} roughness={0.25} side={THREE.DoubleSide} />
+          </mesh>
+        ))}
+        {s.bed && [-1, 1].map((side) => (
+          <mesh key={side} position={[s.bed.rear - 0.004, s.lamps.rear, side * (width / 2 - 0.16)]}>
+            <boxGeometry args={[0.03, 0.2, 0.2]} />
+            <Mat color="#7d1014" emissive="#d0202a" emissiveIntensity={0.55} roughness={0.2} />
+          </mesh>
         ))}
       </Part>
     </group>
@@ -598,10 +700,10 @@ function MotorcycleModel({ rig, paint, xray, interaction }) {
       </Part>
 
       <Part id="tire-front" interaction={interaction}>
-        <Wheel position={[s.frontAxle, R, 0]} radius={R} width={s.tireWidth} spokes={6} rimColor="#30353b" />
+        <Wheel position={[s.frontAxle, R, 0]} radius={R} width={s.tireWidth} spokes={6} rimColor="#30353b" side={-1} />
       </Part>
       <Part id="tire-rear" interaction={interaction}>
-        <Wheel position={[s.rearAxle, R, 0]} radius={R} width={s.tireWidth + 0.03} spokes={6} rimColor="#30353b" />
+        <Wheel position={[s.rearAxle, R, 0]} radius={R} width={s.tireWidth + 0.03} spokes={6} rimColor="#30353b" side={-1} />
       </Part>
 
       <Part id="exhaust" interaction={interaction}>

@@ -1,5 +1,25 @@
 import { useEffect, useState } from 'react'
 import { api, imageUrl } from '../../../Services/API/api.js'
+import { getFleetCounts } from '../../../Services/API/vehicleAPI.js'
+import CarSilhouette from '../../Users/Components/CarSilhouette.jsx'
+import './VehicleManagement.css'
+
+const PAGE_SIZE = 24
+const SEARCH_DELAY_MS = 250
+const SKELETON_ROWS = [1, 2, 3, 4]
+const STATUSES = [
+  { value: '', label: 'All', countKey: 'total' },
+  { value: 'available', label: 'Available', countKey: 'available' },
+  { value: 'rented', label: 'Rented', countKey: 'rented' },
+  { value: 'maintenance', label: 'Maintenance', countKey: 'maintenance' },
+  { value: 'unavailable', label: 'Unavailable', countKey: 'unavailable' },
+]
+const SORTS = [
+  { value: 'newest', label: 'Recently added' },
+  { value: 'price_asc', label: 'Price: low to high' },
+  { value: 'price_desc', label: 'Price: high to low' },
+  { value: 'year_desc', label: 'Model year: newest' },
+]
 
 function vehicleImage(car) {
   const path = car.primary_image || car.images?.[0]?.image_path
@@ -11,129 +31,279 @@ function money(value) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: n % 1 ? 2 : 0 }).format(n)
 }
 
+function statusLabel(status) {
+  return STATUSES.find((item) => item.value === status)?.label || status || 'Available'
+}
+
+function SearchIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.800-3.800" /></svg>
+}
+
+function InventorySkeleton() {
+  return (
+    <div className="vm-card vm-skeleton" role="status" aria-label="Loading vehicles">
+      {SKELETON_ROWS.map((key) => (
+        <div className="vm-skeleton-row" key={key} aria-hidden="true">
+          <span className="vm-shimmer vm-line-thumb" />
+          <span className="vm-shimmer vm-line-name" />
+          <span className="vm-shimmer vm-line-rest" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function VehicleRow({ car, navigate }) {
+  const name = `${car.make} ${car.model}`
+  const photo = vehicleImage(car)
+  const meta = [car.year, car.category].filter(Boolean).join(' · ')
+  const specs = [car.transmission, car.fuel_type, car.seating_capacity && `${car.seating_capacity} seats`].filter(Boolean).join(' · ')
+  const status = car.status || 'available'
+  const openDetails = () => navigate(`/admin/vehicles/${car.id}${window.location.search}`)
+
+  return (
+    <tr>
+      <td className="vm-vehicle">
+        <button type="button" className="vm-vehicle-link" onClick={openDetails}>
+          <span className="vm-thumb">
+            <span className="vm-thumb-empty"><CarSilhouette category={car.category} /></span>
+            {photo && <img src={photo} alt="" loading="lazy" onError={(event) => { event.currentTarget.hidden = true }} />}
+          </span>
+          <span className="vm-name">
+            <b>{name}</b>
+            {meta && <small>{meta}</small>}
+          </span>
+        </button>
+      </td>
+      <td data-label="Plate">{car.plate_number || <span className="vm-none">Not set</span>}</td>
+      <td data-label="Specs" className="vm-specs">{specs || <span className="vm-none">Not set</span>}</td>
+      <td data-label="Daily rate" className="vm-rate">{money(car.daily_rental_price)}</td>
+      <td data-label="Status"><span className={`vm-status vm-status-${status}`}><i aria-hidden="true" />{statusLabel(status)}</span></td>
+      <td className="vm-actions">
+        <button type="button" className="vm-link" onClick={() => navigate(`/admin/vehicles/${car.id}/edit${window.location.search}`)} aria-label={`Edit ${name}`}>Edit</button>
+        <button type="button" className="vm-btn vm-btn-outline" onClick={openDetails} aria-label={`Manage ${name}`}>Manage</button>
+      </td>
+    </tr>
+  )
+}
+
 export default function VehicleManagement({ navigate }) {
+  // Filters live in the address, so coming back from a vehicle returns to the same view.
+  const [initial] = useState(() => new URLSearchParams(window.location.search))
+  const [searchInput, setSearchInput] = useState(initial.get('search') || '')
+  const [search, setSearch] = useState(initial.get('search') || '')
+  const [status, setStatus] = useState(initial.get('status') || '')
+  const [sort, setSort] = useState(initial.get('sort') || 'newest')
+  const [page, setPage] = useState(Number(initial.get('page')) || 1)
   const [cars, setCars] = useState([])
-  const [meta, setMeta] = useState({ total: 0, total_pages: 1 })
-  const [loading, setLoading] = useState(true)
+  const [meta, setMeta] = useState({ total: 0, last_page: 1 })
+  const [counts, setCounts] = useState(null)
+  const [loaded, setLoaded] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
-  const [searchInput, setSearchInput] = useState('')
-  const [search, setSearch] = useState('')
-  const [status, setStatus] = useState('')
-  const [sort, setSort] = useState('newest')
-  const [page, setPage] = useState(1)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let active = true
-    const query = new URLSearchParams({ page: String(page), per_page: '24', sort })
+    const query = new URLSearchParams({ page: String(page), per_page: String(PAGE_SIZE), sort })
     if (search) query.set('search', search)
     if (status) query.set('status', status)
     api.get(`/api/cars?${query}`)
       .then((response) => {
         if (!active) return
+        // A saved link can point past the last page once vehicles are removed.
+        if (!response?.data?.length && page > 1) {
+          setPage(1)
+          return
+        }
         setCars(response?.data || [])
-        setMeta(response?.meta || { total: 0, total_pages: 1 })
+        setMeta(response?.meta || { total: 0, last_page: 1 })
+        setError('')
       })
       .catch((requestError) => {
-        if (active) {
-          setCars([])
-          setMeta({ total: 0, total_pages: 1 })
-          setError(requestError.message)
-        }
+        if (active) setError(requestError.message)
       })
       .finally(() => {
-        if (active) setLoading(false)
+        if (active) {
+          setLoaded(true)
+          setRefreshing(false)
+        }
       })
     return () => { active = false }
+  }, [attempt, page, search, sort, status])
+
+  useEffect(() => {
+    let active = true
+    getFleetCounts()
+      .then((result) => { if (active) setCounts(result) })
+      .catch(() => { if (active) setCounts(null) })
+    return () => { active = false }
+  }, [attempt])
+
+  useEffect(() => {
+    const query = new URLSearchParams()
+    if (search) query.set('search', search)
+    if (status) query.set('status', status)
+    if (sort !== 'newest') query.set('sort', sort)
+    if (page > 1) query.set('page', String(page))
+    const suffix = query.toString()
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${suffix ? `?${suffix}` : ''}`)
   }, [page, search, sort, status])
 
-  function submitSearch(event) {
-    event.preventDefault()
-    if (searchInput.trim() !== search || page !== 1) setLoading(true)
-    setError('')
+  function applySearch(value) {
+    const next = value.trim()
+    if (next === search) return
+    setRefreshing(true)
     setPage(1)
-    setSearch(searchInput.trim())
+    setSearch(next)
   }
 
+  // Search follows typing after a short pause. A search that is already applied changes nothing.
+  useEffect(() => {
+    const next = searchInput.trim()
+    if (next === search) return undefined
+    const timer = window.setTimeout(() => {
+      setRefreshing(true)
+      setPage(1)
+      setSearch(next)
+    }, SEARCH_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [search, searchInput])
+
+  function changeStatus(value) {
+    if (value === status) return
+    setRefreshing(true)
+    setPage(1)
+    setStatus(value)
+  }
+
+  function changeSort(value) {
+    setRefreshing(true)
+    setPage(1)
+    setSort(value)
+  }
+
+  function changePage(value) {
+    setRefreshing(true)
+    setPage(value)
+  }
+
+  function clearFilters() {
+    setSearchInput('')
+    setRefreshing(true)
+    setSearch('')
+    setStatus('')
+    setPage(1)
+  }
+
+  function retry() {
+    setError('')
+    setRefreshing(true)
+    setAttempt((value) => value + 1)
+  }
+
+  const hasFilters = Boolean(search || status)
+  const lastPage = Number(meta.last_page) || 1
+  const total = Number(meta.total) || 0
+  const firstShown = total ? (page - 1) * PAGE_SIZE + 1 : 0
+  const lastShown = Math.min(page * PAGE_SIZE, total)
+  const summary = total > cars.length
+    ? `Showing ${firstShown}–${lastShown} of ${total} vehicles`
+    : `${total} ${total === 1 ? 'vehicle' : 'vehicles'}${hasFilters ? ' found' : ''}`
+
   return (
-    <div className="admin-content content-width">
-      <section className="home-section">
-        <div className="detail-heading">
-          <div>
-            <div className="detail-breadcrumb">Fleet management</div>
-            <h1>Vehicle inventory</h1>
-          </div>
-          <button className="button button-primary" onClick={() => navigate('/admin/vehicles/create')}>Add vehicle</button>
+    <div className="admin-content vm">
+      <header className="vm-header">
+        <div>
+          <span className="vm-eyebrow">Fleet management</span>
+          <h1>Vehicle inventory</h1>
         </div>
+        <button type="button" className="vm-btn vm-btn-primary" onClick={() => navigate('/admin/vehicles/create')}>Add vehicle</button>
+      </header>
 
-        <form className="fleet-filters" onSubmit={submitSearch}>
-          <label className="form-field">
-            <span>Search fleet</span>
-            <input type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Make, model, or plate number" />
-          </label>
-          <label className="form-field">
-            <span>Availability</span>
-            <select value={status} onChange={(event) => { setLoading(true); setError(''); setPage(1); setStatus(event.target.value) }}>
-              <option value="">All statuses</option>
-              {['available', 'rented', 'maintenance', 'unavailable'].map((value) => <option key={value} value={value}>{value}</option>)}
-            </select>
-          </label>
-          <label className="form-field">
-            <span>Sort by</span>
-            <select value={sort} onChange={(event) => { setLoading(true); setError(''); setPage(1); setSort(event.target.value) }}>
-              <option value="newest">Newest</option>
-              <option value="price_asc">Price: low to high</option>
-              <option value="price_desc">Price: high to low</option>
-              <option value="name">Vehicle name</option>
-            </select>
-          </label>
-          <button className="button button-primary" type="submit">Search</button>
-        </form>
+      <form
+        className="vm-controls"
+        role="search"
+        onSubmit={(event) => {
+          event.preventDefault()
+          applySearch(searchInput)
+        }}
+      >
+        <label className="vm-search">
+          <span className="vm-sr">Search fleet</span>
+          <SearchIcon />
+          <input type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search make, model, or plate number" />
+        </label>
+        <label className="vm-sort">
+          <span>Sort by</span>
+          <select value={sort} onChange={(event) => changeSort(event.target.value)}>
+            {SORTS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
+        </label>
+      </form>
 
-        {error && <div className="global-error" role="alert">{error}</div>}
-        {loading ? (
-          <div className="loading-state"><span className="spinner" />Loading fleet…</div>
-        ) : cars.length ? (
-          <div className="vehicle-list-grid">
-            {cars.map((car) => (
-              <article key={car.id} className="vehicle-card card-panel">
-                <div className="vehicle-card-image-wrap">
-                  <div className="vehicle-card-image-placeholder" aria-label="Vehicle photo unavailable">Photo unavailable</div>
-                  {vehicleImage(car) && <img
-                    src={vehicleImage(car)}
-                    alt={`${car.make} ${car.model}`}
-                    className="vehicle-card-image"
-                    onError={(event) => {
-                      event.currentTarget.hidden = true
-                    }}
-                  />}
-                </div>
-                <div className="vehicle-card-content">
-                  <div className="vehicle-card-heading">
-                    <div>
-                      <h3>{car.make} {car.model}</h3>
-                      <p>{car.year} · {car.category || 'SUV'}</p>
-                    </div>
-                    <span className="card-category">{car.status || 'available'}</span>
-                  </div>
-                  <div className="vehicle-card-footer">
-                    <div className="daily-price"><b>{money(car.daily_rental_price)}</b><span> / day</span></div>
-                    <button className="card-detail-link" onClick={() => navigate(`/admin/vehicles/${car.id}`)}>Manage</button>
-                  </div>
-                </div>
-              </article>
-            ))}
+      <div className="vm-chips" role="group" aria-label="Filter by availability">
+        {STATUSES.map((item) => (
+          <button key={item.label} type="button" className={status === item.value ? 'selected' : undefined} aria-pressed={status === item.value} onClick={() => changeStatus(item.value)}>
+            {item.label}
+            {counts && <span>{counts[item.countKey]}</span>}
+          </button>
+        ))}
+      </div>
+
+      {!loaded ? <InventorySkeleton /> : error && !cars.length ? (
+        <div className="vm-card vm-state" role="alert">
+          <h2>We couldn't load the fleet</h2>
+          <p>{error}</p>
+          <button type="button" className="vm-btn vm-btn-primary" onClick={retry}>Try again</button>
+        </div>
+      ) : cars.length ? (
+        <>
+          <div className="vm-results">
+            <p aria-live="polite">{summary}</p>
+            {hasFilters && <button type="button" className="vm-link" onClick={clearFilters}>Clear filters</button>}
           </div>
-        ) : !error && <div className="empty-state"><h3>No vehicles found</h3><p>Try another search or adjust the availability filter.</p></div>}
-        {!loading && meta.total_pages > 1 && (
-          <div className="fleet-pagination">
-            <span>Showing page {page} of {meta.total_pages} · {meta.total} vehicles</span>
-            <div>
-              <button className="button button-outline" disabled={page <= 1} onClick={() => { setLoading(true); setError(''); setPage((current) => current - 1) }}>Previous</button>
-              <button className="button button-outline" disabled={page >= meta.total_pages} onClick={() => { setLoading(true); setError(''); setPage((current) => current + 1) }}>Next</button>
-            </div>
+          {error && <p className="vm-inline-error" role="alert">{error}</p>}
+          <div className={`vm-card vm-table-wrap${refreshing ? ' is-refreshing' : ''}`} aria-busy={refreshing}>
+            <table className="vm-table">
+              <thead>
+                <tr>
+                  <th scope="col">Vehicle</th>
+                  <th scope="col">Plate</th>
+                  <th scope="col">Specs</th>
+                  <th scope="col">Daily rate</th>
+                  <th scope="col">Status</th>
+                  <th scope="col"><span className="vm-sr">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {cars.map((car) => <VehicleRow key={car.id} car={car} navigate={navigate} />)}
+              </tbody>
+            </table>
           </div>
-        )}
-      </section>
+          {lastPage > 1 && (
+            <nav className="vm-pagination" aria-label="Vehicle pages">
+              <span>Page {page} of {lastPage}</span>
+              <div>
+                <button type="button" className="vm-btn vm-btn-outline" disabled={page <= 1 || refreshing} onClick={() => changePage(page - 1)}>Previous</button>
+                <button type="button" className="vm-btn vm-btn-outline" disabled={page >= lastPage || refreshing} onClick={() => changePage(page + 1)}>Next</button>
+              </div>
+            </nav>
+          )}
+        </>
+      ) : hasFilters ? (
+        <div className="vm-card vm-state">
+          <h2>No vehicles match those filters</h2>
+          <p>Try another search or a different availability.</p>
+          <button type="button" className="vm-btn vm-btn-outline" onClick={clearFilters}>Clear filters</button>
+        </div>
+      ) : (
+        <div className="vm-card vm-state">
+          <h2>No vehicles yet</h2>
+          <p>Add your first vehicle to start taking reservations.</p>
+          <button type="button" className="vm-btn vm-btn-primary" onClick={() => navigate('/admin/vehicles/create')}>Add vehicle</button>
+        </div>
+      )}
     </div>
   )
 }

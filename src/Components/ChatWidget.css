@@ -417,6 +417,25 @@
   background: #075ac7;
 }
 
+/* Touch gestures on the button drag it instead of scrolling the page. */
+.dr-chat-launcher {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.dr-chat-dragging .dr-chat-launcher,
+.dr-chat-dragging .dr-chat-launcher:hover {
+  cursor: grabbing;
+  transform: scale(1.06);
+  transition: none;
+}
+
+/* When the screen is too small for both, the window's own close button takes over. */
+.dr-chat-covered .dr-chat-launcher {
+  visibility: hidden;
+}
+
 .dr-chat-launcher:focus-visible,
 .dr-chat-header-actions button:focus-visible,
 .dr-chat-form button:focus-visible {

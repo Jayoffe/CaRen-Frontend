@@ -11,10 +11,10 @@ const CAR_SPECS = {
   sedan: {
     length: 4.6, width: 1.8, wheelRadius: 0.32, tireWidth: 0.22, clearance: 0.16,
     frontAxle: 1.38, rearAxle: -1.32, engine: [1.55, 0.56], engineSize: [0.58, 0.42, 0.62],
-    profile: [[2.3, 0.3], [2.33, 0.55], [2.22, 0.72], [1.0, 0.86], [0.25, 1.38], [-0.85, 1.4], [-1.55, 0.98], [-2.2, 0.95], [-2.33, 0.7], [-2.3, 0.32]],
-    windows: [[0.92, 0.9], [0.27, 1.33], [-0.83, 1.35], [-1.47, 0.98]],
-    windshield: [[1.0, 0.86], [0.25, 1.38]],
-    rearWindow: [[-0.85, 1.4], [-1.55, 0.98]],
+    profile: [[2.3, 0.34], [2.35, 0.54], [2.24, 0.7], [1.04, 0.91], [0.2, 1.39], [-0.55, 1.43], [-1.62, 1.03], [-2.22, 0.99], [-2.35, 0.74], [-2.3, 0.36]],
+    windows: [[0.94, 0.97], [0.22, 1.34], [-0.52, 1.375], [-1.42, 1.03]],
+    windshield: [[1.04, 0.91], [0.2, 1.39]],
+    rearWindow: [[-0.55, 1.43], [-1.62, 1.03]],
     lamps: { front: 0.66, rear: 0.82 },
   },
   suv: {
@@ -149,5 +149,5 @@ export function paintColor(value) {
     green: '#3f6b4f', red: '#a8322d', maroon: '#6e2328', silver: '#b4bcc4', white: '#e4e7ea',
     yellow: '#d2a634', orange: '#c8692e', brown: '#6b4d36', beige: '#c9b99a', gold: '#b8974a',
   }
-  return Object.entries(colors).find(([name]) => text.includes(name))?.[1] || '#8a949e'
+  return Object.entries(colors).find(([name]) => text.includes(name))?.[1] || '#99a2ab'
 }

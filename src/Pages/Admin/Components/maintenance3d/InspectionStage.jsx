@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { ContactShadows, OrbitControls } from '@react-three/drei'
+import { ContactShadows, Environment, Lightformer, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import VehicleModel from './VehicleModel.jsx'
 import { paintColor } from './rigs.js'
@@ -9,6 +9,7 @@ import { markerTone, TONE_LABELS } from './status.js'
 const OVERVIEW_DIRECTION = new THREE.Vector3(1, 0.42, -1.15).normalize()
 const WORLD_UP = new THREE.Vector3(0, 1, 0)
 const COMPACT_WIDTH = 760
+const BACKDROP = '#14191f'
 
 /** Camera position and orbit target that frame the whole vehicle in the current viewport. */
 function rigRadius(rig) {
@@ -20,7 +21,9 @@ function overviewPose(rig, camera, size) {
   const radius = rigRadius(rig)
   const verticalFov = THREE.MathUtils.degToRad(camera.fov)
   const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * (size.width / size.height))
-  const distance = (radius / Math.sin(Math.min(verticalFov, horizontalFov) / 2)) * 0.98
+  // The car is longer than it is tall, so it can sit closer when height is the limit.
+  const fit = horizontalFov < verticalFov ? 0.95 : 0.82
+  const distance = (radius / Math.sin(Math.min(verticalFov, horizontalFov) / 2)) * fit
   const target = new THREE.Vector3(0, rig.height * 0.42, 0)
   return { target, position: target.clone().addScaledVector(OVERVIEW_DIRECTION, distance), distance }
 }
@@ -183,14 +186,102 @@ function positionCallout(callout, leader, x, y, size, visible) {
   }
 }
 
-function Lights() {
+/**
+ * A photo studio built from light panels. Car paint and glass look real because of
+ * what they reflect, so this matters more than the direct lights. It is generated
+ * here rather than downloaded, so the page has no extra file to fetch.
+ */
+function Studio({ quality }) {
+  // A soft sky behind the panels, so glass and paint always have something to reflect.
+  const dome = useMemo(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 4
+    canvas.height = 256
+    const context = canvas.getContext('2d')
+    const gradient = context.createLinearGradient(0, 0, 0, 256)
+    gradient.addColorStop(0, '#aab6c2')
+    gradient.addColorStop(0.3, '#7c8996')
+    gradient.addColorStop(0.47, '#2a333b')
+    gradient.addColorStop(0.53, '#14191e')
+    gradient.addColorStop(1, '#232a31')
+    context.fillStyle = gradient
+    context.fillRect(0, 0, 4, 256)
+    const map = new THREE.CanvasTexture(canvas)
+    map.colorSpace = THREE.SRGBColorSpace
+    return map
+  }, [])
+  useEffect(() => () => dome.dispose(), [dome])
   return (
     <>
-      <hemisphereLight intensity={0.85} color="#e8f2ff" groundColor="#1a2129" />
-      <directionalLight position={[4, 7, -3]} intensity={2.1} />
-      <directionalLight position={[-5, 3, 4]} intensity={0.7} color="#bcd6ff" />
-      <directionalLight position={[0, 2, -6]} intensity={0.45} />
+      <hemisphereLight intensity={0.28} color="#eef4ff" groundColor="#10161b" />
+      <directionalLight position={[3.5, 7, -4]} intensity={1.35} />
+      <directionalLight position={[-5, 3, 4]} intensity={0.35} color="#c8dcff" />
+      <Environment resolution={quality === 'high' ? 256 : 96} frames={1}>
+        <mesh scale={40}>
+          <sphereGeometry args={[1, 32, 24]} />
+          <meshBasicMaterial map={dome} side={THREE.BackSide} toneMapped={false} />
+        </mesh>
+        <Lightformer form="rect" intensity={2.8} position={[0, 7, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[11, 4.5, 1]} />
+        <Lightformer form="rect" intensity={2.1} position={[0, 2.6, -8]} scale={[17, 1.5, 1]} />
+        <Lightformer form="rect" intensity={1.5} position={[0, 2.2, 8]} rotation={[0, Math.PI, 0]} scale={[17, 1.3, 1]} />
+        <Lightformer form="rect" intensity={1.8} position={[9, 2.4, 0]} rotation={[0, -Math.PI / 2, 0]} scale={[7, 1.8, 1]} />
+        <Lightformer form="rect" intensity={1} position={[-9, 2.4, 0]} rotation={[0, Math.PI / 2, 0]} scale={[7, 1.6, 1]} />
+        <Lightformer form="ring" intensity={0.8} color="#bcd4ff" position={[-5, 5, -5]} scale={3} />
+      </Environment>
     </>
+  )
+}
+
+/** Studio floor: a pool of light that fades into the backdrop, so there is no horizon line. */
+function StudioFloor({ radius, footprint }) {
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 512
+    canvas.height = 512
+    const context = canvas.getContext('2d')
+    const gradient = context.createRadialGradient(256, 256, 0, 256, 256, 256)
+    gradient.addColorStop(0, '#36404a')
+    gradient.addColorStop(0.32, '#2a333c')
+    gradient.addColorStop(0.7, '#1a2027')
+    gradient.addColorStop(1, BACKDROP)
+    context.fillStyle = gradient
+    context.fillRect(0, 0, 512, 512)
+    const map = new THREE.CanvasTexture(canvas)
+    map.colorSpace = THREE.SRGBColorSpace
+    return map
+  }, [])
+  const shadow = useMemo(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 256
+    canvas.height = 256
+    const context = canvas.getContext('2d')
+    const gradient = context.createRadialGradient(128, 128, 18, 128, 128, 128)
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0.95)')
+    gradient.addColorStop(0.55, 'rgba(0, 0, 0, 0.72)')
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
+    context.fillStyle = gradient
+    context.fillRect(0, 0, 256, 256)
+    return new THREE.CanvasTexture(canvas)
+  }, [])
+  useEffect(() => () => {
+    texture.dispose()
+    shadow.dispose()
+  }, [texture, shadow])
+  return (
+    <group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.0015, 0]} raycast={() => null}>
+        <planeGeometry args={footprint} />
+        <meshBasicMaterial map={shadow} transparent depthWrite={false} toneMapped={false} fog={false} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, 0]} raycast={() => null}>
+        <circleGeometry args={[radius * 3.4, 72]} />
+        <meshBasicMaterial map={texture} toneMapped={false} fog={false} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.001, 0]} raycast={() => null}>
+        <ringGeometry args={[radius * 1.12, radius * 1.126, 128]} />
+        <meshBasicMaterial color="#6d7c88" transparent opacity={0.28} fog={false} />
+      </mesh>
+    </group>
   )
 }
 
@@ -219,6 +310,8 @@ export default function InspectionStage({ rig, vehicle, components, selectedKey,
   const [hoveredKey, setHoveredKey] = useState(null)
   const [manualXray, setManualXray] = useState(false)
   const [webglError, setWebglError] = useState(false)
+  // Starts sharp. If a graphics card can't cope, it retries with the lighter settings before giving up.
+  const [quality, setQuality] = useState('high')
   const [calloutLayout, setCalloutLayout] = useState('')
   const cameraApi = useRef(null)
   const markerRefs = useRef(new Map())
@@ -274,26 +367,27 @@ export default function InspectionStage({ rig, vehicle, components, selectedKey,
   return (
     <div className={`pm-stage${selectedKey ? ' has-selection' : ''}`}>
       <Canvas
+        key={quality}
         className="pm-canvas"
         frameloop="demand"
-        dpr={[1, 1.75]}
+        dpr={quality === 'high' ? [1, 2] : [1, 1.25]}
         camera={{ fov: 34, near: 0.05, far: 80, position: [6, 3, -6] }}
-        gl={{ antialias: true, powerPreference: 'high-performance' }}
+        gl={{ antialias: quality === 'high', powerPreference: 'default' }}
         onCreated={({ gl }) => {
-          gl.domElement.addEventListener('webglcontextlost', (event) => { event.preventDefault(); setWebglError(true) }, { once: true })
+          gl.domElement.addEventListener('webglcontextlost', (event) => {
+            event.preventDefault()
+            if (quality === 'high') setQuality('low')
+            else setWebglError(true)
+          }, { once: true })
         }}
         onPointerMissed={() => hover(null)}
         fallback={<div className="pm-stage-error" role="alert">WebGL is unavailable in this browser.</div>}
       >
-        <color attach="background" args={['#14191f']} />
-        <fog attach="fog" args={['#14191f', 9, 24]} />
-        <Lights />
+        <color attach="background" args={[BACKDROP]} />
+        <Studio quality={quality} />
         <VehicleModel rig={rig} paint={paintColor(vehicle.color)} xray={xray} interaction={interaction} />
-        <ContactShadows position={[0, 0.002, 0]} opacity={0.55} scale={rig.kind === 'motorcycle' ? 4 : 9} blur={2.4} far={2.5} resolution={512} frames={1} />
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]} raycast={() => null}>
-          <circleGeometry args={[40, 64]} />
-          <meshStandardMaterial color="#1d242c" roughness={0.92} metalness={0} />
-        </mesh>
+        <StudioFloor radius={rigRadius(rig)} footprint={[rig.spec.length * 1.38, (rig.kind === 'motorcycle' ? 0.5 : rig.spec.width) * 1.7]} />
+        <ContactShadows position={[0, 0.003, 0]} opacity={0.82} scale={rig.kind === 'motorcycle' ? 4.5 : 10} blur={2.1} far={2.2} resolution={quality === 'high' ? 1024 : 512} frames={1} color="#020304" />
         <OrbitControls
           makeDefault
           enablePan

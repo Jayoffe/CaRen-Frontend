@@ -1,6 +1,13 @@
-import { useEffect, useState } from 'react'
-import DashboardStats from '../Components/DashboardStats.jsx'
+import { useEffect, useMemo, useState } from 'react'
 import { api } from '../../../Services/API/api.js'
+import { getFleetCounts } from '../../../Services/API/vehicleAPI.js'
+import './AdminDashboard.css'
+
+const DAY_MS = 86400000
+const SCHEDULE_DAYS = 7
+const SCHEDULE_LIMIT = 8
+const UNPAID_WARNING_DAYS = 2
+const SKELETON_TILES = [1, 2, 3, 4]
 
 function money(value) {
   const n = Number(value || 0)
@@ -12,98 +19,278 @@ function localToday() {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
 }
 
+function addDays(day, count) {
+  return new Date(Date.parse(day) + count * DAY_MS).toISOString().slice(0, 10)
+}
+
+function dateOnly(value) {
+  return String(value || '').slice(0, 10)
+}
+
+function formatDay(day, options = { weekday: 'short', month: 'short', day: 'numeric' }) {
+  return new Intl.DateTimeFormat('en-PH', options).format(new Date(`${day}T00:00:00`))
+}
+
+function dayHeading(day, today) {
+  if (day === today) return `Today, ${formatDay(day, { month: 'short', day: 'numeric' })}`
+  if (day === addDays(today, 1)) return `Tomorrow, ${formatDay(day, { month: 'short', day: 'numeric' })}`
+  return formatDay(day)
+}
+
+function plural(count, word) {
+  return `${count} ${word}${count === 1 ? '' : 's'}`
+}
+
+function customerName(item) {
+  return item.full_name || item.username || `Customer #${item.user_id}`
+}
+
+/** Things an administrator has to act on, most urgent first. Only groups with something in them are returned. */
+function attentionItems(reservations, today) {
+  const confirmed = reservations.filter((item) => item.status === 'confirmed')
+  const notCheckedOut = confirmed.filter((item) => !item.checked_out_at)
+  const paymentsDue = notCheckedOut.filter((item) => (
+    Number(item.payment_required) === 1
+    && item.payment_status === 'unpaid'
+    && dateOnly(item.start_date) >= today
+    && dateOnly(item.start_date) <= addDays(today, UNPAID_WARNING_DAYS)
+  ))
+  return [
+    {
+      key: 'late-returns',
+      level: 'critical',
+      count: confirmed.filter((item) => item.checked_out_at && !item.returned_at && dateOnly(item.end_date) < today).length,
+      label: (n) => `${plural(n, 'vehicle')} past the return date`,
+      action: 'Record return',
+      href: '/admin/reservations?status=confirmed',
+    },
+    {
+      key: 'missed-pickups',
+      level: 'critical',
+      count: notCheckedOut.filter((item) => dateOnly(item.start_date) < today).length,
+      label: (n) => `${plural(n, 'pickup')} past the date, not checked out`,
+      action: 'Review',
+      href: '/admin/reservations?status=confirmed',
+    },
+    {
+      key: 'verify-payments',
+      level: 'warning',
+      count: reservations.filter((item) => item.payment_status === 'pending' && item.status === 'confirmed').length,
+      label: (n) => `${plural(n, 'GCash payment')} to verify`,
+      action: 'Verify',
+      href: '/admin/payments',
+    },
+    {
+      key: 'approve-requests',
+      level: 'warning',
+      count: reservations.filter((item) => item.status === 'pending').length,
+      label: (n) => `${plural(n, 'reservation request')} to approve`,
+      action: 'Review',
+      href: '/admin/reservations?status=pending',
+    },
+    {
+      key: 'unpaid-soon',
+      level: 'warning',
+      count: paymentsDue.length,
+      label: (n) => `${plural(n, 'approved rental')} unpaid, pickup within ${UNPAID_WARNING_DAYS} days`,
+      action: 'Review',
+      href: '/admin/reservations?status=confirmed',
+    },
+  ].filter((item) => item.count > 0)
+}
+
+/** Each reservation gives a pickup and a return, placed on the days they fall due. */
+function scheduleEvents(reservations, today) {
+  const lastDay = addDays(today, SCHEDULE_DAYS)
+  const inWindow = (day) => day >= today && day <= lastDay
+  const events = []
+  for (const item of reservations) {
+    const start = dateOnly(item.start_date)
+    const end = dateOnly(item.end_date)
+    if (['pending', 'confirmed'].includes(item.status) && !item.checked_out_at && inWindow(start)) {
+      events.push({ key: `${item.id}-pickup`, day: start, type: 'Pickup', item })
+    }
+    if (item.status === 'confirmed' && !item.returned_at && inWindow(end)) {
+      events.push({ key: `${item.id}-return`, day: end, type: 'Return', item })
+    }
+  }
+  return events.sort((left, right) => left.day.localeCompare(right.day) || left.type.localeCompare(right.type))
+}
+
+function AlertIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 8v5M12 17h.01" /><circle cx="12" cy="12" r="9" /></svg>
+}
+
+function ClockIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+}
+
+function CheckIcon() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 12.500 4.500 4.500L19 7.500" /></svg>
+}
+
+function DashboardSkeleton() {
+  return (
+    <div role="status" aria-label="Loading dashboard">
+      <div className="ad-tiles" aria-hidden="true">
+        {SKELETON_TILES.map((key) => <div className="ad-card ad-tile" key={key}><span className="ad-shimmer ad-line-short" /><span className="ad-shimmer ad-line-value" /><span className="ad-shimmer ad-line-short" /></div>)}
+      </div>
+      <div className="ad-panels" aria-hidden="true">
+        <div className="ad-card ad-panel"><span className="ad-shimmer ad-line-short" /><span className="ad-shimmer ad-line-block" /></div>
+        <div className="ad-card ad-panel"><span className="ad-shimmer ad-line-short" /><span className="ad-shimmer ad-line-block" /></div>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminDashboard({ navigate }) {
-  const [fleet, setFleet] = useState({ total: 0, available: 0 })
+  const [fleet, setFleet] = useState({ total: 0, available: 0, rented: 0, maintenance: 0 })
   const [reservations, setReservations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [attempt, setAttempt] = useState(0)
+  const today = useMemo(() => localToday(), [])
 
   useEffect(() => {
     let active = true
-    Promise.all([
-      api.get('/api/cars?per_page=1'),
-      api.get('/api/reservations')
-    ])
-      .then(([carsResponse, reservationsResponse]) => {
+    Promise.all([getFleetCounts(), api.get('/api/reservations')])
+      .then(([fleetCounts, reservationsResponse]) => {
         if (!active) return
-        setFleet({
-          total: Number(carsResponse?.meta?.total || 0),
-          available: Number(carsResponse?.meta?.available_count || 0),
-        })
+        setFleet(fleetCounts)
         setReservations(reservationsResponse?.data || [])
       })
       .catch((requestError) => {
-        if (active) {
-          setError(requestError.message)
-          setFleet({ total: 0, available: 0 })
-          setReservations([])
-        }
+        if (active) setError(requestError.message)
       })
       .finally(() => {
         if (active) setLoading(false)
       })
     return () => { active = false }
-  }, [])
+  }, [attempt])
 
-  const totalBookingValue = reservations.reduce((sum, item) => (
-    ['pending', 'confirmed', 'completed'].includes(item.status)
-      ? sum + Number(item.total_amount || 0)
-      : sum
-  ), 0)
-  const stats = [
-    { label: 'Fleet', value: fleet.total, detail: `${fleet.available} currently available`, tone: 'blue' },
-    { label: 'Bookings', value: reservations.length, detail: 'All customer reservations', tone: 'green' },
-    { label: 'Booking value', value: money(totalBookingValue), detail: 'Requested amounts, not payments', tone: 'amber' },
-  ]
-  const today = localToday()
-  const operationalReservations = reservations
-    .filter((item) => (
-      (item.status === 'confirmed' && item.end_date < today)
-      || (['pending', 'confirmed'].includes(item.status) && item.start_date >= today)
-    ))
-    .sort((left, right) => left.start_date.localeCompare(right.start_date))
-    .slice(0, 6)
+  function retry() {
+    setError('')
+    setLoading(true)
+    setAttempt((value) => value + 1)
+  }
+
+  const counted = reservations.filter((item) => ['pending', 'confirmed', 'completed'].includes(item.status))
+  const bookingValue = counted.reduce((sum, item) => sum + Number(item.total_amount || 0), 0)
+  const paidValue = counted.reduce((sum, item) => sum + (item.payment_status === 'paid' ? Number(item.total_amount || 0) : 0), 0)
+  const onTheRoad = reservations.filter((item) => item.status === 'confirmed' && item.checked_out_at && !item.returned_at).length
+  const pendingCount = reservations.filter((item) => item.status === 'pending').length
+  const confirmedCount = reservations.filter((item) => item.status === 'confirmed').length
+
+  const attention = attentionItems(reservations, today)
+  const events = scheduleEvents(reservations, today)
+  const visibleEvents = events.slice(0, SCHEDULE_LIMIT)
+  const eventDays = [...new Set(visibleEvents.map((event) => event.day))]
+  const fleetBreakdown = [
+    `${fleet.rented} rented`,
+    `${fleet.maintenance} in maintenance`,
+  ].join(' · ')
 
   return (
-    <div className="admin-content">
-      <section className="home-section admin-dashboard-section">
-        <div className="detail-heading admin-dashboard-header">
-          <div>
-            <div className="detail-breadcrumb">Operations overview</div>
-            <h1>Fleet dashboard</h1>
-          </div>
-          <button className="button button-primary" onClick={() => navigate('/admin/vehicles')}>Manage vehicles</button>
+    <div className="admin-content ad">
+      <header className="ad-header">
+        <div>
+          <span className="ad-eyebrow">{formatDay(today, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>
+          <h1>Fleet dashboard</h1>
         </div>
+        <button type="button" className="ad-btn ad-btn-primary" onClick={() => navigate('/admin/vehicles')}>Manage vehicles</button>
+      </header>
 
-        {error && <div className="global-error" role="alert">{error}</div>}
-        {loading ? (
-          <div className="loading-state"><span className="spinner" />Loading dashboard…</div>
-        ) : !error ? <>
-          <DashboardStats stats={stats} />
-          <section className="admin-panel dashboard-operations">
-            <div className="section-heading">
-              <div><span className="eyebrow">FLEET SCHEDULE</span><h2>Upcoming pickups &amp; returns</h2><p>Pending and confirmed reservations from the live booking records.</p></div>
-              <button className="button button-outline" onClick={() => navigate('/admin/reservations')}>All reservations</button>
+      {loading ? <DashboardSkeleton /> : error ? (
+        <div className="ad-card ad-state" role="alert">
+          <h2>We couldn't load the dashboard</h2>
+          <p>{error}</p>
+          <button type="button" className="ad-btn ad-btn-primary" onClick={retry}>Try again</button>
+        </div>
+      ) : (
+        <>
+          <dl className="ad-tiles">
+            <div className="ad-card ad-tile">
+              <dt>Available now</dt>
+              <dd className="ad-value">{fleet.available} <small>of {fleet.total}</small></dd>
+              <dd className="ad-detail">{fleetBreakdown}</dd>
             </div>
-            {operationalReservations.length ? (
-              <div className="maintenance-table-wrap">
-                <table className="maintenance-table dashboard-operations-table">
-                  <thead><tr><th>Customer</th><th>Vehicle</th><th>Pickup</th><th>Return</th><th>Status</th></tr></thead>
-                  <tbody>{operationalReservations.map((item) => (
-                    <tr key={item.id}>
-                      <td>{item.full_name || item.username || `Customer #${item.user_id}`}</td>
-                      <td>{item.make} {item.model}</td>
-                      <td>{item.start_date}</td>
-                      <td>{item.end_date}</td>
-                      <td><span className={`status-pill status-${item.status}`}><i />{item.status}</span></td>
-                    </tr>
-                  ))}</tbody>
-                </table>
+            <div className="ad-card ad-tile">
+              <dt>On the road</dt>
+              <dd className="ad-value">{onTheRoad}</dd>
+              <dd className="ad-detail">Checked out, not yet returned</dd>
+            </div>
+            <div className="ad-card ad-tile">
+              <dt>Open bookings</dt>
+              <dd className="ad-value">{pendingCount + confirmedCount}</dd>
+              <dd className="ad-detail">{pendingCount} pending · {confirmedCount} confirmed</dd>
+            </div>
+            <div className="ad-card ad-tile">
+              <dt>Booking value</dt>
+              <dd className="ad-value">{money(bookingValue)}</dd>
+              <dd className="ad-detail">{money(paidValue)} paid so far</dd>
+            </div>
+          </dl>
+
+          <div className="ad-panels">
+            <section className="ad-card ad-panel" aria-labelledby="ad-attention-title">
+              <h2 id="ad-attention-title">Needs attention</h2>
+              {attention.length ? (
+                <ul className="ad-attention">
+                  {attention.map((entry) => (
+                    <li key={entry.key}>
+                      <button type="button" className={`ad-alert ad-alert-${entry.level}`} onClick={() => navigate(entry.href)}>
+                        <span className="ad-alert-icon">{entry.level === 'critical' ? <AlertIcon /> : <ClockIcon />}</span>
+                        <span className="ad-alert-text">
+                          {entry.label(entry.count)}
+                          <small>{entry.level === 'critical' ? 'Urgent' : 'To do'}</small>
+                        </span>
+                        <span className="ad-alert-action">{entry.action}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="ad-clear">
+                  <span><CheckIcon /></span>
+                  <p>Nothing needs attention right now.</p>
+                </div>
+              )}
+            </section>
+
+            <section className="ad-card ad-panel" aria-labelledby="ad-schedule-title">
+              <div className="ad-panel-head">
+                <div>
+                  <h2 id="ad-schedule-title">Pickups and returns</h2>
+                  <p>Next {SCHEDULE_DAYS} days</p>
+                </div>
+                <button type="button" className="ad-btn ad-btn-outline" onClick={() => navigate('/admin/reservations')}>All reservations</button>
               </div>
-            ) : <div className="maintenance-empty">No upcoming pickups or overdue returns in the current reservation records.</div>}
-          </section>
-        </> : null}
-      </section>
+              {visibleEvents.length ? (
+                <>
+                  {eventDays.map((day) => (
+                    <div className="ad-day" key={day}>
+                      <h3>{dayHeading(day, today)}</h3>
+                      <ul>
+                        {visibleEvents.filter((event) => event.day === day).map(({ key, type, item }) => (
+                          <li key={key}>
+                            <span className={`ad-type ad-type-${type.toLowerCase()}`}>{type}</span>
+                            <span className="ad-event-main">
+                              <b>{item.make} {item.model}{item.variant_color ? ` · ${item.variant_color}` : ''}</b>
+                              <small>{customerName(item)}</small>
+                            </span>
+                            <span className={`ad-status ad-status-${item.status}`}>{item.status}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                  {events.length > SCHEDULE_LIMIT && <p className="ad-more">{plural(events.length - SCHEDULE_LIMIT, 'more event')} in the next {SCHEDULE_DAYS} days</p>}
+                </>
+              ) : <p className="ad-empty">No pickups or returns in the next {SCHEDULE_DAYS} days.</p>}
+            </section>
+          </div>
+        </>
+      )}
     </div>
   )
 }

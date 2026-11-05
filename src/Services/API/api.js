@@ -1,10 +1,18 @@
 // Trailing slashes are stripped because every endpoint starts with "/"; a "//api/..." path matches no route.
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:3000').replace(/\/+$/, '')
+// An empty VITE_API_BASE_URL means same-origin, for use with VITE_API_PROXY_TARGET in development.
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:3000').replace(/\/+$/, '')
 
 async function request(endpoint, options = {}) {
   const isFormData = options.body instanceof FormData
+  const isUrlEncoded = options.body instanceof URLSearchParams
   const headers = new Headers(options.headers || {})
-  if (!isFormData && options.body !== undefined && !headers.has('Content-Type')) {
+  const accessToken = window.sessionStorage.getItem('access_token')
+  if (accessToken && !headers.has('Authorization')) {
+    headers.set('Authorization', 'Bearer ' + accessToken)
+  }
+  if (isUrlEncoded && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')
+  } else if (!isFormData && !isUrlEncoded && options.body !== undefined && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
 
@@ -52,7 +60,7 @@ export const api = {
   post: (endpoint, body, options = {}) => request(endpoint, {
     ...options,
     method: 'POST',
-    body: body instanceof FormData ? body : JSON.stringify(body),
+    body: body instanceof FormData || body instanceof URLSearchParams ? body : JSON.stringify(body),
   }),
   put: (endpoint, body, options = {}) => request(endpoint, {
     ...options,

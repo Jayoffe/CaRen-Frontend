@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { api } from '../api'
+import GoogleSignInButton from './GoogleSignInButton.jsx'
 
-export default function SignUp({ navigate }) {
+export default function SignUp({ navigate, onGoogleLogin }) {
   const [values, setValues] = useState({ full_name: '', email: '', password: '', confirm_password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -17,14 +18,26 @@ export default function SignUp({ navigate }) {
     }
     setLoading(true)
     try {
-      const response = await api.post('/api/register', {
+      const response = await api.post('/api/register', new URLSearchParams({
         full_name: values.full_name.trim(),
         email: values.email.trim(),
         password: values.password,
-      })
+      }))
       if (response?.success !== true) throw new Error('The API did not confirm account creation.')
       window.sessionStorage.setItem('authSuccess', 'Your account was created successfully. Please sign in.')
       navigate('/auth/login')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const googleCredential = async (credential) => {
+    setError('')
+    setLoading(true)
+    try {
+      await onGoogleLogin(credential)
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -43,6 +56,8 @@ export default function SignUp({ navigate }) {
     <form className="login-form signup-form" onSubmit={submit}>
       <div><span className="eyebrow">YOUR ACCOUNT</span><h2>Create account</h2><p>Enter your details to get started.</p></div>
       {error && <div className="error-message" role="alert">{error}</div>}
+      <GoogleSignInButton onCredential={googleCredential} onError={setError} />
+      <div className="auth-divider"><span>or use email</span></div>
       <label className="form-field"><span>Full name</span><input name="full_name" autoComplete="name" value={values.full_name} onChange={update} maxLength="150" required /></label>
       <label className="form-field"><span>Email address</span><input name="email" type="email" autoComplete="email" value={values.email} onChange={update} maxLength="255" required /></label>
       <label className="form-field"><span>Password</span><div className="password-input"><input name="password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={values.password} onChange={update} minLength="8" required /><button type="button" onClick={() => setShowPassword((show) => !show)}>{showPassword ? 'Hide' : 'Show'}</button></div></label>
