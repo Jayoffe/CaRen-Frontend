@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { API_BASE_URL, api } from '../../../Services/API/api.js'
+import { api, authorizedFetch } from '../../../Services/API/api.js'
 import './UserProfile.css'
 
 const EMPTY_PROFILE = {
@@ -133,11 +133,7 @@ export default function UserProfile({ user, onProfileSaved }) {
     let objectUrl = ''
     if (photoFile || !profile.has_verification_photo) return undefined
 
-    const accessToken = window.sessionStorage.getItem('access_token')
-    fetch(`${API_BASE_URL}/api/profile/verification-photo`, {
-      credentials: 'include',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-    })
+    authorizedFetch('/api/profile/verification-photo')
       .then((response) => {
         if (!response.ok) throw new Error('Your saved photo could not be shown. It is still on your account.')
         return response.blob()
