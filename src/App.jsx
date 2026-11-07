@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { api, imageUrl } from './api'
+import { api, clearTokens, getRefreshToken, imageUrl, storeTokens } from './api'
 import Login from './auth/Login'
 import SignUp from './auth/SignUp'
 import AdminLayout from './Pages/Admin/Layout/AdminLayout.jsx'
@@ -80,6 +80,16 @@ function App() {
     return () => { active = false }
   }, [])
 
+  // The refresh token was rejected, so the login really has ended. Unsaved survey answers stay in the draft.
+  useEffect(() => {
+    const onExpired = () => {
+      setUser(null)
+      setApiError('Your session has expired. Please sign in again.')
+    }
+    window.addEventListener('auth:expired', onExpired)
+    return () => window.removeEventListener('auth:expired', onExpired)
+  }, [])
+
   useEffect(() => {
     if (!toast) return undefined
     const timer = window.setTimeout(() => setToast(''), 3500)
@@ -103,9 +113,7 @@ function App() {
     if (!loggedInUser || typeof loggedInUser !== 'object' || !loggedInUser.role) {
       throw new Error('The login response did not include user information. Check that the backend API is up to date.')
     }
-    if (response?.access_token) {
-      window.sessionStorage.setItem('access_token', response.access_token)
-    }
+    storeTokens(response)
     setUser(loggedInUser)
     setToast(`Welcome, ${loggedInUser.full_name || loggedInUser.username || loggedInUser.email || 'there'}.`)
     const requestedPath = new URLSearchParams(window.location.search).get('next')
@@ -123,8 +131,8 @@ function App() {
   const logout = async () => {
     setApiError('')
     try {
-      await api.post('/api/logout', {})
-      window.sessionStorage.removeItem('access_token')
+      await api.post('/api/logout', { refresh_token: getRefreshToken() })
+      clearTokens()
       setUser(null)
       setToast('You have been signed out.')
       navigate('/auth/login')

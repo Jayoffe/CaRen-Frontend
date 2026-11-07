@@ -1,4 +1,4 @@
-import { api, API_BASE_URL } from './api.js'
+import { api, authorizedFetch } from './api.js'
 
 const base = '/api/assessments'
 
@@ -58,11 +58,7 @@ export async function uploadEvidence(assessmentId, categoryKey, file) {
 
 /** Evidence is private, so it is fetched with credentials and shown from a blob URL. */
 export async function evidenceObjectUrl(evidenceId) {
-  const token = window.sessionStorage.getItem('access_token')
-  const response = await fetch(`${API_BASE_URL}${base}/evidence/${Number(evidenceId)}`, {
-    credentials: 'include',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  })
+  const response = await authorizedFetch(`${base}/evidence/${Number(evidenceId)}`)
   if (!response.ok) throw new Error('The evidence could not be loaded.')
   return URL.createObjectURL(await response.blob())
 }
