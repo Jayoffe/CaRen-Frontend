@@ -62,12 +62,14 @@ function Overview({ component, vehicle }) {
           {schedule.reason}
           {schedule.rule && <small className="pm-evidence">Interval: {joinParts(schedule.rule.interval_days && `every ${schedule.rule.interval_days} days`, schedule.rule.interval_km && `every ${formatKm(schedule.rule.interval_km)}`)} ({schedule.rule.scope === 'vehicle' ? 'this vehicle' : `all ${BODY_TYPE_LABELS[vehicle.body_type] || 'vehicles of this type'}`}) · source: {schedule.rule.basis}</small>}
         </StatusRow>
-        <StatusRow label="Prediction" tone={prediction.status === 'available' ? PREDICTION_TONES[prediction.risk_category] || 'good' : 'unknown'} value={prediction.status === 'available' && prediction.risk_category ? RISK_LABELS[prediction.risk_category] : PREDICTION_LABELS[prediction.status]}>
-          {prediction.status === 'available'
-            ? <>Model score {(prediction.score * 100).toFixed(0)}%{prediction.threshold !== null && ` (threshold ${(prediction.threshold * 100).toFixed(0)}%)`}. {prediction.reason}</>
-            : prediction.message}
-          {prediction.status === 'available' && prediction.model_version && <small className="pm-evidence">Service-need model {prediction.model_version}{prediction.prediction_timestamp && ` · ${formatDate(prediction.prediction_timestamp.slice(0, 10))}`}. Likelihood that the item is done at a service visit at this odometer — not a detected fault.</small>}
-        </StatusRow>
+        {prediction.status === 'available' && (
+          <StatusRow label="Prediction" tone={prediction.status === 'available' ? PREDICTION_TONES[prediction.risk_category] || 'good' : 'unknown'} value={prediction.status === 'available' && prediction.risk_category ? RISK_LABELS[prediction.risk_category] : PREDICTION_LABELS[prediction.status]}>
+            {prediction.status === 'available'
+              ? <>Model score {(prediction.score * 100).toFixed(0)}%{prediction.threshold !== null && ` (threshold ${(prediction.threshold * 100).toFixed(0)}%)`}. {prediction.reason}</>
+              : prediction.message}
+            {prediction.status === 'available' && prediction.model_version && <small className="pm-evidence">Service-need model {prediction.model_version}{prediction.prediction_timestamp && ` · ${formatDate(prediction.prediction_timestamp.slice(0, 10))}`}. Likelihood that the item is done at a service visit at this odometer — not a detected fault.</small>}
+          </StatusRow>
+        )}
       </div>
       {prediction.status === 'available' && prediction.items?.length > 0 && (
         <ul className="pm-prediction-items">
@@ -79,9 +81,6 @@ function Overview({ component, vehicle }) {
             </li>
           ))}
         </ul>
-      )}
-      {prediction.status !== 'available' && prediction.reason && (
-        <details className="pm-details"><summary>Why is prediction unavailable?</summary><p>{prediction.reason}</p></details>
       )}
 
       <div className="pm-facts">

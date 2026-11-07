@@ -2,25 +2,27 @@ import { useCallback, useEffect, useState } from 'react'
 import { getAssessmentFleet } from '../../../Services/API/assessmentAPI.js'
 import AssessmentOverview from '../Components/maintenance3d/AssessmentOverview.jsx'
 import AssessmentWorkspace from '../Components/maintenance3d/AssessmentWorkspace.jsx'
-import FleetServiceNeeds from '../Components/maintenance3d/FleetServiceNeeds.jsx'
 import './MaintenancePredictions.css'
 import './AssessmentWorkspace.css'
 
-function vehicleFromUrl() {
-  const value = Number(new URLSearchParams(window.location.search).get('vehicle'))
-  return Number.isInteger(value) && value > 0 ? value : null
+function locationState() {
+  const params = new URLSearchParams(window.location.search)
+  const value = Number(params.get('vehicle'))
+  return {
+    vehicleId: Number.isInteger(value) && value > 0 ? value : null,
+    view: params.get('view') === 'assess' || params.get('view') === 'results' ? params.get('view') : null,
+  }
 }
 
 /**
- * /admin/maintenance/predictions: the fleet overview, then one vehicle's
- * assessment workspace. The selected vehicle lives in
- * ?vehicle= so refresh and the browser back button behave as expected.
+ * /admin/maintenance/predictions. Select a vehicle, assess it, then view results.
+ * The vehicle and step live in ?vehicle=&view= so refresh and the back button work.
  */
 export default function MaintenancePredictions({ navigate }) {
   const [fleet, setFleet] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [vehicleId, setVehicleId] = useState(vehicleFromUrl)
+  const [{ vehicleId, view }, setLocation] = useState(locationState)
 
   const loadFleet = useCallback(async () => {
     setLoading(true)
@@ -34,34 +36,34 @@ export default function MaintenancePredictions({ navigate }) {
     }
   }, [])
 
-  // Reloads on return from a vehicle, so the overview shows what was just submitted.
+  // Reloads on return from a vehicle, so the panels show what was just submitted.
   useEffect(() => {
-    if (!vehicleId) void Promise.resolve().then(loadFleet)
+    void Promise.resolve().then(loadFleet)
   }, [loadFleet, vehicleId])
 
   useEffect(() => {
-    const onPopState = () => setVehicleId(vehicleFromUrl())
+    const onPopState = () => setLocation(locationState())
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  function openVehicle(id) {
-    window.history.pushState({ pmVehicle: id }, '', `${window.location.pathname}?vehicle=${id}`)
-    setVehicleId(id)
-  }
-
-  function backToFleet() {
-    if (window.history.state?.pmVehicle) window.history.back()
-    else {
-      window.history.replaceState({}, '', window.location.pathname)
-      setVehicleId(null)
-    }
-  }
+  const go = useCallback((id, nextView) => {
+    const query = id ? `?vehicle=${id}${nextView ? `&view=${nextView}` : ''}` : ''
+    window.history.pushState({}, '', `${window.location.pathname}${query}`)
+    setLocation({ vehicleId: id, view: nextView || null })
+  }, [])
 
   return (
     <div className="admin-content pm-page">
       {vehicleId ? (
-        <AssessmentWorkspace key={vehicleId} vehicleId={vehicleId} onBack={backToFleet} />
+        <AssessmentWorkspace
+          key={vehicleId}
+          vehicleId={vehicleId}
+          view={view}
+          listing={fleet?.vehicles.find((vehicle) => vehicle.id === vehicleId)}
+          onView={(nextView) => go(vehicleId, nextView)}
+          onBack={() => go(null)}
+        />
       ) : loading && !fleet ? (
         <div className="pm-page-state" role="status"><span className="pm-spinner" />Loading fleet…</div>
       ) : error ? (
@@ -71,10 +73,7 @@ export default function MaintenancePredictions({ navigate }) {
           <button type="button" className="is-primary" onClick={loadFleet}>Retry</button>
         </div>
       ) : fleet?.vehicles.length ? (
-        <>
-          <AssessmentOverview fleet={fleet} onSelect={openVehicle} />
-          <FleetServiceNeeds onSelect={openVehicle} />
-        </>
+        <AssessmentOverview fleet={fleet} onOpen={go} onManageModels={() => navigate('/admin/maintenance/model-management')} />
       ) : (
         <div className="pm-page-state" role="status">
           <h2>No vehicles in the fleet</h2>

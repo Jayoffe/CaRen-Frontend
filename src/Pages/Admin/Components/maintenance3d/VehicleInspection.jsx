@@ -14,7 +14,7 @@ function StageMessage({ children, onBack, onRetry }) {
         {children}
         <div className="pm-message-actions">
           {onRetry && <button type="button" className="is-primary" onClick={onRetry}>Retry</button>}
-          <button type="button" onClick={onBack}>Back to fleet</button>
+          <button type="button" onClick={onBack}>Back to summary</button>
         </div>
       </div>
     </div>
@@ -107,7 +107,7 @@ export default function VehicleInspection({ vehicleId, onBack }) {
   return (
     <section className={`pm-inspection${selected ? ' is-inspecting' : ''}`} aria-label="Vehicle inspection">
       <header className="pm-topbar">
-        <button type="button" className="pm-back" onClick={onBack}><span aria-hidden="true">←</span> Fleet</button>
+        <button type="button" className="pm-back" onClick={onBack}><span aria-hidden="true">←</span> Summary</button>
         {vehicle && (
           <div className="pm-vehicle-label">
             <strong>{vehicle.make} {vehicle.model} <span>{vehicle.year}</span></strong>
@@ -137,7 +137,7 @@ export default function VehicleInspection({ vehicleId, onBack }) {
           <div className="pm-fallback-intro">
             <h2>No 3D model for “{vehicle.category}”</h2>
             <p>3D models exist for sedans, SUVs, pickups, vans, minivans and motorcycles. This vehicle’s components can still be inspected from the list.</p>
-            <button type="button" onClick={onBack}>Back to fleet</button>
+            <button type="button" onClick={onBack}>Back to summary</button>
           </div>
           <ul className="pm-fallback-list">
             {components.map((component) => {

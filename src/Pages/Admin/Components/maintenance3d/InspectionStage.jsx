@@ -9,7 +9,7 @@ import { markerTone, TONE_LABELS } from './status.js'
 const OVERVIEW_DIRECTION = new THREE.Vector3(1, 0.42, -1.15).normalize()
 const WORLD_UP = new THREE.Vector3(0, 1, 0)
 const COMPACT_WIDTH = 760
-const BACKDROP = '#14191f'
+const BACKDROP = '#eef0ea'
 
 /** Camera position and orbit target that frame the whole vehicle in the current viewport. */
 function rigRadius(rig) {
@@ -199,11 +199,11 @@ function Studio({ quality }) {
     canvas.height = 256
     const context = canvas.getContext('2d')
     const gradient = context.createLinearGradient(0, 0, 0, 256)
-    gradient.addColorStop(0, '#aab6c2')
-    gradient.addColorStop(0.3, '#7c8996')
-    gradient.addColorStop(0.47, '#2a333b')
-    gradient.addColorStop(0.53, '#14191e')
-    gradient.addColorStop(1, '#232a31')
+    gradient.addColorStop(0, '#f4f5f0')
+    gradient.addColorStop(0.3, '#d9dcd3')
+    gradient.addColorStop(0.47, '#9ea39a')
+    gradient.addColorStop(0.53, '#6d726b')
+    gradient.addColorStop(1, '#8a8f87')
     context.fillStyle = gradient
     context.fillRect(0, 0, 4, 256)
     const map = new THREE.CanvasTexture(canvas)
@@ -213,7 +213,7 @@ function Studio({ quality }) {
   useEffect(() => () => dome.dispose(), [dome])
   return (
     <>
-      <hemisphereLight intensity={0.28} color="#eef4ff" groundColor="#10161b" />
+      <hemisphereLight intensity={0.28} color="#eef4ff" groundColor="#8a8f87" />
       <directionalLight position={[3.5, 7, -4]} intensity={1.35} />
       <directionalLight position={[-5, 3, 4]} intensity={0.35} color="#c8dcff" />
       <Environment resolution={quality === 'high' ? 256 : 96} frames={1}>
@@ -240,9 +240,9 @@ function StudioFloor({ radius, footprint }) {
     canvas.height = 512
     const context = canvas.getContext('2d')
     const gradient = context.createRadialGradient(256, 256, 0, 256, 256, 256)
-    gradient.addColorStop(0, '#36404a')
-    gradient.addColorStop(0.32, '#2a333c')
-    gradient.addColorStop(0.7, '#1a2027')
+    gradient.addColorStop(0, '#f7f8f4')
+    gradient.addColorStop(0.32, '#f3f4ef')
+    gradient.addColorStop(0.7, '#f0f2ec')
     gradient.addColorStop(1, BACKDROP)
     context.fillStyle = gradient
     context.fillRect(0, 0, 512, 512)
@@ -256,9 +256,9 @@ function StudioFloor({ radius, footprint }) {
     canvas.height = 256
     const context = canvas.getContext('2d')
     const gradient = context.createRadialGradient(128, 128, 18, 128, 128, 128)
-    gradient.addColorStop(0, 'rgba(0, 0, 0, 0.95)')
-    gradient.addColorStop(0.55, 'rgba(0, 0, 0, 0.72)')
-    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
+    gradient.addColorStop(0, 'rgba(32, 42, 40, 0.42)')
+    gradient.addColorStop(0.55, 'rgba(32, 42, 40, 0.26)')
+    gradient.addColorStop(1, 'rgba(32, 42, 40, 0)')
     context.fillStyle = gradient
     context.fillRect(0, 0, 256, 256)
     return new THREE.CanvasTexture(canvas)
@@ -279,7 +279,7 @@ function StudioFloor({ radius, footprint }) {
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.001, 0]} raycast={() => null}>
         <ringGeometry args={[radius * 1.12, radius * 1.126, 128]} />
-        <meshBasicMaterial color="#6d7c88" transparent opacity={0.28} fog={false} />
+        <meshBasicMaterial color="#8f968c" transparent opacity={0.35} fog={false} />
       </mesh>
     </group>
   )
@@ -389,7 +389,7 @@ export default function InspectionStage({ rig, vehicle, components, selectedKey,
         <Studio quality={quality} />
         <VehicleModel rig={rig} paint={paintColor(vehicle.color)} xray={xray} interaction={interaction} />
         <StudioFloor radius={rigRadius(rig)} footprint={[rig.spec.length * 1.38, (rig.kind === 'motorcycle' ? 0.5 : rig.spec.width) * 1.7]} />
-        <ContactShadows position={[0, 0.003, 0]} opacity={0.82} scale={rig.kind === 'motorcycle' ? 4.5 : 10} blur={2.1} far={2.2} resolution={quality === 'high' ? 1024 : 512} frames={1} color="#020304" />
+        <ContactShadows position={[0, 0.003, 0]} opacity={0.55} scale={rig.kind === 'motorcycle' ? 4.5 : 10} blur={2.1} far={2.2} resolution={quality === 'high' ? 1024 : 512} frames={1} color="#202a28" />
         <OrbitControls
           makeDefault
           enablePan

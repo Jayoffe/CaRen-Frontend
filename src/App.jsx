@@ -21,6 +21,7 @@ import ReservationManagementPage from './Pages/Admin/Pages/ReservationManagement
 import FleetOperationsPage from './Pages/Admin/Pages/FleetOperations.jsx'
 import MaintenanceManagementPage from './Pages/Admin/Pages/MaintenanceManagement.jsx'
 import MaintenancePredictionsPage from './Pages/Admin/Pages/MaintenancePredictions.jsx'
+import ModelManagementPage from './Pages/Admin/Pages/ModelManagement.jsx'
 import VehicleRecommendationsPage from './Pages/Users/Pages/VehicleRecommendations.jsx'
 import DemandPricingIntelligencePage from './Pages/Admin/Pages/DemandPricingIntelligence.jsx'
 import RiskAnalysisPage from './Pages/Admin/Pages/RiskAnalysis.jsx'
@@ -184,6 +185,8 @@ function App() {
     content = <MaintenanceManagementPage navigate={navigate} />
   } else if (path === '/admin/maintenance/predictions') {
     content = <MaintenancePredictionsPage navigate={navigate} />
+  } else if (path === '/admin/maintenance/model-management') {
+    content = <ModelManagementPage navigate={navigate} />
   } else if (path === '/admin/intelligence/demand') {
     content = <DemandPricingIntelligencePage />
   } else if (path === '/admin/intelligence/risk') {
@@ -304,7 +307,7 @@ function Navbar({ user, adminLayout, customerLayout = false, path, navigate, log
     <header className={`topbar ${adminLayout ? 'topbar-admin' : ''}`}>
       {!adminLayout && <Logo onClick={() => navigate('/')} />}
       {adminLayout || customerLayout
-        ? <div className="admin-breadcrumb"><span>{adminLayout ? 'Workspace' : 'Your Drive'}</span><b>/</b><strong>{customerLayout ? (path.endsWith('/reservations/create') ? 'New reservation' : path.includes('/recommendations') ? 'Vehicle finder' : path.includes('/vehicles') ? 'Browse vehicles' : path.endsWith('/rentals') ? 'Active rentals' : path.endsWith('/history') ? 'Reservation history' : path.includes('/reservations') ? 'My reservations' : path.includes('payments') ? 'Payment history' : path.includes('profile') ? 'Profile' : 'Dashboard') : path.includes('/maintenance/predictions') ? 'Predictive maintenance' : path.includes('/maintenance/records') ? 'Vehicle maintenance records' : path === '/admin/maintenance' ? 'Fleet operations' : path.includes('/intelligence/demand') ? 'Demand intelligence' : path.includes('/intelligence/risk') ? 'Risk analysis' : path.includes('payments') ? 'Payment history' : path.endsWith('/reservations/history') ? 'Reservation history' : path.includes('reservations') ? 'Reservation management' : path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>
+        ? <div className="admin-breadcrumb"><span>{adminLayout ? 'Workspace' : 'Your Drive'}</span><b>/</b><strong>{customerLayout ? (path.endsWith('/reservations/create') ? 'New reservation' : path.includes('/recommendations') ? 'Vehicle finder' : path.includes('/vehicles') ? 'Browse vehicles' : path.endsWith('/rentals') ? 'Active rentals' : path.endsWith('/history') ? 'Reservation history' : path.includes('/reservations') ? 'My reservations' : path.includes('payments') ? 'Payment history' : path.includes('profile') ? 'Profile' : 'Dashboard') : path.includes('/maintenance/predictions') ? 'Predictive maintenance' : path.includes('/maintenance/model-management') ? 'Model management' : path.includes('/maintenance/records') ? 'Vehicle maintenance records' : path === '/admin/maintenance' ? 'Fleet operations' : path.includes('/intelligence/demand') ? 'Demand intelligence' : path.includes('/intelligence/risk') ? 'Risk analysis' : path.includes('payments') ? 'Payment history' : path.endsWith('/reservations/history') ? 'Reservation history' : path.includes('reservations') ? 'Reservation management' : path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>
         : <nav className={menuOpen ? 'public-nav open' : 'public-nav'}>{customerLinks.map(([href, label]) => <button key={href} className={path === href ? 'nav-link active' : 'nav-link'} onClick={() => { navigate(href); setMenuOpen(false) }}>{label}</button>)}</nav>}
       <div className="topbar-right">
         <span className="connection-dot" title="Backend API" />
