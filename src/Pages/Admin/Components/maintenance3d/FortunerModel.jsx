@@ -666,6 +666,52 @@ function Cooling({ s }) {
  * Leader-style graphics between the wheel arches: black lower-door cladding and
  * a twin stripe that kicks up behind the front arch.
  */
+/**
+ * Schematic air-conditioning circuit: condenser ahead of the radiator, belt-driven
+ * compressor beside the engine, refrigerant lines, and the cabin HVAC unit behind
+ * the firewall. Teal so it reads apart from the grey engine and cooling parts.
+ */
+function AirConditioning({ s }) {
+  const [ex, ey] = s.engine
+  const [ew, eh, ed] = s.engineSize
+  const condenserX = s.half - 0.235
+  const height = eh * 0.92
+  const span = s.width * 0.56
+  const compressor = [ex + ew * 0.16, ey - eh * 0.24, ed / 2 + 0.1]
+  const hvac = [s.windshield[0][0] - 0.42, s.windshield[0][1] - 0.2, s.width * 0.14]
+  return (
+    <group>
+      <mesh position={[condenserX, ey - 0.02, 0]}>
+        <boxGeometry args={[0.022, height, span]} />
+        <Mat color="#1f8a97" metalness={0.65} roughness={0.42} />
+      </mesh>
+      {Array.from({ length: 12 }, (_, index) => (
+        <mesh key={index} position={[condenserX + 0.013, ey - 0.02 - height / 2 + ((index + 0.5) / 12) * height, 0]}>
+          <boxGeometry args={[0.004, 0.009, span]} />
+          <Mat color="#7fd6df" metalness={0.5} roughness={0.4} />
+        </mesh>
+      ))}
+      <group position={compressor}>
+        <mesh rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.065, 0.065, 0.19, 24]} />
+          <Mat color="#2aa6b4" metalness={0.7} roughness={0.34} />
+        </mesh>
+        <mesh position={[0.11, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.058, 0.058, 0.032, 24]} />
+          <Mat color="#20262b" metalness={0.5} roughness={0.5} />
+        </mesh>
+      </group>
+      <mesh position={hvac}>
+        <boxGeometry args={[0.2, 0.2, 0.46]} />
+        <Mat color="#1c6f7a" roughness={0.62} />
+      </mesh>
+      <Tube points={[[condenserX - 0.01, ey + height * 0.38, span * 0.46], [ex + ew * 0.7, ey + eh * 0.34, ed / 2 + 0.16], compressor]} radius={0.012} color="#47c2cf" metalness={0.6} roughness={0.32} />
+      <Tube points={[[condenserX - 0.01, ey - height * 0.38, span * 0.42], [ex + ew * 0.3, ey - eh * 0.5, ed / 2 + 0.18], [hvac[0] + 0.12, hvac[1] - 0.04, hvac[2] + 0.2]]} radius={0.01} color="#47c2cf" metalness={0.6} roughness={0.32} />
+      <Tube points={[[compressor[0] - 0.08, compressor[1] + 0.05, compressor[2]], [ex - ew * 0.3, ey + eh * 0.2, ed / 2 + 0.14], [hvac[0] + 0.12, hvac[1] + 0.04, hvac[2] + 0.2]]} radius={0.014} color="#2f96a3" metalness={0.6} roughness={0.32} />
+    </group>
+  )
+}
+
 function sideDecals(s, frame) {
   const R = s.wheelRadius
   // x where a horizontal line at height y clears an arch.
@@ -1214,6 +1260,10 @@ function CarModel({ rig, paint, xray, interaction }) {
 
       <Part id="cooling" interaction={interaction}>
         <Cooling s={s} />
+      </Part>
+
+      <Part id="air-conditioning" interaction={interaction}>
+        <AirConditioning s={s} />
       </Part>
 
       <Part id="transmission" interaction={interaction}>
