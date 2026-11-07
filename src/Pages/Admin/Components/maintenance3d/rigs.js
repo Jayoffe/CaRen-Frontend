@@ -125,6 +125,7 @@ function carRig(type, base = CAR_SPECS[type], asset = null) {
       engine: { anchor: v(ex, ey + eh / 2 + 0.12, 0), view: v(0.7, 1.0, -0.55), distance: 3.92, xray: true },
       battery: { anchor: v(ex - ew / 2 - 0.12, ey + 0.2, -s.width * 0.3), view: v(0.35, 1.0, -0.8), distance: 3.04, xray: true },
       cooling: { anchor: v(half - 0.3, ey + 0.12, 0.28), view: v(1, 0.5, -0.35), distance: 3.33, xray: true },
+      'air-conditioning': { anchor: v(half - 0.24, ey - 0.2, -(s.width * 0.24)), view: v(1, 0.55, -0.7), distance: 3.2, xray: true },
       transmission: { anchor: v(ex - ew / 2 - 0.42, s.clearance + 0.2, 0), view: v(0.1, 0.35, -1), distance: 3.77, xray: true },
       'brakes-front': { anchor: v(s.frontAxle + 0.12, R * 1.3, -(track - 0.06)), view: v(0.35, 0.3, -1), distance: 2.46, xray: true, ghost: ['tire-front-left'] },
       'brakes-rear': { anchor: v(s.rearAxle - 0.12, R * 1.3, -(track - 0.06)), view: v(-0.35, 0.3, -1), distance: 2.46, xray: true, ghost: ['tire-rear-left'] },
