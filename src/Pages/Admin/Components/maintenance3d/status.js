@@ -44,6 +44,7 @@ export const SCHEDULE_TONES = { not_yet_due: 'good', due_soon: 'attention', over
  * due-soon schedule is amber because a due service is not a confirmed fault.
  */
 export function markerTone(component) {
+  if (component.tone) return component.tone
   const condition = component.condition?.status
   const schedule = component.schedule?.status
   if (condition === 'critical') return 'critical'
