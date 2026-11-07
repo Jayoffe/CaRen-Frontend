@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getFleetVehicles } from '../../../Services/API/maintenanceAPI.js'
-import VehicleSelector from '../Components/maintenance3d/VehicleSelector.jsx'
-import VehicleInspection from '../Components/maintenance3d/VehicleInspection.jsx'
+import { getAssessmentFleet } from '../../../Services/API/assessmentAPI.js'
+import AssessmentOverview from '../Components/maintenance3d/AssessmentOverview.jsx'
+import AssessmentWorkspace from '../Components/maintenance3d/AssessmentWorkspace.jsx'
 import FleetServiceNeeds from '../Components/maintenance3d/FleetServiceNeeds.jsx'
 import './MaintenancePredictions.css'
+import './AssessmentWorkspace.css'
 
 function vehicleFromUrl() {
   const value = Number(new URLSearchParams(window.location.search).get('vehicle'))
@@ -11,12 +12,12 @@ function vehicleFromUrl() {
 }
 
 /**
- * /admin/maintenance/predictions: pick a fleet vehicle, then inspect its
- * components in 3D. The selected vehicle lives in ?vehicle= so refresh and the
- * browser back button behave as expected.
+ * /admin/maintenance/predictions: the fleet overview, then one vehicle's
+ * assessment workspace. The selected vehicle lives in
+ * ?vehicle= so refresh and the browser back button behave as expected.
  */
 export default function MaintenancePredictions({ navigate }) {
-  const [vehicles, setVehicles] = useState([])
+  const [fleet, setFleet] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [vehicleId, setVehicleId] = useState(vehicleFromUrl)
@@ -25,7 +26,7 @@ export default function MaintenancePredictions({ navigate }) {
     setLoading(true)
     setError('')
     try {
-      setVehicles(await getFleetVehicles())
+      setFleet(await getAssessmentFleet())
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -33,9 +34,10 @@ export default function MaintenancePredictions({ navigate }) {
     }
   }, [])
 
+  // Reloads on return from a vehicle, so the overview shows what was just submitted.
   useEffect(() => {
-    void Promise.resolve().then(loadFleet)
-  }, [loadFleet])
+    if (!vehicleId) void Promise.resolve().then(loadFleet)
+  }, [loadFleet, vehicleId])
 
   useEffect(() => {
     const onPopState = () => setVehicleId(vehicleFromUrl())
@@ -59,8 +61,8 @@ export default function MaintenancePredictions({ navigate }) {
   return (
     <div className="admin-content pm-page">
       {vehicleId ? (
-        <VehicleInspection key={vehicleId} vehicleId={vehicleId} onBack={backToFleet} />
-      ) : loading ? (
+        <AssessmentWorkspace key={vehicleId} vehicleId={vehicleId} onBack={backToFleet} />
+      ) : loading && !fleet ? (
         <div className="pm-page-state" role="status"><span className="pm-spinner" />Loading fleet…</div>
       ) : error ? (
         <div className="pm-page-state" role="alert">
@@ -68,15 +70,15 @@ export default function MaintenancePredictions({ navigate }) {
           <p>{error}</p>
           <button type="button" className="is-primary" onClick={loadFleet}>Retry</button>
         </div>
-      ) : vehicles.length ? (
+      ) : fleet?.vehicles.length ? (
         <>
+          <AssessmentOverview fleet={fleet} onSelect={openVehicle} />
           <FleetServiceNeeds onSelect={openVehicle} />
-          <VehicleSelector vehicles={vehicles} onSelect={openVehicle} />
         </>
       ) : (
         <div className="pm-page-state" role="status">
           <h2>No vehicles in the fleet</h2>
-          <p>Add a vehicle to the inventory before inspecting it.</p>
+          <p>Add a vehicle to the inventory before assessing it.</p>
           <button type="button" className="is-primary" onClick={() => navigate('/admin/vehicles')}>Open vehicle inventory</button>
         </div>
       )}
