@@ -306,7 +306,9 @@ function Icon({ name }) {
  * with an anchor in the rig get a hotspot. `children` is the callout content
  * for the selected component.
  */
-export default function InspectionStage({ rig, vehicle, components, selectedKey, onSelect, children }) {
+const DEFAULT_LEGEND = ['good', 'attention', 'critical', 'unknown'].map((tone) => ({ tone, label: TONE_LABELS[tone] }))
+
+export default function InspectionStage({ rig, vehicle, components, selectedKey, onSelect, legend = DEFAULT_LEGEND, children }) {
   const [hoveredKey, setHoveredKey] = useState(null)
   const [manualXray, setManualXray] = useState(false)
   const [webglError, setWebglError] = useState(false)
@@ -424,10 +426,10 @@ export default function InspectionStage({ rig, vehicle, components, selectedKey,
               onFocus={() => setHoveredKey(component.key)}
               onBlur={() => setHoveredKey(null)}
               aria-pressed={active}
-              aria-label={`${component.name}: ${TONE_LABELS[tone]}`}
+              aria-label={`${component.name}: ${component.statusLabel || TONE_LABELS[tone]}`}
             >
               <span className="pm-hotspot-dot" />
-              <span className="pm-hotspot-label">{component.name}<small>{TONE_LABELS[tone]}</small></span>
+              <span className="pm-hotspot-label">{component.name}<small>{component.statusLabel || TONE_LABELS[tone]}</small></span>
             </button>
           )
         })}
@@ -438,9 +440,11 @@ export default function InspectionStage({ rig, vehicle, components, selectedKey,
         )}
       </div>
 
+      <p className="pm-stage-note">Coded schematic, not a 3D scan of this vehicle. Internal parts are representative.</p>
+
       <div className="pm-legend" aria-label="Hotspot colours">
-        {['good', 'attention', 'critical', 'unknown'].map((tone) => (
-          <span key={tone}><i className={`tone-${tone}`} />{TONE_LABELS[tone]}</span>
+        {legend.map(({ tone, label }) => (
+          <span key={tone}><i className={`tone-${tone}`} />{label}</span>
         ))}
       </div>
 
