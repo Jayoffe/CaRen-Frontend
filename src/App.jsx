@@ -20,7 +20,6 @@ import { invalidImage, parseFeatures } from './Services/vehicleData.js'
 import ReservationManagementPage from './Pages/Admin/Pages/ReservationManagement.jsx'
 import FleetOperationsPage from './Pages/Admin/Pages/FleetOperations.jsx'
 import MaintenanceManagementPage from './Pages/Admin/Pages/MaintenanceManagement.jsx'
-import MaintenanceDataCollectionPage from './Pages/Admin/Pages/MaintenanceDataCollection.jsx'
 import MaintenancePredictionsPage from './Pages/Admin/Pages/MaintenancePredictions.jsx'
 import VehicleRecommendationsPage from './Pages/Users/Pages/VehicleRecommendations.jsx'
 import DemandPricingIntelligencePage from './Pages/Admin/Pages/DemandPricingIntelligence.jsx'
@@ -183,8 +182,6 @@ function App() {
     content = <FleetOperationsPage navigate={navigate} />
   } else if (path === '/admin/maintenance/records') {
     content = <MaintenanceManagementPage navigate={navigate} />
-  } else if (path === '/admin/maintenance/data') {
-    content = <MaintenanceDataCollectionPage />
   } else if (path === '/admin/maintenance/predictions') {
     content = <MaintenancePredictionsPage navigate={navigate} />
   } else if (path === '/admin/intelligence/demand') {
@@ -307,7 +304,7 @@ function Navbar({ user, adminLayout, customerLayout = false, path, navigate, log
     <header className={`topbar ${adminLayout ? 'topbar-admin' : ''}`}>
       {!adminLayout && <Logo onClick={() => navigate('/')} />}
       {adminLayout || customerLayout
-        ? <div className="admin-breadcrumb"><span>{adminLayout ? 'Workspace' : 'Your Drive'}</span><b>/</b><strong>{customerLayout ? (path.endsWith('/reservations/create') ? 'New reservation' : path.includes('/recommendations') ? 'Vehicle finder' : path.includes('/vehicles') ? 'Browse vehicles' : path.endsWith('/rentals') ? 'Active rentals' : path.endsWith('/history') ? 'Reservation history' : path.includes('/reservations') ? 'My reservations' : path.includes('payments') ? 'Payment history' : path.includes('profile') ? 'Profile' : 'Dashboard') : path.includes('/maintenance/predictions') ? 'Predictive maintenance' : path.includes('/maintenance/data') ? 'Maintenance evidence' : path.includes('/maintenance/records') ? 'Vehicle maintenance records' : path === '/admin/maintenance' ? 'Fleet operations' : path.includes('/intelligence/demand') ? 'Demand intelligence' : path.includes('/intelligence/risk') ? 'Risk analysis' : path.includes('payments') ? 'Payment history' : path.endsWith('/reservations/history') ? 'Reservation history' : path.includes('reservations') ? 'Reservation management' : path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>
+        ? <div className="admin-breadcrumb"><span>{adminLayout ? 'Workspace' : 'Your Drive'}</span><b>/</b><strong>{customerLayout ? (path.endsWith('/reservations/create') ? 'New reservation' : path.includes('/recommendations') ? 'Vehicle finder' : path.includes('/vehicles') ? 'Browse vehicles' : path.endsWith('/rentals') ? 'Active rentals' : path.endsWith('/history') ? 'Reservation history' : path.includes('/reservations') ? 'My reservations' : path.includes('payments') ? 'Payment history' : path.includes('profile') ? 'Profile' : 'Dashboard') : path.includes('/maintenance/predictions') ? 'Predictive maintenance' : path.includes('/maintenance/records') ? 'Vehicle maintenance records' : path === '/admin/maintenance' ? 'Fleet operations' : path.includes('/intelligence/demand') ? 'Demand intelligence' : path.includes('/intelligence/risk') ? 'Risk analysis' : path.includes('payments') ? 'Payment history' : path.endsWith('/reservations/history') ? 'Reservation history' : path.includes('reservations') ? 'Reservation management' : path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>
         : <nav className={menuOpen ? 'public-nav open' : 'public-nav'}>{customerLinks.map(([href, label]) => <button key={href} className={path === href ? 'nav-link active' : 'nav-link'} onClick={() => { navigate(href); setMenuOpen(false) }}>{label}</button>)}</nav>}
       <div className="topbar-right">
         <span className="connection-dot" title="Backend API" />
@@ -323,7 +320,6 @@ function AdminSidebar({ path, navigate, logout, open, onNavigate }) {
   const intelligenceItems = [
     ['/admin/maintenance', 'gear', 'Fleet Operations'],
     ['/admin/maintenance/records', 'gear', 'Service History'],
-    ['/admin/maintenance/data', 'history', 'Maintenance Evidence'],
     ['/admin/intelligence/demand', 'chart', 'Demand Intelligence'],
     ['/admin/maintenance/predictions', 'shield', 'Predictive Maintenance'],
   ]
