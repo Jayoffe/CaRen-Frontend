@@ -51,7 +51,7 @@ function attentionItems(reservations, today) {
   const notCheckedOut = confirmed.filter((item) => !item.checked_out_at)
   const paymentsDue = notCheckedOut.filter((item) => (
     Number(item.payment_required) === 1
-    && item.payment_status === 'unpaid'
+    && ['unpaid', 'failed'].includes(item.payment_status)
     && dateOnly(item.start_date) >= today
     && dateOnly(item.start_date) <= addDays(today, UNPAID_WARNING_DAYS)
   ))
@@ -72,27 +72,25 @@ function attentionItems(reservations, today) {
       action: 'Review',
       href: '/admin/reservations?status=confirmed',
     },
+    // Payments are verified by the gateway and confirm reservations automatically, so nothing
+    // here asks the administrator to approve. Unpaid bookings close to pickup are shown for follow-up.
     {
-      key: 'verify-payments',
+      key: 'awaiting-payment',
       level: 'warning',
-      count: reservations.filter((item) => item.payment_status === 'pending' && item.status === 'confirmed').length,
-      label: (n) => `${plural(n, 'GCash payment')} to verify`,
-      action: 'Verify',
-      href: '/admin/payments',
-    },
-    {
-      key: 'approve-requests',
-      level: 'warning',
-      count: reservations.filter((item) => item.status === 'pending').length,
-      label: (n) => `${plural(n, 'reservation request')} to approve`,
-      action: 'Review',
+      count: reservations.filter((item) => (
+        item.status === 'pending'
+        && dateOnly(item.start_date) >= today
+        && dateOnly(item.start_date) <= addDays(today, UNPAID_WARNING_DAYS)
+      )).length,
+      label: (n) => `${plural(n, 'reservation')} awaiting payment, pickup within ${UNPAID_WARNING_DAYS} days`,
+      action: 'View',
       href: '/admin/reservations?status=pending',
     },
     {
       key: 'unpaid-soon',
       level: 'warning',
       count: paymentsDue.length,
-      label: (n) => `${plural(n, 'approved rental')} unpaid, pickup within ${UNPAID_WARNING_DAYS} days`,
+      label: (n) => `${plural(n, 'confirmed rental')} unpaid, pickup within ${UNPAID_WARNING_DAYS} days`,
       action: 'Review',
       href: '/admin/reservations?status=confirmed',
     },

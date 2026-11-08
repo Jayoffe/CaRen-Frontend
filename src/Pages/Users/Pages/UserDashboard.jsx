@@ -25,7 +25,7 @@ function plural(count, word) {
 function describeTrip(trip, today) {
   if (!trip) return 'No trips planned yet. Pick a car and your dates, and your trip will show up here.'
   const name = vehicleName(trip)
-  if (trip.status === 'pending') return `Your ${name} request is waiting for confirmation.`
+  if (trip.status === 'pending') return `Your ${name} reservation is waiting for payment. It is confirmed automatically once your payment is verified.`
   if (trip.start_date <= today) return `You’re on the road. Your ${name} is due back ${formatDay(trip.end_date, { month: 'short', day: 'numeric' })}.`
   const days = Math.round((parseDay(trip.start_date) - parseDay(today)) / DAY_MS)
   if (days === 1) return `Pickup for your ${name} is tomorrow.`
@@ -37,7 +37,7 @@ function ArrowIcon() {
 }
 
 function Status({ status }) {
-  return <span className={`status-pill status-${status}`}><i />{status}</span>
+  return <span className={`status-pill status-${status}`}><i />{status === 'pending' ? 'Pending payment' : status}</span>
 }
 
 function NextTripTicket({ trip, loading, failed, navigate }) {
@@ -129,7 +129,7 @@ export default function UserDashboard({ user, navigate }) {
   const stats = [
     { label: 'All reservations', value: reservations.length, href: '/users/reservations' },
     { label: 'On the road', value: activeRentals, href: '/users/rentals' },
-    { label: 'Awaiting confirmation', value: pendingReservations, href: '/users/reservations', attention: pendingReservations > 0 },
+    { label: 'Awaiting payment', value: pendingReservations, href: '/users/reservations', attention: pendingReservations > 0 },
   ]
 
   return (

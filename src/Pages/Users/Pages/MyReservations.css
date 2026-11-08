@@ -789,3 +789,32 @@ html:has(.rv-dialog[open]) {
     animation: none;
   }
 }
+
+/* Payment result after returning from checkout. The heading states the result in words. */
+.rv-result {
+  margin-bottom: 20px;
+  padding: 18px 20px;
+  border: 1px solid var(--rv-line);
+  border-left: 4px solid var(--rv-muted);
+  border-radius: 8px;
+  background: #fff;
+}
+.rv-result-paid { border-left-color: #2c7a4b; }
+.rv-result-pending { border-left-color: #b7791f; }
+.rv-result-failed { border-left-color: var(--rv-red); }
+.rv-result h2 { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.35; color: var(--rv-ink); }
+.rv-result-paid h2 { color: #275a3c; }
+.rv-result-failed h2 { color: #8a2f2a; }
+.rv-result > p { margin: 6px 0 0; max-width: 68ch; font-size: 15px; line-height: 1.5; color: var(--rv-muted); }
+.rv-result-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  gap: 12px 24px;
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--rv-line);
+}
+.rv-result-facts dt { font-size: 13px; color: var(--rv-muted); }
+.rv-result-facts dd { margin: 2px 0 0; font-size: 15px; font-weight: 500; color: var(--rv-ink); overflow-wrap: anywhere; }
+.rv-result .rv-actions { margin-top: 16px; }
+.rv-ref { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; overflow-wrap: anywhere; }

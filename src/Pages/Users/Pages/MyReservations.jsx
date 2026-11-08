@@ -10,28 +10,31 @@ const SKELETON_CARDS = [1, 2]
 const VIEW_COPY = {
   all: {
     title: 'My reservations',
-    lede: 'Track your requests, pay once approved, and keep your agreements in one place.',
-    emptyTitle: 'No reservations yet',
-    emptyBody: 'Choose a vehicle and dates to request your first reservation.',
+    lede: 'Your current bookings. A reservation is confirmed automatically as soon as your payment is verified.',
+    emptyTitle: 'No current reservations',
+    emptyBody: 'Choose a vehicle and dates to make a reservation. Past bookings are in Reservation history.',
     emptyAction: 'Find a vehicle',
   },
   active: {
     title: 'Active rentals',
-    lede: 'Approved rentals running today.',
+    lede: 'Confirmed rentals running today.',
     emptyTitle: 'No active rentals',
     emptyBody: 'Confirmed rentals in progress will appear here.',
     emptyAction: 'Browse vehicles',
   },
   history: {
     title: 'Reservation history',
-    lede: 'Your completed, cancelled, and rejected reservations.',
+    lede: 'Your completed and cancelled reservations, with their payment details.',
     emptyTitle: 'No reservation history yet',
     emptyBody: 'Completed, cancelled, and rejected reservations will appear here.',
     emptyAction: 'Browse vehicles',
   },
 }
 
-const PAYMENT_LABELS = { unpaid: 'Unpaid', pending: 'Being verified', paid: 'Paid', not_required: 'Not required' }
+const STATUS_LABELS = { pending: 'Pending payment', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled', rejected: 'Rejected' }
+const PAYMENT_LABELS = { unpaid: 'Not paid', pending: 'Pending verification', paid: 'Paid', failed: 'Failed', not_required: 'Not required' }
+const HISTORY_STATUSES = ['completed', 'cancelled', 'rejected']
+const POLL_ATTEMPTS = 10
 
 function money(value) {
   const amount = Number(value || 0)
@@ -49,8 +52,27 @@ function localToday() {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
 }
 
-function needsPayment(reservation) {
-  return reservation.status === 'confirmed' && Number(reservation.payment_required) === 1
+function formatDateTime(value) {
+  if (!value) return '—'
+  const date = new Date(String(value).replace(' ', 'T'))
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date)
+}
+
+/** Payment can be started or retried until it is verified. The server checks the same rules. */
+function canPay(reservation, today) {
+  return Number(reservation.payment_required) === 1
+    && ['unpaid', 'pending', 'failed'].includes(reservation.payment_status)
+    && ['pending', 'confirmed'].includes(reservation.status)
+    && !reservation.checked_out_at
+    && (reservation.status !== 'pending' || reservation.start_date >= today)
+    && reservation.end_date > today
+}
+
+function payLabel(reservation) {
+  if (reservation.payment_status === 'failed') return 'Retry payment'
+  if (reservation.payment_status === 'pending') return 'Continue payment'
+  return 'Pay now'
 }
 
 /** What the customer should expect next, in one sentence. */
@@ -61,11 +83,12 @@ function nextStep(reservation) {
   }
   switch (reservation.status) {
     case 'pending':
-      return { text: `${special ? 'Special duration request. ' : ''}Waiting for administrator approval. You pay after it is approved.` }
+      if (reservation.payment_status === 'failed') return { tone: 'attention', text: 'The last payment attempt did not go through. Retry the payment to confirm this reservation.' }
+      if (reservation.payment_status === 'pending') return { text: `${special ? 'Special duration request. ' : ''}Waiting for the payment provider to verify your payment. Your reservation is confirmed automatically once it does.` }
+      return { tone: 'attention', text: `${special ? 'Special duration request. ' : ''}Pay to confirm this reservation. It is confirmed automatically once the payment is verified.` }
     case 'confirmed':
-      if (needsPayment(reservation) && reservation.payment_status === 'unpaid') return { tone: 'attention', text: 'Approved. Pay with GCash to continue. Payment must be verified before vehicle handover.' }
-      if (reservation.payment_status === 'pending') return { text: 'Payment submitted. An administrator is verifying it.' }
-      return { tone: 'good', text: 'All set. Bring a valid driver license at pickup.' }
+      if (Number(reservation.payment_required) === 1 && reservation.payment_status !== 'paid') return { tone: 'attention', text: 'Payment is still needed before vehicle handover.' }
+      return { tone: 'good', text: 'Confirmed and paid. Bring a valid driver license at pickup.' }
     case 'completed':
       return { text: 'Rental completed.' }
     case 'cancelled':
@@ -77,13 +100,13 @@ function nextStep(reservation) {
   }
 }
 
-function ReservationCard({ reservation, navigate, onAgreement, onPay, onCancel }) {
+function ReservationCard({ reservation, today, navigate, onAgreement, onPay, onCancel }) {
   const name = `${reservation.make} ${reservation.model}`
   const meta = [reservation.year, reservation.category, reservation.variant_color].filter(Boolean).join(' · ')
   const days = Number(reservation.rental_days)
   const step = nextStep(reservation)
-  const showPayment = ['pending', 'confirmed', 'completed'].includes(reservation.status) && Number(reservation.payment_required) === 1
-  const canPay = needsPayment(reservation) && reservation.payment_status === 'unpaid'
+  const showPayment = Number(reservation.payment_required) === 1
+  const payable = canPay(reservation, today)
   const canCancel = ['pending', 'confirmed'].includes(reservation.status) && !reservation.checked_out_at && reservation.payment_status !== 'paid'
 
   return (
@@ -102,7 +125,7 @@ function ReservationCard({ reservation, navigate, onAgreement, onPay, onCancel }
           <div>
             <div className="rv-title">
               <h2>{name}</h2>
-              <span className={`rv-status rv-status-${reservation.status}`}>{reservation.status}</span>
+              <span className={`rv-status rv-status-${reservation.status}`}>{STATUS_LABELS[reservation.status] || reservation.status}</span>
             </div>
             <p>Reservation #{reservation.id}{meta && ` · ${meta}`}</p>
           </div>
@@ -115,7 +138,8 @@ function ReservationCard({ reservation, navigate, onAgreement, onPay, onCancel }
         <dl className="rv-facts">
           <div><dt>Pickup</dt><dd>{formatDate(reservation.start_date)}</dd></div>
           <div><dt>Return</dt><dd>{formatDate(reservation.end_date)}</dd></div>
-          {showPayment && <div><dt>GCash payment</dt><dd>{PAYMENT_LABELS[reservation.payment_status] || reservation.payment_status}</dd></div>}
+          {showPayment && <div><dt>Payment</dt><dd>{PAYMENT_LABELS[reservation.payment_status] || reservation.payment_status}</dd></div>}
+          {reservation.payment_status === 'paid' && reservation.payment_reference && <div><dt>Transaction reference</dt><dd className="rv-ref">{reservation.payment_reference}</dd></div>}
         </dl>
 
         {step && <p className={`rv-next${step.tone ? ` rv-next-${step.tone}` : ''}`}>{step.text}</p>}
@@ -123,10 +147,60 @@ function ReservationCard({ reservation, navigate, onAgreement, onPay, onCancel }
         <div className="rv-actions">
           {canCancel && <button type="button" className="rv-btn-cancel" onClick={() => onCancel(reservation)}>Cancel reservation</button>}
           {reservation.contract_text && <button type="button" className="rv-btn rv-btn-outline" onClick={() => onAgreement(reservation)}>View agreement</button>}
-          {canPay && <button type="button" className="rv-btn rv-btn-primary" onClick={() => onPay(reservation)}>Pay with GCash</button>}
+          {payable && <button type="button" className="rv-btn rv-btn-primary" onClick={() => onPay(reservation)}>{payLabel(reservation)}</button>}
         </div>
       </div>
     </article>
+  )
+}
+
+/**
+ * The result shown after returning from checkout. It reads the reservation from the server:
+ * the return address only says which reservation to show, never whether the payment worked.
+ */
+function PaymentResult({ result, reservation, checking, onRefresh, onRetry, onDismiss }) {
+  if (!reservation) {
+    return checking ? null : (
+      <div className="rv-banner rv-banner-bad" role="status">
+        We could not find that reservation. Check the list below for its latest payment status.
+      </div>
+    )
+  }
+
+  const paid = reservation.payment_status === 'paid'
+  const failed = !paid && (result === 'cancelled' || reservation.payment_status === 'failed')
+  const state = paid ? 'paid' : failed ? 'failed' : 'pending'
+  const heading = {
+    paid: 'Payment successful. Your reservation is confirmed.',
+    pending: 'We are verifying your payment',
+    failed: 'Payment was not completed',
+  }[state]
+  const body = {
+    paid: 'The payment provider verified your payment and the reservation was confirmed automatically. No further approval is needed.',
+    pending: checking
+      ? 'Waiting for confirmation from the payment provider. This page updates automatically.'
+      : 'Confirmation has not arrived yet. Your reservation is not confirmed until the payment is verified. Check again in a moment.',
+    failed: 'No payment was taken for this attempt and the reservation is not confirmed. You can try again.',
+  }[state]
+
+  return (
+    <section className={`rv-result rv-result-${state}`} role="status" aria-live="polite">
+      <h2>{heading}</h2>
+      <p>{body}</p>
+      <dl className="rv-result-facts">
+        <div><dt>Reservation</dt><dd>#{reservation.id} · {reservation.make} {reservation.model}</dd></div>
+        <div><dt>Rental dates</dt><dd>{formatDate(reservation.start_date)} to {formatDate(reservation.end_date)}</dd></div>
+        <div><dt>{paid ? 'Amount paid' : 'Amount due'}</dt><dd>{money(paid ? reservation.payment_amount ?? reservation.total_amount : reservation.total_amount)}</dd></div>
+        <div><dt>Reservation status</dt><dd>{STATUS_LABELS[reservation.status] || reservation.status}</dd></div>
+        {paid && <div><dt>Transaction reference</dt><dd className="rv-ref">{reservation.payment_reference || '—'}</dd></div>}
+        {paid && <div><dt>Paid on</dt><dd>{formatDateTime(reservation.payment_paid_at)}</dd></div>}
+      </dl>
+      <div className="rv-actions">
+        {state === 'pending' && <button type="button" className="rv-btn rv-btn-outline" disabled={checking} onClick={onRefresh}>{checking ? 'Checking…' : 'Check again'}</button>}
+        {state === 'failed' && onRetry && <button type="button" className="rv-btn rv-btn-primary" onClick={onRetry}>Retry payment</button>}
+        <button type="button" className="rv-btn rv-btn-outline" onClick={onDismiss}>Close</button>
+      </div>
+    </section>
   )
 }
 
@@ -157,46 +231,72 @@ export default function MyReservations({ navigate, view = 'all' }) {
   const [cancelFor, setCancelFor] = useState(null)
   const [payFor, setPayFor] = useState(null)
 
+  const [params] = useState(() => new URLSearchParams(window.location.search))
+  const [paymentResult, setPaymentResult] = useState(() => params.get('payment'))
+  const resultId = Number(params.get('reservation')) || null
+  const [checking, setChecking] = useState(paymentResult === 'success' && Boolean(resultId))
+  const [pollRun, setPollRun] = useState(0)
+
   const refresh = useCallback(async () => {
     setError('')
     try {
-      setReservations(await getReservations())
+      const results = await getReservations()
+      setReservations(results)
+      return results
     } catch (requestError) {
       setError(requestError.message)
+      return null
     } finally {
       setLoading(false)
     }
   }, [])
 
-  const paymentResult = new URLSearchParams(window.location.search).get('payment')
-
   useEffect(() => {
     let active = true
     getReservations()
-      .then((results) => { if (active) setReservations(results) })
+      .then((results) => {
+        if (!active) return
+        setReservations(results)
+        // Arriving from a new reservation: open its payment step straight away.
+        const payId = Number(params.get('pay'))
+        const created = payId ? results.find((item) => Number(item.id) === payId) : null
+        if (created && canPay(created, localToday())) setPayFor(created)
+      })
       .catch((requestError) => { if (active) setError(requestError.message) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [])
+  }, [params])
 
+  // After checkout, ask the server until the webhook has verified the payment, or stop after a while.
   useEffect(() => {
-    if (paymentResult !== 'success') return undefined
+    if (paymentResult !== 'success' || !resultId) return undefined
 
     let active = true
     let timer
     let attempts = 0
     const poll = async () => {
       if (!active) return
-      await refresh()
+      const results = await refresh()
       attempts += 1
-      if (active && attempts < 10) timer = window.setTimeout(poll, 3000)
+      const target = results?.find((item) => Number(item.id) === resultId)
+      if (!active) return
+      if (target?.payment_status === 'paid' || target?.payment_status === 'failed' || attempts >= POLL_ATTEMPTS) {
+        setChecking(false)
+        return
+      }
+      timer = window.setTimeout(poll, 3000)
     }
     timer = window.setTimeout(poll, 1500)
     return () => {
       active = false
       window.clearTimeout(timer)
     }
-  }, [paymentResult, refresh])
+  }, [paymentResult, resultId, refresh, pollRun])
+
+  function dismissResult() {
+    setPaymentResult(null)
+    window.history.replaceState(null, '', window.location.pathname)
+  }
 
   async function confirmCancel() {
     await updateReservationStatus(cancelFor.id, 'cancelled')
@@ -208,7 +308,7 @@ export default function MyReservations({ navigate, view = 'all' }) {
   async function startPayment() {
     const response = await createPaymentCheckout(payFor.id)
     const checkoutUrl = response?.data?.checkout_url
-    if (!checkoutUrl) throw new Error('The online GCash checkout link was not returned.')
+    if (!checkoutUrl) throw new Error('The payment checkout link was not returned.')
     window.location.assign(checkoutUrl)
   }
 
@@ -231,11 +331,10 @@ export default function MyReservations({ navigate, view = 'all' }) {
         && reservation.start_date <= today
         && reservation.end_date > today
     }
-    if (view === 'history') {
-      return ['completed', 'cancelled', 'rejected'].includes(reservation.status)
-    }
-    return true
+    if (view === 'history') return HISTORY_STATUSES.includes(reservation.status)
+    return !HISTORY_STATUSES.includes(reservation.status)
   })
+  const resultReservation = resultId ? reservations.find((item) => Number(item.id) === resultId) : null
   const copy = VIEW_COPY[view] || VIEW_COPY.all
   const loadFailed = error && !reservations.length
 
@@ -250,8 +349,15 @@ export default function MyReservations({ navigate, view = 'all' }) {
         <button type="button" className="rv-btn rv-btn-primary" onClick={() => navigate('/users/vehicles')}>Browse vehicles</button>
       </header>
 
-      {paymentResult === 'success' && <div className="rv-banner rv-banner-good" role="status">Payment submitted. The reservation will update after Xendit confirms the GCash payment. <button type="button" className="rv-btn-link" onClick={refresh}>Refresh payment status</button></div>}
-      {paymentResult === 'cancelled' && <div className="rv-banner rv-banner-bad" role="status">Payment was not completed. You can try GCash checkout again when your reservation is approved.</div>}
+      {paymentResult && resultId && !loading && <PaymentResult
+        result={paymentResult}
+        reservation={resultReservation}
+        checking={checking}
+        onRefresh={() => { setChecking(true); setPollRun((run) => run + 1) }}
+        onRetry={resultReservation && canPay(resultReservation, today) ? () => openDialog(setPayFor)(resultReservation) : null}
+        onDismiss={dismissResult}
+      />}
+      {paymentResult && !resultId && <div className="rv-banner" role="status">Your payment status is shown on each reservation below. A reservation is confirmed once its payment is verified.</div>}
       {notice && <div className="rv-banner rv-banner-good" role="status">{notice}</div>}
       {error && !loadFailed && <div className="rv-banner rv-banner-bad" role="alert">{error}</div>}
 
@@ -268,6 +374,7 @@ export default function MyReservations({ navigate, view = 'all' }) {
               <ReservationCard
                 key={reservation.id}
                 reservation={reservation}
+                today={today}
                 navigate={navigate}
                 onAgreement={openDialog(setAgreementFor)}
                 onPay={openDialog(setPayFor)}
