@@ -150,6 +150,14 @@ export function overallCondition(assessment, categories) {
     return { ...CONDITIONS[overall], summary: `Screening flagged ${flagged} of ${categories.length} categories.${extra}` }
   }
   if (overall === 'no_concerns_recorded' && unevaluated === 0) {
+    // Questions are optional, so a clean screening can rest on very few answers.
+    const limited = categories.filter((category) => ['partial', 'insufficient'].includes(assessment.components[category.key]?.data_sufficiency)).length
+    if (limited) {
+      return {
+        label: 'No Concerns Recorded', tone: 'good', priority: 'Routine: complete the missing checks at the next reassessment',
+        summary: `No screening rule fired, but ${limited} of ${categories.length} categories had fewer than half of their questions answered, so this is not a confirmed good condition.`,
+      }
+    }
     return { ...CONDITIONS.no_concerns_recorded, summary: 'No screening rule fired in any evaluated category. This reflects what was recorded and is not a mechanical certification.' }
   }
   return { ...CONDITIONS.limited, summary: `${unevaluated} of ${categories.length} categories could not be evaluated from what was recorded, so no overall condition is assigned.` }
@@ -207,4 +215,94 @@ export const NOTE_EXAMPLES = {
   tires_wheels: 'e.g. Rear right tire has a small sidewall scuff; no bulge.',
   cooling: 'e.g. Coolant at the minimum line; topped up during inspection.',
   air_conditioning: 'e.g. Cools well at idle; slight musty smell at start-up.',
+}
+
+/* Survey answers. HEALTHY_ANSWERS is derived from the screening rules in
+   assessment_catalog.json: for each question with an answer rule, the normal answer
+   is the one that does not trigger it. Questions without a rule have no entry and are
+   never filled in. Regenerate this map if the catalog rules change. */
+export const HEALTHY_ANSWERS = {
+  engine: { oil_level_ok: 'yes', visible_oil_leak: 'no', warning_light_on: 'no' },
+  battery_electrical: { lights_work: 'yes', battery_warning_on: 'no' },
+  brakes: { pedal_firm: 'yes', fluid_level_ok: 'yes', parking_brake_holds: 'yes', abs_warning_on: 'no' },
+  transmission: { fluid_level_ok: 'yes', visible_fluid_leak: 'no', warning_light_on: 'no' },
+  suspension_steering: { steering_free_play_ok: 'yes', tracks_straight: 'yes', visible_shock_leak: 'no', power_steering_warning_on: 'no' },
+  tires_wheels: { wheel_nuts_tight: 'yes' },
+  cooling: { coolant_level_ok: 'yes', visible_coolant_leak: 'no', fan_operates: 'yes', temperature_warning_on: 'no' },
+  air_conditioning: { cools_cabin: 'yes', compressor_engages: 'yes', airflow_normal: 'yes', cabin_filter_clean: 'yes' },
+}
+
+// Not asked on screen because a symptom with the same screening rule records it.
+// Any stored answer is still submitted and shown in results.
+export const HIDDEN_QUESTIONS = {
+  engine: ['starts_normally'],
+  air_conditioning: ['cools_cabin'],
+}
+
+export function visibleQuestions(category) {
+  const hidden = HIDDEN_QUESTIONS[category.key] || []
+  return category.questions.filter((question) => !hidden.includes(question.key))
+}
+
+export function hiddenQuestionTexts(category) {
+  const hidden = HIDDEN_QUESTIONS[category.key] || []
+  return category.questions.filter((question) => hidden.includes(question.key)).map((question) => question.text)
+}
+
+const RATED = ['excellent', 'good', 'fair', 'poor', 'critical']
+export const LOW_RATINGS = ['fair', 'poor', 'critical']
+
+/** Details that live under Add details. */
+export function hasDetails(component) {
+  return component.symptoms.length > 0 || Object.keys(component.measurements).length > 0
+    || Object.values(component.measurementModes).some((mode) => mode !== 'value')
+    || component.fault_codes.trim() !== '' || Boolean(component.last_maintenance_date) || component.notes.trim() !== ''
+}
+
+/**
+ * The backend's data sufficiency rule (ComponentMaintenanceRules::screen_component):
+ * a rated category is sufficient when answers other than Unknown cover at least half
+ * of all its catalog questions, including any not shown here.
+ */
+export function answerSufficiency(category, component) {
+  const total = category.questions.length
+  const known = Object.values(component.answers).filter((answer) => answer && answer !== 'unknown').length
+  const needed = Math.max(0, Math.ceil(total / 2) - known)
+  const observed = Object.keys(component.answers).length > 0 || hasDetails(component)
+  if (component.rating === 'not_applicable') return { status: 'not_applicable', known, total, needed: 0 }
+  if (component.rating === 'not_assessed' && !observed) return { status: 'not_assessed', known, total, needed }
+  if (!RATED.includes(component.rating)) return { status: 'needs_more', known, total, needed }
+  return { status: known * 2 >= total ? 'sufficient' : 'needs_more', known, total, needed }
+}
+
+export const SUFFICIENCY_STATES = {
+  sufficient: { label: 'Sufficient information', short: 'Sufficient', tone: 'good' },
+  needs_more: { label: 'Needs more information', short: 'Needs more info', tone: 'fair' },
+  not_assessed: { label: 'Not assessed', short: 'Not rated', tone: 'not-assessed' },
+  not_applicable: { label: 'Not applicable', short: 'N/A', tone: 'na' },
+}
+
+// Display order only: safety-critical categories first, the rest in catalog order.
+// Category keys, payloads and saved data are unchanged.
+const SAFETY_FIRST = ['brakes', 'tires_wheels', 'suspension_steering', 'cooling']
+
+export function safetyFirst(catalog) {
+  const rank = (key) => (SAFETY_FIRST.includes(key) ? SAFETY_FIRST.indexOf(key) : SAFETY_FIRST.length)
+  const categories = catalog.categories.map((category, index) => ({ category, index }))
+    .sort((a, b) => rank(a.category.key) - rank(b.category.key) || a.index - b.index)
+    .map(({ category }) => category)
+  return { ...catalog, categories }
+}
+
+/**
+ * The most recent recorded rating for a category on this vehicle: from the latest
+ * assessment, or from the one before it when the latest did not rate the category.
+ */
+export function previousRating(latest, categoryKey) {
+  if (!latest) return null
+  const own = latest.components?.[categoryKey]?.rating
+  if (own && own !== 'not_assessed') return { rating: own, date: latest.assessed_on || null }
+  const earlier = latest.comparison?.categories?.[categoryKey]?.previous_rating
+  if (earlier && earlier !== 'not_assessed') return { rating: earlier, date: latest.comparison.previous_assessed_on || null }
+  return null
 }
