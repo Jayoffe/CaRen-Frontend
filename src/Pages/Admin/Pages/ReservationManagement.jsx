@@ -6,10 +6,11 @@ function money(value) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: amount % 1 ? 2 : 0 }).format(amount)
 }
 
-const adminTransitions = {
-  pending: [['confirmed', 'Confirm'], ['rejected', 'Reject']],
-  confirmed: [['cancelled', 'Cancel']],
-}
+// Reservations are confirmed only by a verified payment, so the only status change left here is cancelling.
+const STATUS_LABELS = { pending: 'Pending payment', confirmed: 'Confirmed', cancelled: 'Cancelled', rejected: 'Rejected', completed: 'Completed' }
+const PAYMENT_LABELS = { paid: 'Paid', pending: 'Pending', failed: 'Failed', unpaid: 'Not paid', not_required: 'Not required' }
+const ACTIVE_STATUSES = ['pending', 'confirmed']
+const HISTORY_STATUSES = ['completed', 'cancelled', 'rejected']
 
 function localToday() {
   const now = new Date()
@@ -46,6 +47,7 @@ export default function ReservationManagement({ historyView = false, setToast })
   }, [])
 
   async function updateStatus(id, status) {
+    if (status === 'cancelled' && !window.confirm(`Cancel reservation #${id}? The record is kept in Reservation History.`)) return
     setUpdatingId(id)
     setError('')
     try {
@@ -74,8 +76,10 @@ export default function ReservationManagement({ historyView = false, setToast })
   }
 
   const searchTerm = search.trim().toLowerCase()
+  const viewStatuses = historyView ? HISTORY_STATUSES : ACTIVE_STATUSES
   const visibleReservations = reservations.filter((reservation) => (
-    (statusFilter === 'all' || reservation.status === statusFilter)
+    viewStatuses.includes(reservation.status)
+    && (statusFilter === 'all' || reservation.status === statusFilter)
     && (!searchTerm || [
       reservation.id,
       reservation.full_name,
@@ -85,6 +89,7 @@ export default function ReservationManagement({ historyView = false, setToast })
       reservation.model,
       reservation.variant_color,
       reservation.plate_number,
+      reservation.payment_reference,
     ].some((value) => String(value || '').toLowerCase().includes(searchTerm)))
   ))
 
@@ -95,41 +100,46 @@ export default function ReservationManagement({ historyView = false, setToast })
           <div>
             <span className="eyebrow">{historyView ? 'RECORDS' : 'BOOKING OPERATIONS'}</span>
             <h1>{historyView ? 'Reservation History' : 'Reservations'}</h1>
-            <p>{historyView ? 'Review all customer reservations and their current statuses.' : 'Review customer requests and manage supported booking statuses.'}</p>
+            <p>{historyView ? 'Completed and cancelled reservations, with their payment details.' : 'Current reservations. A reservation is confirmed automatically once its payment is verified.'}</p>
           </div>
           <label className="form-field">
             <span>Filter status</span>
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <select value={viewStatuses.includes(statusFilter) ? statusFilter : 'all'} onChange={(event) => setStatusFilter(event.target.value)}>
               <option value="all">All statuses</option>
-              {['pending', 'confirmed', 'cancelled', 'rejected', 'completed'].map((status) => <option key={status} value={status}>{status}</option>)}
+              {viewStatuses.map((status) => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
             </select>
           </label>
           <label className="form-field">
             <span>Search</span>
-            <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Customer, vehicle, or ID" />
+            <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Customer, vehicle, reference" />
           </label>
         </div>
         {error && <div className="global-error" role="alert">{error}</div>}
         {loading ? <div className="loading-state"><span className="spinner" />Loading reservations…</div>
           : visibleReservations.length ? <div style={{ overflowX: 'auto' }}>
             <table className="reservation-table">
-              <thead><tr><th>Customer</th><th>Vehicle</th><th>Rental period</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Reference</th><th>Customer</th><th>Vehicle</th><th>Pickup</th><th>Return</th><th>Total</th><th>Payment</th><th>Status</th>{!historyView && <th>Actions</th>}</tr></thead>
               <tbody>{visibleReservations.map((reservation) => (
                 <tr key={reservation.id}>
+                  <td><b>#{reservation.id}</b>{Number(reservation.special_duration_request) === 1 && <small className="special-rental-note">Special duration</small>}</td>
                   <td><b>{reservation.full_name || reservation.username}</b><small>{reservation.email}</small></td>
-                  <td>{reservation.make} {reservation.model}{reservation.variant_color && <small>{reservation.variant_color}</small>}</td>
-                  <td>{reservation.start_date} → {reservation.end_date}<small>{reservation.rental_days} days</small>
-                    {Number(reservation.special_duration_request) === 1 && <small className="special-rental-note">Special duration request</small>}
+                  <td>{reservation.make} {reservation.model}{(reservation.variant_color || reservation.plate_number) && <small>{[reservation.variant_color, reservation.plate_number].filter(Boolean).join(' · ')}</small>}</td>
+                  <td>{reservation.start_date}</td>
+                  <td>{reservation.end_date}<small>{reservation.rental_days} days</small></td>
+                  <td>{money(reservation.total_amount)}</td>
+                  <td>{PAYMENT_LABELS[reservation.payment_status] || reservation.payment_status}
+                    {reservation.payment_reference && <small style={{ overflowWrap: 'anywhere' }}>{reservation.payment_reference}</small>}
+                    {reservation.payment_status === 'paid' && ['cancelled', 'rejected'].includes(reservation.status) && <small>Refund needed</small>}
                   </td>
-                  <td>{money(reservation.total_amount)}<small>GCash: {reservation.payment_status}</small></td>
-                  <td><span className={`status-pill status-${reservation.status}`}><i />{reservation.status}</span></td>
-                  <td><div className="reservation-actions">{(adminTransitions[reservation.status] || [])
-                    .filter(([status]) => status !== 'cancelled' || (reservation.payment_status !== 'paid' && !reservation.checked_out_at))
-                    .map(([status, label]) => (
-                    <button key={status} className={status === 'rejected' || status === 'cancelled' ? 'button button-outline' : 'button button-primary'} disabled={updatingId === reservation.id} onClick={() => updateStatus(reservation.id, status)}>
-                      {updatingId === reservation.id ? 'Saving…' : label}
-                    </button>
-                  ))}
+                  <td><span className={`status-pill status-${reservation.status}`}><i />{STATUS_LABELS[reservation.status] || reservation.status}</span>
+                    {reservation.checked_out_at && reservation.status === 'confirmed' && <small>Vehicle out</small>}
+                  </td>
+                  {!historyView && <td><div className="reservation-actions">
+                    {!reservation.checked_out_at && reservation.payment_status !== 'paid' && (
+                      <button className="button button-outline" disabled={updatingId === reservation.id} onClick={() => updateStatus(reservation.id, 'cancelled')}>
+                        {updatingId === reservation.id ? 'Saving…' : 'Cancel'}
+                      </button>
+                    )}
                     {reservation.status === 'confirmed' && reservation.checked_out_at && (
                       <button className="button button-primary" disabled={updatingId === reservation.id} onClick={() => updateUse(reservation.id, 'return')}>
                         {updatingId === reservation.id ? 'Saving…' : 'Mark returned'}
@@ -142,11 +152,11 @@ export default function ReservationManagement({ historyView = false, setToast })
                           {updatingId === reservation.id ? 'Saving…' : 'Check out vehicle'}
                         </button>
                     )}
-                  </div></td>
+                  </div></td>}
                 </tr>
               ))}</tbody>
             </table>
-          </div> : !error && <div className="empty-state"><h3>No reservations found</h3><p>New customer requests will appear here.</p></div>}
+          </div> : !error && <div className="empty-state"><h3>No reservations found</h3><p>{historyView ? 'Completed and cancelled reservations will appear here.' : 'New customer reservations will appear here.'}</p></div>}
       </section>
     </div>
   )

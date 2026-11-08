@@ -227,8 +227,9 @@ export default function CreateReservation({ navigate, carId, setToast }) {
         accept_contract: acceptContract,
         ...(selectedVariantId ? { variant_id: selectedVariantId } : {}),
       })
-      setToast?.(response?.message || 'Reservation request submitted.')
-      navigate('/users/reservations')
+      setToast?.(response?.message || 'Reservation created. Complete payment to confirm it.')
+      // Straight to payment: the reservation is confirmed once the payment is verified.
+      navigate(response?.data?.id ? `/users/reservations?pay=${response.data.id}` : '/users/reservations')
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -338,14 +339,14 @@ export default function CreateReservation({ navigate, carId, setToast }) {
               <input type="checkbox" checked={specialRequest} onChange={(event) => changeSpecial(event.target.checked)} />
               <span>
                 <b>Request a special rental period</b>
-                <small>For {SPECIAL_MIN_DAYS} to {SPECIAL_MAX_DAYS} days. An administrator must approve this request.</small>
+                <small>For {SPECIAL_MIN_DAYS} to {SPECIAL_MAX_DAYS} days.</small>
               </span>
             </label>
           </section>
 
           <section className="rsv-section">
             <SectionHead step="2" done={acceptContract} title="Rental agreement" />
-            <p className="rsv-terms">This reservation records the vehicle, dates, rental total, and any security deposit. It requires administrator approval. GCash payment is due after approval and must be verified before handover. Extensions require approval and an updated agreement.</p>
+            <p className="rsv-terms">This reservation records the vehicle, dates, rental total, and any security deposit. It is confirmed automatically once your payment is verified by the payment provider. Extensions require approval and an updated agreement.</p>
             <label className="rsv-check rsv-accept">
               <input type="checkbox" checked={acceptContract} onChange={(event) => setAcceptContract(event.target.checked)} />
               <span>I accept the rental dates, listed charges, and agreement terms.</span>
@@ -355,9 +356,9 @@ export default function CreateReservation({ navigate, carId, setToast }) {
           <section className="rsv-next">
             <h3>What happens next</h3>
             <ol>
-              <li>An administrator reviews your request.</li>
-              <li>You pay with GCash once it’s approved.</li>
-              <li>We verify your payment before handover.</li>
+              <li>You pay online right after submitting.</li>
+              <li>The payment provider verifies your payment.</li>
+              <li>Your reservation is confirmed automatically.</li>
             </ol>
           </section>
         </form>

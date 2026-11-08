@@ -59,7 +59,7 @@ function vehicleLabel(item) {
 function pickupState(item, car, today) {
   const start = dateOnly(item.start_date)
   const end = dateOnly(item.end_date)
-  if (item.status === 'pending') return { note: 'Needs approval', link: { label: 'Review', href: '/admin/reservations?status=pending' } }
+  if (item.status === 'pending') return { note: 'Awaiting payment', link: { label: 'View', href: '/admin/reservations?status=pending' } }
   if (end <= today) return { note: 'Pickup window has passed', tone: 'bad', link: { label: 'Review', href: '/admin/reservations?status=confirmed' } }
   if (item.payment_status === 'pending') return { note: 'Payment being verified', link: { label: 'Verify payment', href: '/admin/payments' } }
   if (!isPaidUp(item)) return { note: 'Not paid yet', tone: 'wait', hint: 'Check-out opens after payment' }

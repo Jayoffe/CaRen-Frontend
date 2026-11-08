@@ -171,7 +171,7 @@ export function PaymentDialog({ reservation, amount, onCheckout, onClose }) {
   return (
     <Dialog className="rv-small" labelledBy="rv-pay-title" busy={busy} onClose={onClose}>
       <form className="rv-small-body" onSubmit={submit} noValidate>
-        <h2 id="rv-pay-title">Pay online with GCash</h2>
+        <h2 id="rv-pay-title">Complete your payment</h2>
         <p>{reservation.make} {reservation.model}, reservation #{reservation.id}</p>
         <dl className="rv-pay-summary">
           <div>
@@ -180,7 +180,7 @@ export function PaymentDialog({ reservation, amount, onCheckout, onClose }) {
           </div>
         </dl>
         {error && <p className="rv-field-error" role="alert">{error}</p>}
-        <p className="rv-hint">Xendit will open a secure checkout where you can choose GCash. Vehicle handover remains blocked until payment is confirmed.</p>
+        <p className="rv-hint">Xendit opens a secure checkout where you can pay with GCash or another listed method. Your reservation is confirmed automatically once Xendit verifies the payment.</p>
         <div className="rv-small-actions">
           <button type="button" className="rv-btn rv-btn-outline" data-autofocus disabled={busy} onClick={onClose}>Not now</button>
           <button type="submit" className="rv-btn rv-btn-primary" disabled={busy}>{busy ? 'Opening checkout...' : 'Continue to payment'}</button>
