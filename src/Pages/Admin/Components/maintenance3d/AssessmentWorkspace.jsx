@@ -6,8 +6,9 @@ import {
 } from '../../../../Services/API/assessmentAPI.js'
 import { Chip, PmIcon } from './AssessmentOverview.jsx'
 import {
-  ANSWERS, CHANGE, CONFIRMATIONS, DECISIONS, FAULT_CODE_EXAMPLES, loadDraft, MEASUREMENT_EXAMPLES, newUuid, NOTE_EXAMPLES, overallCondition, RATING_EXAMPLES,
-  RATINGS, REASSESSMENT, RESULTS, SCREENING, SEVERITY, stageTone, STAGE_LEGEND, storeDraft, USAGE, VERIFICATION,
+  ANSWERS, answerSufficiency, CHANGE, CONFIRMATIONS, DECISIONS, FAULT_CODE_EXAMPLES, hasDetails, HEALTHY_ANSWERS, hiddenQuestionTexts, loadDraft, LOW_RATINGS,
+  MEASUREMENT_EXAMPLES, newUuid, NOTE_EXAMPLES, overallCondition, previousRating, RATING_EXAMPLES, RATINGS, REASSESSMENT, RESULTS, safetyFirst, SCREENING, SEVERITY, stageTone,
+  STAGE_LEGEND, storeDraft, SUFFICIENCY_STATES, USAGE, VERIFICATION, visibleQuestions,
 } from './assessmentStatus.js'
 import { rigFor } from './rigs.js'
 import { formatDate, formatKm, RECORDED_CONDITION_LABELS, todayISO } from './status.js'
@@ -70,7 +71,14 @@ function toPayload(form, vehicleId) {
 
 /* The same limits the backend enforces, so problems surface before submitting. */
 
-function detailIssues(form) {
+const ODOMETER_CHECK = 'Check the odometer reading: it is lower than the recorded mileage. Correct it, or confirm it is right.'
+
+function odometerBelowRecorded(form, vehicle) {
+  return form.odometer_km !== '' && vehicle.current_mileage !== null && Number.isFinite(Number(form.odometer_km))
+    && Number(form.odometer_km) < vehicle.current_mileage
+}
+
+function detailIssues(form, vehicle) {
   const issues = []
   if (!form.assessed_on) issues.push('Enter the assessment date.')
   else if (form.assessed_on > todayISO()) issues.push('The assessment date cannot be in the future.')
@@ -78,16 +86,16 @@ function detailIssues(form) {
     const reading = Number(form.odometer_km)
     if (!Number.isInteger(reading) || reading < 0 || reading > MAX_ODOMETER_KM) issues.push(`Odometer must be a whole number from 0 to ${MAX_ODOMETER_KM.toLocaleString('en-US')} km.`)
   }
+  if (odometerBelowRecorded(form, vehicle) && form.odometer_confirmed !== form.odometer_km) {
+    issues.push(ODOMETER_CHECK)
+  }
   return issues
 }
 
+// Only the rating is required. Questions are optional; the remaining checks are the limits the backend enforces.
 function categoryIssues(category, component, assessedOn) {
   const issues = []
   if (component.rating === 'not_assessed') issues.push('Choose a condition rating.')
-  if (component.rating !== 'not_applicable') {
-    const open = category.questions.filter((question) => !component.answers[question.key]).length
-    if (open) issues.push(`Answer the remaining ${open === 1 ? 'question' : `${open} questions`}.`)
-  }
   category.measurements.forEach((measurement) => {
     const raw = component.measurements[measurement.key]
     if ((component.measurementModes[measurement.key] || 'value') !== 'value' || raw === undefined || raw === '') return
@@ -112,24 +120,42 @@ function VehicleThumb({ listing }) {
 
 /* ------------------------------------------------------------------ Assessment */
 
-function CategoryForm({ category, component, issues, onChange }) {
+function CategoryForm({ category, component, issues, previous, detailsOpen, onToggleDetails, onChange }) {
+  const [filled, setFilled] = useState(null)
   const set = (changes) => onChange({ ...component, ...changes })
   const setAnswer = (key, value) => {
     const answers = { ...component.answers }
     if (answers[key] === value) delete answers[key]
     else answers[key] = value
+    setFilled(null)
     set({ answers })
   }
   const toggleSymptom = (key) => set({
     symptoms: component.symptoms.includes(key) ? component.symptoms.filter((item) => item !== key) : [...component.symptoms, key],
   })
   const notApplicable = component.rating === 'not_applicable'
+  const questions = visibleQuestions(category)
+  const healthy = HEALTHY_ANSWERS[category.key] || {}
+  const fillable = questions.filter((question) => healthy[question.key] && !component.answers[question.key])
+  const answered = questions.filter((question) => component.answers[question.key]).length
+  const sufficiency = answerSufficiency(category, component)
+  const state = SUFFICIENCY_STATES[sufficiency.status]
+  const withoutNormal = questions.filter((question) => !healthy[question.key] && !component.answers[question.key]).length
+
+  // Fills only unanswered questions whose normal answer the screening rules define. Nothing is submitted.
+  function noIssuesFound() {
+    const answers = { ...component.answers }
+    fillable.forEach((question) => { answers[question.key] = healthy[question.key] })
+    setFilled({ count: fillable.length, left: withoutNormal })
+    set({ answers })
+  }
 
   return (
     <div className="am-form-body">
       <header className="am-step-head">
         <h2>{category.name}</h2>
         {category.safety_critical && <span className="am-safety-tag"><PmIcon name="alert" size={13} /> Safety-critical</span>}
+        <span className="am-step-state"><Chip tone={state.tone}>{state.label}</Chip></span>
       </header>
 
       <fieldset className="am-field">
@@ -142,72 +168,107 @@ function CategoryForm({ category, component, issues, onChange }) {
             </label>
           ))}
         </div>
+        <p className="am-previous">
+          {previous
+            ? <>Last assessment: <Chip tone={RATINGS[previous.rating].tone}>{RATINGS[previous.rating].long || RATINGS[previous.rating].label}</Chip> · {formatDate(previous.date) || 'date not recorded'}</>
+            : 'No previous assessment'}
+        </p>
         <p className="am-hint">{RATING_EXAMPLES[component.rating]}</p>
       </fieldset>
 
-      {notApplicable && <p className="am-note">This category does not apply to this vehicle, so the questions below are optional.</p>}
-
       <fieldset className="am-field">
-        <legend>Inspection questions {!notApplicable && <small>Required. Choose Unknown if it could not be checked.</small>}</legend>
-        <p className="am-hint">Example: for “{category.questions[0].text}”, choose Yes or No from what you saw, or Unknown if you could not check it.</p>
-        {category.questions.map((question) => (
+        <legend>Inspection questions <small>Optional</small></legend>
+        <div className="am-questions-head">
+          <span className="am-answered">{answered} of {questions.length} answered</span>
+          <button type="button" className="am-noissues" disabled={fillable.length === 0 || notApplicable} onClick={noIssuesFound}>
+            <PmIcon name="check" size={14} /> No Issues Found
+          </button>
+        </div>
+        {notApplicable
+          ? <p className="am-hint">This category does not apply to this vehicle, so no answers are needed.</p>
+          : <p className="am-hint">Answer at least half for sufficient information. <b className="am-normal-key">Normal</b> marks the answer that means no problem.</p>}
+        {questions.map((question) => (
           <div className="am-question" key={question.key}>
             <span>{question.text}</span>
             <div className="am-segment" role="group" aria-label={question.text}>
-              {Object.entries(ANSWERS).map(([value, label]) => (
-                <button type="button" key={value} className={component.answers[question.key] === value ? 'is-selected' : ''} aria-pressed={component.answers[question.key] === value} onClick={() => setAnswer(question.key, value)}>{label}</button>
-              ))}
+              {Object.entries(ANSWERS).map(([value, label]) => {
+                const normal = healthy[question.key] === value
+                return (
+                  <button type="button" key={value} className={`${component.answers[question.key] === value ? 'is-selected' : ''}${normal ? ' is-normal' : ''}`} aria-pressed={component.answers[question.key] === value} aria-label={normal ? `${label}, normal` : label} onClick={() => setAnswer(question.key, value)}>
+                    {label}{normal && <small>Normal</small>}
+                  </button>
+                )
+              })}
             </div>
           </div>
         ))}
-      </fieldset>
-
-      <fieldset className="am-field">
-        <legend>Symptoms <small>Select any that were observed.</small></legend>
-        <p className="am-hint">Example: tick “{category.symptoms[0].label}” only if you noticed it. Leave the rest unticked.</p>
-        <div className="am-checks">
-          {category.symptoms.map((symptom) => (
-            <label key={symptom.key}><input type="checkbox" checked={component.symptoms.includes(symptom.key)} onChange={() => toggleSymptom(symptom.key)} />{symptom.label}</label>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="am-field">
-        <legend>Measurements <small>Optional. Leave blank if not taken.</small></legend>
-        <p className="am-hint">The grey values are examples only and are not saved. Enter what you actually measured.</p>
-        {category.measurements.map((measurement) => {
-          const mode = component.measurementModes[measurement.key] || 'value'
-          return (
-            <div className="am-measure" key={measurement.key}>
-              <label htmlFor={`m-${measurement.key}`}>{measurement.label} <small>({measurement.unit})</small></label>
-              <input
-                id={`m-${measurement.key}`} type="number" step="any" min={measurement.min} max={measurement.max} disabled={mode !== 'value'}
-                placeholder={MEASUREMENT_EXAMPLES[measurement.key] ? `e.g. ${MEASUREMENT_EXAMPLES[measurement.key]}` : undefined}
-                value={mode === 'value' ? (component.measurements[measurement.key] ?? '') : ''}
-                onChange={(event) => {
-                  const measurements = { ...component.measurements }
-                  if (event.target.value === '') delete measurements[measurement.key]
-                  else measurements[measurement.key] = event.target.value
-                  set({ measurements })
-                }}
-              />
-              <select aria-label={`${measurement.label} state`} value={mode} onChange={(event) => set({ measurementModes: { ...component.measurementModes, [measurement.key]: event.target.value } })}>
-                <option value="value">Measured</option>
-                <option value="unknown">Unknown</option>
-                <option value="not_applicable">N/A</option>
-              </select>
-            </div>
-          )
-        })}
-      </fieldset>
-
-      <div className="am-field-row">
-        {category.supports_fault_codes && (
-          <label>Fault codes <small>Optional</small><input placeholder={`e.g. ${FAULT_CODE_EXAMPLES[category.key] || 'P0118'}`} value={component.fault_codes} onChange={(event) => set({ fault_codes: event.target.value.toUpperCase() })} /></label>
+        {filled && (
+          <p className="am-filled" role="status">
+            <PmIcon name="check" size={14} /> Filled {filled.count} {filled.count === 1 ? 'answer' : 'answers'} with the normal result. Change any that do not match what you saw.
+            {filled.left > 0 && ` ${filled.left} ${filled.left === 1 ? 'question has' : 'questions have'} no defined normal answer and ${filled.left === 1 ? 'was' : 'were'} left for you.`}
+          </p>
         )}
-        <label>Last maintenance date <small>Optional</small><input type="date" max={todayISO()} value={component.last_maintenance_date} onChange={(event) => set({ last_maintenance_date: event.target.value })} /><span className="am-hint">Example: the date of the last service on this part, such as 03/15/2026.</span></label>
+        {sufficiency.status === 'needs_more' && RATINGS[component.rating] && component.rating !== 'unknown' && (
+          <p className="am-sufficiency-note">Answer {sufficiency.needed} more {sufficiency.needed === 1 ? 'question' : 'questions'} for sufficient information. You can still submit without them.</p>
+        )}
+      </fieldset>
+
+      <div className={`am-details${detailsOpen ? ' is-open' : ''}`}>
+        <button type="button" className="am-details-toggle" aria-expanded={detailsOpen} onClick={onToggleDetails}>
+          <PmIcon name="right" size={14} />
+          {detailsOpen ? 'Hide details' : 'Add details'}
+          <small>Symptoms, measurements{category.supports_fault_codes ? ', fault codes' : ''}, last service and notes{hasDetails(component) ? ' · details entered' : ''}</small>
+        </button>
+        {detailsOpen && (
+          <div className="am-details-body">
+            <fieldset className="am-field">
+              <legend>Symptoms <small>Select any that were observed.</small></legend>
+              <div className="am-checks">
+                {category.symptoms.map((symptom) => (
+                  <label key={symptom.key}><input type="checkbox" checked={component.symptoms.includes(symptom.key)} onChange={() => toggleSymptom(symptom.key)} />{symptom.label}</label>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset className="am-field">
+              <legend>Measurements <small>Optional. Leave blank if not taken.</small></legend>
+              <p className="am-hint">The grey values are examples only and are not saved. Enter what you actually measured.</p>
+              {category.measurements.map((measurement) => {
+                const mode = component.measurementModes[measurement.key] || 'value'
+                return (
+                  <div className="am-measure" key={measurement.key}>
+                    <label htmlFor={`m-${measurement.key}`}>{measurement.label} <small>({measurement.unit})</small></label>
+                    <input
+                      id={`m-${measurement.key}`} type="number" step="any" min={measurement.min} max={measurement.max} disabled={mode !== 'value'}
+                      placeholder={MEASUREMENT_EXAMPLES[measurement.key] ? `e.g. ${MEASUREMENT_EXAMPLES[measurement.key]}` : undefined}
+                      value={mode === 'value' ? (component.measurements[measurement.key] ?? '') : ''}
+                      onChange={(event) => {
+                        const measurements = { ...component.measurements }
+                        if (event.target.value === '') delete measurements[measurement.key]
+                        else measurements[measurement.key] = event.target.value
+                        set({ measurements })
+                      }}
+                    />
+                    <select aria-label={`${measurement.label} state`} value={mode} onChange={(event) => set({ measurementModes: { ...component.measurementModes, [measurement.key]: event.target.value } })}>
+                      <option value="value">Measured</option>
+                      <option value="unknown">Unknown</option>
+                      <option value="not_applicable">N/A</option>
+                    </select>
+                  </div>
+                )
+              })}
+            </fieldset>
+
+            <div className="am-field-row">
+              {category.supports_fault_codes && (
+                <label>Fault codes <small>Optional</small><input placeholder={`e.g. ${FAULT_CODE_EXAMPLES[category.key] || 'P0118'}`} value={component.fault_codes} onChange={(event) => set({ fault_codes: event.target.value.toUpperCase() })} /></label>
+              )}
+              <label>Last maintenance date <small>Optional</small><input type="date" max={todayISO()} value={component.last_maintenance_date} onChange={(event) => set({ last_maintenance_date: event.target.value })} /><span className="am-hint">Example: the date of the last service on this part, such as 03/15/2026.</span></label>
+            </div>
+            <label className="am-field-block">Assessor notes <small>Optional</small><textarea rows={3} maxLength={4000} placeholder={NOTE_EXAMPLES[category.key]} value={component.notes} onChange={(event) => set({ notes: event.target.value })} /></label>
+          </div>
+        )}
       </div>
-      <label className="am-field-block">Assessor notes <small>Optional</small><textarea rows={3} maxLength={4000} placeholder={NOTE_EXAMPLES[category.key]} value={component.notes} onChange={(event) => set({ notes: event.target.value })} /></label>
 
       {issues.length > 0 && (
         <div className="am-needed" role="status">
@@ -222,20 +283,25 @@ function CategoryForm({ category, component, issues, onChange }) {
 function ReviewCategory({ category, component, issues, onEdit }) {
   const rating = RATINGS[component.rating]
   const symptoms = category.symptoms.filter((symptom) => component.symptoms.includes(symptom.key)).map((symptom) => symptom.label)
-  const answered = Object.keys(component.answers).length
+  const questions = visibleQuestions(category)
+  const answered = questions.filter((question) => component.answers[question.key]).length
   const measured = category.measurements.filter((item) => (component.measurementModes[item.key] || 'value') === 'value' && component.measurements[item.key] !== undefined)
+  const sufficiency = answerSufficiency(category, component)
+  const state = SUFFICIENCY_STATES[sufficiency.status]
   return (
     <li className={`am-review-item${issues.length ? ' is-incomplete' : ''}`}>
       <div className="am-review-head">
         <strong>{category.name}</strong>
         {component.rating !== 'not_assessed' && <Chip tone={rating.tone}>{rating.long || rating.label}</Chip>}
+        {component.rating !== 'not_assessed' && <Chip tone={state.tone}>{state.short}</Chip>}
         <button type="button" className="am-link" onClick={onEdit}>{issues.length ? 'Complete' : 'Edit'}</button>
       </div>
       {issues.length > 0
         ? <ul className="am-review-issues">{issues.map((issue) => <li key={issue}>{issue}</li>)}</ul>
         : (
           <p>
-            {answered} of {category.questions.length} questions answered
+            {answered} of {questions.length} questions answered
+            {sufficiency.status === 'needs_more' && sufficiency.needed > 0 && <> ({sufficiency.needed} more for sufficient information)</>}
             {symptoms.length > 0 && <>. Symptoms: {symptoms.join(', ')}</>}
             {measured.length > 0 && <>. Measured: {measured.map((item) => `${item.label} ${component.measurements[item.key]} ${item.unit}`).join(', ')}</>}
             {faultCodes(component).length > 0 && <>. Fault codes: {faultCodes(component).join(', ')}</>}
@@ -289,16 +355,23 @@ function AssessmentFlow({ workspace, catalog, onSubmitted, onExit, onProfileSave
     catalog.categories.forEach((category) => { result[category.key] = categoryIssues(category, form.components[category.key], form.assessed_on) })
     return result
   }, [catalog, form])
-  const details = detailIssues(form)
+  const details = detailIssues(form, vehicle)
+  const lowOdometer = odometerBelowRecorded(form, vehicle)
   const complete = catalog.categories.filter((category) => issues[category.key].length === 0).length
   const total = catalog.categories.length
   const ready = complete === total && details.length === 0
   const category = catalog.categories.find((item) => item.key === step)
+  const limited = catalog.categories.filter((item) => answerSufficiency(item, form.components[item.key]).status === 'needs_more')
+  const [detailOverride, setDetailOverride] = useState({})
+  // Details open for a low rating or when something is already entered. A manual toggle wins until the rating changes.
+  const detailsOpenFor = (key) => detailOverride[key] ?? (LOW_RATINGS.includes(form.components[key].rating) || hasDetails(form.components[key]))
 
   function goTo(next) {
     setStep(next)
-    // The admin layout scrolls an inner container. Only move when the panel's top is out of view.
-    if (panel.current && panel.current.getBoundingClientRect().top < 70) panel.current.scrollIntoView({ block: 'start' })
+    // The admin layout scrolls an inner container. Move only when the panel's top is above the
+    // screen, or so far down (small phones) that the step and its navigation bar are not visible.
+    const top = panel.current?.getBoundingClientRect().top
+    if (top !== undefined && (top < 70 || top > window.innerHeight * 0.5)) panel.current.scrollIntoView({ block: 'start' })
   }
 
   function update(next) {
@@ -323,7 +396,7 @@ function AssessmentFlow({ workspace, catalog, onSubmitted, onExit, onProfileSave
       if (Number(result.vehicle_id) !== Number(vehicle.id)) throw new Error('The server returned an assessment for a different vehicle, so it is not shown. Check this vehicle’s history before submitting again.')
     } catch (requestError) {
       // The draft and its idempotency key are kept, so retrying cannot create a duplicate.
-      setError(requestError.message)
+      setError(`${requestError.message} Your answers are kept. If this was a server problem, submitting again is safe: it will not create a second assessment.`)
       setPhase('idle')
       return
     }
@@ -337,9 +410,26 @@ function AssessmentFlow({ workspace, catalog, onSubmitted, onExit, onProfileSave
   return (
     <div className="am-assess">
       <aside className="am-assess-nav">
-        <div className="am-progress" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={complete} aria-label="Categories completed">
-          <div className="am-progress-label"><strong>{complete} of {total}</strong> categories completed</div>
+        <div className="am-progress" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={complete} aria-label="Categories rated">
+          <div className="am-progress-label"><strong>{complete} of {total}</strong> categories rated</div>
           <div className="am-progress-track"><span style={{ width: `${(complete / total) * 100}%` }} /></div>
+        </div>
+        <div className="am-step-dots" role="list" aria-label="Assessment steps">
+          {steps.map((key, index) => {
+            const entry = catalog.categories.find((item) => item.key === key)
+            const label = key === 'details' ? 'Assessment details' : key === 'review' ? 'Review and submit' : entry.name
+            const component = entry ? form.components[key] : null
+            const state = key === 'details' ? (details.length ? 'open' : 'done')
+              : key === 'review' ? (ready ? 'done' : 'open')
+                : issues[key].length ? (component.rating === 'not_assessed' ? 'open' : 'error')
+                  : answerSufficiency(entry, component).status === 'needs_more' ? 'partial' : 'done'
+            const stateLabel = { open: 'not complete', done: 'complete', partial: 'needs more information', error: 'check entries' }[state]
+            return (
+              <button type="button" role="listitem" key={key} className={`is-${state}${key === step ? ' is-current' : ''}`} aria-current={key === step ? 'step' : undefined} aria-label={`${label}: ${stateLabel}`} title={label} onClick={() => goTo(key)}>
+                {key === 'details' ? <PmIcon name="car" size={14} /> : key === 'review' ? <PmIcon name="clipboard" size={14} /> : index}
+              </button>
+            )
+          })}
         </div>
         <nav className="am-category-nav" aria-label="Assessment steps">
           <button type="button" className={step === 'details' ? 'is-active' : ''} aria-current={step === 'details' ? 'step' : undefined} onClick={() => goTo('details')}>
@@ -348,11 +438,13 @@ function AssessmentFlow({ workspace, catalog, onSubmitted, onExit, onProfileSave
           </button>
           {catalog.categories.map((item) => {
             const done = issues[item.key].length === 0
+            const component = form.components[item.key]
+            const note = !done ? (component.rating === 'not_assessed' ? 'Not rated' : 'Check entries') : SUFFICIENCY_STATES[answerSufficiency(item, component).status].short
             return (
               <button type="button" key={item.key} className={item.key === step ? 'is-active' : ''} aria-current={item.key === step ? 'step' : undefined} onClick={() => goTo(item.key)}>
                 <span className={`am-step-mark${done ? ' is-done' : ''}`}><PmIcon name={done ? 'check' : 'circle'} size={14} /></span>
                 <span>{item.name}</span>
-                <small>{done ? 'Completed' : 'Incomplete'}</small>
+                <small>{note}</small>
               </button>
             )
           })}
@@ -377,8 +469,19 @@ function AssessmentFlow({ workspace, catalog, onSubmitted, onExit, onProfileSave
                 <label>Assessment date <small>Required</small><input type="date" required max={todayISO()} value={form.assessed_on} onChange={(event) => update({ ...form, assessed_on: event.target.value })} /><span className="am-hint">Example: today’s date, if you inspected the vehicle today.</span></label>
                 <label>Odometer (km) <small>Optional</small><input type="number" min="0" max={MAX_ODOMETER_KM} step="1" placeholder="e.g. 45200" value={form.odometer_km} onChange={(event) => update({ ...form, odometer_km: event.target.value })} /><span className="am-hint">Read it from the dashboard. {vehicle.current_mileage === null ? 'No mileage is recorded yet.' : `Last recorded: ${vehicle.current_mileage.toLocaleString('en-US')} km.`}</span></label>
               </div>
+              {lowOdometer && (
+                <div className="am-odometer-warning" role="alert">
+                  <strong><PmIcon name="alert" size={14} /> Your entered odometer reading is lower than the vehicle's previously recorded mileage. Please verify the value before submitting.</strong>
+                  <span>Previously recorded: {vehicle.current_mileage.toLocaleString('en-US')} km · Entered now: {Number(form.odometer_km).toLocaleString('en-US')} km</span>
+                  <label className="am-confirm">
+                    <input type="checkbox" checked={form.odometer_confirmed === form.odometer_km} onChange={(event) => update({ ...form, odometer_confirmed: event.target.checked ? form.odometer_km : '' })} />
+                    I checked the dashboard and this reading is correct.
+                  </label>
+                  <small>The recorded mileage is not lowered automatically; the server flags the decrease for review.</small>
+                </div>
+              )}
               <label className="am-field-block">General notes <small>Optional</small><textarea rows={3} maxLength={4000} placeholder="e.g. Inspected at the main garage after a 3-day rental." value={form.notes} onChange={(event) => update({ ...form, notes: event.target.value })} /></label>
-              {details.length > 0 && <div className="am-needed" role="status"><ul>{details.map((issue) => <li key={issue}>{issue}</li>)}</ul></div>}
+              {details.filter((issue) => issue !== ODOMETER_CHECK).length > 0 && <div className="am-needed" role="status"><ul>{details.filter((issue) => issue !== ODOMETER_CHECK).map((issue) => <li key={issue}>{issue}</li>)}</ul></div>}
               <details className="am-disclosure">
                 <summary>Vehicle profile</summary>
                 <ProfileTab key={vehicle.id} workspace={workspace} onSaved={onProfileSaved} />
@@ -387,10 +490,21 @@ function AssessmentFlow({ workspace, catalog, onSubmitted, onExit, onProfileSave
           )}
           {category && (
             <CategoryForm
+              key={step}
               category={category}
               component={form.components[step]}
               issues={issues[step]}
-              onChange={(component) => update({ ...form, components: { ...form.components, [step]: component } })}
+              previous={previousRating(workspace.latest, step)}
+              detailsOpen={detailsOpenFor(step)}
+              onToggleDetails={() => setDetailOverride({ ...detailOverride, [step]: !detailsOpenFor(step) })}
+              onChange={(component) => {
+                if (component.rating !== form.components[step].rating) {
+                  const next = { ...detailOverride }
+                  delete next[step]
+                  setDetailOverride(next)
+                }
+                update({ ...form, components: { ...form.components, [step]: component } })
+              }}
             />
           )}
           {step === 'review' && (
@@ -401,6 +515,11 @@ function AssessmentFlow({ workspace, catalog, onSubmitted, onExit, onProfileSave
                 <div><dt>Odometer</dt><dd>{form.odometer_km === '' ? 'Not recorded' : formatKm(form.odometer_km)}</dd></div>
               </dl>
               {details.length > 0 && <div className="am-needed" role="status"><ul>{details.map((issue) => <li key={issue}>{issue}</li>)}</ul></div>}
+              {limited.length > 0 && (
+                <p className="am-sufficiency-note am-review-note">
+                  {limited.length} {limited.length === 1 ? 'category has' : 'categories have'} fewer than half of their questions answered: {limited.map((item) => item.name).join(', ')}. You can still submit; the results will show this as limited information.
+                </p>
+              )}
               <ul className="am-review">
                 {catalog.categories.map((item) => <ReviewCategory key={item.key} category={item} component={form.components[item.key]} issues={issues[item.key]} onEdit={() => goTo(item.key)} />)}
               </ul>
@@ -411,7 +530,8 @@ function AssessmentFlow({ workspace, catalog, onSubmitted, onExit, onProfileSave
         </div>
 
         <div className="am-submit-bar">
-          <button type="button" disabled={stepIndex === 0} onClick={() => goTo(steps[stepIndex - 1])}><PmIcon name="left" /> Previous</button>
+          <button type="button" disabled={stepIndex === 0} onClick={() => goTo(steps[stepIndex - 1])}><PmIcon name="left" /> <span className="am-bar-label">Previous</span></button>
+          <span className="am-bar-step">{step === 'details' ? 'Assessment details' : step === 'review' ? 'Review and submit' : category.name}<small>Step {stepIndex + 1} of {steps.length}</small></span>
           {step === 'review' ? (
             <button type="button" className="is-primary" disabled={!ready} onClick={submit}>Submit assessment</button>
           ) : (
@@ -516,6 +636,8 @@ function CategoryResult({ category, assessment, canInspect, onInspect, onChanged
   const screening = SCREENING[component.screening_status]
   const safetyFlag = category.safety_critical && findings.length > 0
   const references = (ai?.identified_faults?.length || 0) + (ai?.diagnostic_guidance?.length || 0)
+  const hiddenTexts = hiddenQuestionTexts(category)
+  const missing = component.missing_questions.filter((text) => !hiddenTexts.includes(text))
 
   async function attach(event) {
     const file = event.target.files?.[0]
@@ -545,7 +667,12 @@ function CategoryResult({ category, assessment, canInspect, onInspect, onChanged
       <div className="am-result-body">
         <Findings findings={findings} />
 
-        {component.missing_questions.length > 0 && <p className="am-note">Answered Unknown or not answered: {component.missing_questions.join(' ')}</p>}
+        {['partial', 'insufficient'].includes(component.data_sufficiency) && (
+          <p className="am-note">
+            Limited assessment information: fewer than half of the questions were answered.
+            {missing.length > 0 && ` Not answered or Unknown: ${missing.join(' ')}`}
+          </p>
+        )}
 
         <RecordedDetails category={category} component={component} />
 
@@ -639,9 +766,9 @@ function ResultsSummary({ assessment, catalog, vehicle, partsByCategory, onInspe
       </section>
 
       {assessment.odometer_flag === 'decrease' && <p className="am-flag">Odometer is lower than the previous reading of {formatKm(assessment.previous_odometer_km)}. Vehicle mileage was not changed.</p>}
-      {['failed', 'pending'].includes(assessment.ai_status) && (
+      {['failed', 'pending', 'processing'].includes(assessment.ai_status) && (
         <div className="am-banner">
-          <p>The assessment and its findings are saved. Fault code lookup could not finish, so it is missing until a retry succeeds.</p>
+          <p>{assessment.ai_status === 'processing' ? 'The assessment and its findings are saved. Fault code lookup is still marked as running; if this does not change, retry it.' : 'The assessment and its findings are saved. Fault code lookup could not finish, so it is missing until a retry succeeds.'}</p>
           <button type="button" disabled={busy} onClick={() => act(() => retryAnalysis(assessment.id))}>{busy ? 'Retrying…' : 'Retry analysis'}</button>
         </div>
       )}
@@ -1116,7 +1243,7 @@ export default function AssessmentWorkspace({ vehicleId, view, listing, onView, 
     try {
       const [nextWorkspace, nextCatalog] = await Promise.all([getAssessmentWorkspace(vehicleId), getAssessmentCatalog()])
       setWorkspace(nextWorkspace)
-      setCatalog(nextCatalog)
+      setCatalog(safetyFirst(nextCatalog))
       setAssessment(nextWorkspace.latest)
     } catch (requestError) {
       setError(requestError.message)

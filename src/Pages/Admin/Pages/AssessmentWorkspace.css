@@ -185,9 +185,40 @@
 .am-measure { display: grid; grid-template-columns: minmax(0, 1fr) 110px 120px; gap: 8px; align-items: center; padding: 5px 0; font-size: 14px; }
 .am-measure small { color: var(--pm-text-muted); }
 
+.am-step-state { margin-left: auto; }
+.am-questions-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 6px; }
+.am-answered { font-size: 13px; color: var(--pm-text-muted); font-variant-numeric: tabular-nums; }
+.pm-page .am-noissues { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; font-size: 13px; color: var(--pm-good); border-color: #cfe0d4; background: #f3f8f4; }
+.pm-page .am-noissues:hover:not(:disabled) { border-color: var(--pm-good); background: #eaf3ec; }
+.pm-page .am-segment button small, .am-normal-key { margin-left: 5px; font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--pm-good); }
+.am-normal-key { margin-left: 0; }
+.pm-page .am-segment button.is-normal:not(.is-selected) { background: #f6faf6; }
+.pm-page .am-segment button.is-selected small { color: #fff; }
+.am-filled { display: flex; align-items: flex-start; gap: 7px; margin: 10px 0 0; padding: 9px 12px; font-size: 13px; line-height: 1.5; color: var(--pm-good); background: #f3f8f4; border: 1px solid #d5e5d9; border-radius: 8px; }
+.am-filled svg { flex: none; margin-top: 3px; }
+.am-sufficiency-note { margin: 10px 0 0; font-size: 13px; line-height: 1.5; color: #7a5310; }
+.am-review-note { padding: 10px 14px; background: #fdf8ec; border: 1px solid #eedfb9; border-radius: 8px; }
+.am-details { margin-top: 4px; border: 1px solid var(--pm-line); border-radius: 8px; }
+.pm-page .am-details-toggle { width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 46px; padding: 8px 12px; border: 0; border-radius: 8px; background: #fafaf6; text-align: left; font-weight: 500; }
+.pm-page .am-details-toggle:hover:not(:disabled) { border: 0; background: #f4f4ee; }
+.am-details-toggle svg { transition: transform .2s ease; }
+.am-details.is-open .am-details-toggle svg { transform: rotate(90deg); }
+.am-details-toggle small { flex-basis: 100%; padding-left: 22px; font-size: 12px; font-weight: 400; color: var(--pm-text-muted); }
+.am-details.is-open .am-details-toggle { border-bottom: 1px solid var(--pm-line); border-radius: 8px 8px 0 0; }
+.am-details-body { padding: 16px 14px 2px; animation: pm-rise 180ms ease-out; }
+.am-previous { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 0; font-size: 13px; color: var(--pm-text-muted); }
+.am-odometer-warning { display: flex; flex-direction: column; gap: 6px; margin: 0 0 14px; padding: 12px 14px; font-size: 13px; line-height: 1.5; color: #7a5310; background: #fdf8ec; border: 1px solid #eedfb9; border-radius: 8px; }
+.am-odometer-warning strong { display: flex; align-items: flex-start; gap: 6px; font-weight: 600; }
+.am-odometer-warning strong svg { flex: none; margin-top: 3px; }
+.am-odometer-warning small { color: var(--pm-text-muted); font-size: 12px; }
+.am-confirm { display: flex; align-items: center; gap: 8px; min-height: 40px; color: var(--pm-text); font-weight: 500; cursor: pointer; }
+.am-confirm input { width: 18px; height: 18px; margin: 0; accent-color: var(--pm-accent); }
+.am-step-dots { display: none; }
+.am-bar-step { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; font-size: 13px; font-weight: 500; color: var(--pm-text); text-align: center; }
+.am-bar-step small { font-size: 12px; font-weight: 400; color: var(--pm-text-muted); }
 .am-needed { margin-top: 6px; padding: 10px 14px; font-size: 13px; color: #7a5310; background: #fdf8ec; border: 1px solid #eedfb9; border-radius: 8px; }
 .am-needed ul { margin: 2px 0 0; padding-left: 18px; line-height: 1.55; }
-.am-submit-bar { display: flex; justify-content: space-between; gap: 10px; padding: 12px clamp(16px, 2.4vw, 26px); border-top: 1px solid var(--pm-line); }
+.am-submit-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px clamp(16px, 2.4vw, 26px); border-top: 1px solid var(--pm-line); }
 .am-submit-bar button { display: inline-flex; align-items: center; gap: 6px; }
 
 .am-disclosure { margin-top: 10px; font-size: 14px; }
@@ -344,12 +375,45 @@
   .am-stage-frame .pm-callout { right: 8px; width: auto; }
   .am-stage-frame .has-selection .pm-controls { display: none; }
 }
+/* Phones: compact step indicator, larger touch targets, and a navigation bar that stays in reach. */
+@media (max-width: 760px) {
+  .am-assess-nav { gap: 10px; padding: 12px; }
+  .am-assess-nav .am-category-nav, .am-assess-nav > .am-note { display: none; }
+  .am-step-dots { display: grid; grid-template-columns: repeat(auto-fit, minmax(26px, 1fr)); gap: 5px; }
+  .pm-page .am-step-dots button { min-height: 36px; padding: 0; display: grid; place-items: center; font-size: 13px; font-weight: 600; border-radius: 8px; color: var(--pm-text-muted); background: #fff; border: 1px solid var(--pm-line-strong); }
+  .pm-page .am-step-dots button.is-done { color: var(--pm-good); background: #f3f8f4; border-color: #cfe0d4; }
+  .pm-page .am-step-dots button.is-partial { color: #80640f; background: #fdf8ec; border-color: #eedfb9; }
+  .pm-page .am-step-dots button.is-error { color: var(--pm-critical); background: #fdf3f2; border-color: #f0d8d6; }
+  .pm-page .am-step-dots button.is-current { color: #fff; background: var(--pm-accent); border-color: var(--pm-accent); }
+  .pm-page .am-nav-actions .am-link { min-height: 40px; }
+  .am-submit-bar {
+    position: sticky; bottom: 0; z-index: 20;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: rgb(255 255 255 / 97%); border-radius: 0 0 var(--pm-radius) var(--pm-radius);
+    box-shadow: 0 -6px 16px rgb(32 42 40 / 6%);
+  }
+  .am-submit-bar button { min-height: 46px; flex: none; }
+  .pm-page .am-segment button { min-height: 44px; }
+  .am-checks label { min-height: 36px; align-items: center; }
+  .am-checks input { margin: 0; width: 18px; height: 18px; flex: none; }
+  .pm-page .am-noissues { min-height: 44px; }
+  .am-question { padding: 10px 0; }
+  /* On a phone the floating chat button would cover answer buttons, so it is hidden while the survey is open. */
+  body:has(.am-assess) .dr-chat { display: none; }
+}
+@media (max-width: 400px) {
+  .am-bar-label { display: none; }
+  .am-submit-bar button { min-width: 46px; padding: 0 12px; }
+}
 @media (max-width: 560px) {
   .am-measure { grid-template-columns: minmax(0, 1fr) 96px; }
   .am-measure label { grid-column: 1 / -1; }
   .am-summary-vehicle { flex-direction: column; }
   .am-segment { width: 100%; }
   .pm-page .am-segment button { flex: 1; padding: 7px 4px; }
+  .pm-page .am-segment button small { display: block; margin: 1px 0 0; }
+  .pm-page .am-noissues { margin-left: 0; width: 100%; justify-content: center; }
+  .am-step-state { margin-left: 0; flex-basis: 100%; }
   .am-findings li { grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .am-findings li .am-chip { justify-self: start; }
 }
