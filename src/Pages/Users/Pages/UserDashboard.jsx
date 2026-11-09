@@ -3,6 +3,9 @@ import { api } from '../../../Services/API/api.js'
 import './UserDashboard.css'
 
 const DAY_MS = 86400000
+const PICKUP_LOCATION = 'Amuguis Street, Lumangbayan, Calapan, Philippines, 5200'
+const GOOGLE_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(PICKUP_LOCATION)}`
+const GOOGLE_MAPS_EMBED_URL = `https://www.google.com/maps?q=${encodeURIComponent(PICKUP_LOCATION)}&output=embed`
 
 function parseDay(value) {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value || '')
@@ -34,6 +37,22 @@ function describeTrip(trip, today) {
 
 function ArrowIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14m-7-7 7 7-7 7" /></svg>
+}
+
+function PickupLocation() {
+  return (
+    <section className="dash-panel dash-location" aria-labelledby="dash-location-title">
+      <div className="dash-location-copy">
+        <span className="dash-location-kicker">Pickup location</span>
+        <h2 id="dash-location-title">Find us in Calapan</h2>
+        <p>{PICKUP_LOCATION}</p>
+        <a className="dash-link" href={GOOGLE_MAPS_URL} target="_blank" rel="noreferrer">Open in Google Maps <ArrowIcon /></a>
+      </div>
+      <div className="dash-location-map">
+        <iframe title="DriveRent pickup location" src={GOOGLE_MAPS_EMBED_URL} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+      </div>
+    </section>
+  )
 }
 
 function Status({ status }) {
@@ -204,6 +223,7 @@ export default function UserDashboard({ user, navigate }) {
           <p>Tell us about your trip and we’ll compare your needs with the vehicles available now.</p>
           <button className="dash-link" type="button" onClick={() => navigate('/users/recommendations')}>Get recommendations <ArrowIcon /></button>
         </aside>
+        <PickupLocation />
       </div>
     </div>
   )
