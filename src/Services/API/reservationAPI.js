@@ -1,7 +1,7 @@
 import { api } from './api.js'
 
 export async function getReservations() {
-  const response = await api.get('/api/reservations')
+  const response = await api.get('/api/reservations', { cache: 'no-store' })
   return response?.data || []
 }
 

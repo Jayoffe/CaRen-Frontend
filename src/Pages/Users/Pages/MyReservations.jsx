@@ -302,6 +302,7 @@ export default function MyReservations({ navigate, view = 'all' }) {
     await updateReservationStatus(cancelFor.id, 'cancelled')
     setCancelFor(null)
     setNotice('Reservation cancelled.')
+    window.dispatchEvent(new Event('reservations:changed'))
     await refresh()
   }
 

@@ -154,7 +154,7 @@ export default function AdminDashboard({ navigate }) {
   const today = useMemo(() => localToday(), [])
 
   const loadDashboard = useCallback(async () => {
-    return Promise.all([getFleetCounts(), api.get('/api/reservations')])
+    return Promise.all([getFleetCounts(), api.get('/api/reservations', { cache: 'no-store' })])
   }, [])
 
   useEffect(() => {

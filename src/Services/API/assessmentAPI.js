@@ -7,13 +7,13 @@ export async function getAssessmentCatalog() {
 }
 
 export async function getAssessmentFleet() {
-  const data = (await api.get(`${base}/fleet`)).data
+  const data = (await api.get(`${base}/fleet`, { cache: 'no-store' })).data
   if (!Array.isArray(data?.vehicles)) throw new Error('The assessment overview returned an invalid response.')
   return data
 }
 
 export async function getAssessmentWorkspace(vehicleId, options) {
-  const data = (await api.get(`${base}/vehicles/${Number(vehicleId)}`, options)).data
+  const data = (await api.get(`${base}/vehicles/${Number(vehicleId)}`, { ...options, cache: 'no-store' })).data
   if (!data?.vehicle) throw new Error('The assessment workspace returned an invalid response.')
   return data
 }
