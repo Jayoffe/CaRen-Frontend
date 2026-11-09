@@ -45,9 +45,13 @@ function customerName(item) {
   return item.full_name || item.username || `Customer #${item.user_id}`
 }
 
+function reservationStatus(item) {
+  return String(item.status || '').trim().toLowerCase()
+}
+
 /** Things an administrator has to act on, most urgent first. Only groups with something in them are returned. */
 function attentionItems(reservations, today) {
-  const confirmed = reservations.filter((item) => item.status === 'confirmed')
+  const confirmed = reservations.filter((item) => reservationStatus(item) === 'confirmed')
   const notCheckedOut = confirmed.filter((item) => !item.checked_out_at)
   const paymentsDue = notCheckedOut.filter((item) => (
     Number(item.payment_required) === 1
@@ -105,10 +109,10 @@ function scheduleEvents(reservations, today) {
   for (const item of reservations) {
     const start = dateOnly(item.start_date)
     const end = dateOnly(item.end_date)
-    if (['pending', 'confirmed'].includes(item.status) && !item.checked_out_at && inWindow(start)) {
+    if (['pending', 'confirmed'].includes(reservationStatus(item)) && !item.checked_out_at && inWindow(start)) {
       events.push({ key: `${item.id}-pickup`, day: start, type: 'Pickup', item })
     }
-    if (item.status === 'confirmed' && !item.returned_at && inWindow(end)) {
+    if (reservationStatus(item) === 'confirmed' && !item.returned_at && inWindow(end)) {
       events.push({ key: `${item.id}-return`, day: end, type: 'Return', item })
     }
   }
@@ -194,18 +198,26 @@ export default function AdminDashboard({ navigate }) {
     }
   }, [loadDashboard])
 
+  useEffect(() => {
+    const refreshAfterReservationChange = () => {
+      setAttempt((value) => value + 1)
+    }
+    window.addEventListener('reservations:changed', refreshAfterReservationChange)
+    return () => window.removeEventListener('reservations:changed', refreshAfterReservationChange)
+  }, [])
+
   function retry() {
     setError('')
     setLoading(true)
     setAttempt((value) => value + 1)
   }
 
-  const counted = reservations.filter((item) => ['pending', 'confirmed', 'completed'].includes(item.status))
+  const counted = reservations.filter((item) => ['pending', 'confirmed', 'completed'].includes(reservationStatus(item)))
   const bookingValue = counted.reduce((sum, item) => sum + Number(item.total_amount || 0), 0)
   const paidValue = counted.reduce((sum, item) => sum + (item.payment_status === 'paid' ? Number(item.total_amount || 0) : 0), 0)
-  const onTheRoad = reservations.filter((item) => item.status === 'confirmed' && item.checked_out_at && !item.returned_at).length
-  const pendingCount = reservations.filter((item) => item.status === 'pending').length
-  const confirmedCount = reservations.filter((item) => item.status === 'confirmed').length
+  const onTheRoad = reservations.filter((item) => reservationStatus(item) === 'confirmed' && item.checked_out_at && !item.returned_at).length
+  const pendingCount = reservations.filter((item) => reservationStatus(item) === 'pending').length
+  const confirmedCount = reservations.filter((item) => reservationStatus(item) === 'confirmed').length
 
   const attention = attentionItems(reservations, today)
   const events = scheduleEvents(reservations, today)

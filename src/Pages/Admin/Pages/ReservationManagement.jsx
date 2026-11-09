@@ -53,6 +53,7 @@ export default function ReservationManagement({ historyView = false, setToast })
     try {
       await updateReservationStatus(id, status)
       await refresh()
+      window.dispatchEvent(new Event('reservations:changed'))
       setToast?.('Reservation status updated.')
     } catch (requestError) {
       setError(requestError.message)
