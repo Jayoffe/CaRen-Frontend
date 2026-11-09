@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../../../Services/API/api.js'
 import { getFleetCounts } from '../../../Services/API/vehicleAPI.js'
 import './AdminDashboard.css'
@@ -149,9 +149,13 @@ export default function AdminDashboard({ navigate }) {
   const [attempt, setAttempt] = useState(0)
   const today = useMemo(() => localToday(), [])
 
+  const loadDashboard = useCallback(async () => {
+    return Promise.all([getFleetCounts(), api.get('/api/reservations')])
+  }, [])
+
   useEffect(() => {
     let active = true
-    Promise.all([getFleetCounts(), api.get('/api/reservations')])
+    loadDashboard()
       .then(([fleetCounts, reservationsResponse]) => {
         if (!active) return
         setFleet(fleetCounts)
@@ -164,7 +168,31 @@ export default function AdminDashboard({ navigate }) {
         if (active) setLoading(false)
       })
     return () => { active = false }
-  }, [attempt])
+  }, [attempt, loadDashboard])
+
+  useEffect(() => {
+    let active = true
+    const refreshWhenVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      loadDashboard()
+        .then(([fleetCounts, reservationsResponse]) => {
+          if (!active) return
+          setFleet(fleetCounts)
+          setReservations(reservationsResponse?.data || [])
+          setError('')
+        })
+        .catch((requestError) => {
+          if (active) setError(requestError.message)
+        })
+    }
+    window.addEventListener('focus', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      active = false
+      window.removeEventListener('focus', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [loadDashboard])
 
   function retry() {
     setError('')
