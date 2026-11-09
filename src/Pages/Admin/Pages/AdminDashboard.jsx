@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../../../Services/API/api.js'
 import { getFleetCounts } from '../../../Services/API/vehicleAPI.js'
+import DashboardCharts from '../Components/DashboardCharts.jsx'
 import './AdminDashboard.css'
 
 const DAY_MS = 86400000
@@ -268,6 +269,8 @@ export default function AdminDashboard({ navigate }) {
               <dd className="ad-detail">{money(paidValue)} paid so far</dd>
             </div>
           </dl>
+
+          <DashboardCharts reservations={reservations} today={today} fleetTotal={fleet.total} />
 
           <div className="ad-panels">
             <section className="ad-card ad-panel" aria-labelledby="ad-attention-title">

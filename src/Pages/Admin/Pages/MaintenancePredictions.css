@@ -388,3 +388,130 @@
 .pm-page .am-link, .pm-page .am-back, .pm-page .am-flow button, .pm-page .am-category-nav button, .pm-page .am-segment button, .pm-page .am-tabs button { min-height: 0; }
 .pm-page .am-link:hover:not(:disabled), .pm-page .am-back:hover:not(:disabled), .pm-page .am-flow button:hover:not(:disabled), .pm-page .am-tabs button:hover:not(:disabled) { background: none; border-color: transparent; }
 .pm-page .am-flow button:disabled { opacity: 1; }
+
+/* ------------------------------------------------------------------
+   Component information card (3D callout): status header, health tiles,
+   fact tiles, actionable recommendation and calmer forms.
+   ------------------------------------------------------------------ */
+.pm-callout {
+  width: min(384px, calc(100% - 32px));
+  max-height: min(calc(100% - 80px), 540px);
+  border-color: var(--pm-line);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px -18px rgb(20 29 27 / 35%), 0 2px 6px rgb(20 29 27 / 6%);
+}
+
+/* Header */
+.pm-inspector > header {
+  position: relative;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 14px 14px 16px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone) 9%, #fff), #fff);
+}
+.pm-inspector > header::before { position: absolute; top: 0; left: 0; right: 0; height: 3px; content: ''; background: var(--tone); }
+.pm-insp-icon { display: grid; flex: none; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: color-mix(in srgb, var(--tone) 14%, #fff); color: var(--tone); }
+.pm-insp-title { flex: 1; min-width: 0; }
+.pm-insp-title .pm-kicker { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.66rem; }
+.pm-inspector h2 { margin: 2px 0 4px; font-size: 1.15rem; letter-spacing: -.01em; }
+.pm-insp-title .pm-badge { padding: 2px 9px; border-radius: 999px; background: color-mix(in srgb, var(--tone) 12%, #fff); font-size: 0.72rem; }
+.pm-switcher { align-self: flex-start; }
+.pm-switcher select { max-width: 120px; min-height: 32px; border-color: var(--pm-line-strong); border-radius: 999px; padding: 4px 10px; font-size: 0.74rem; }
+.pm-page .pm-close { align-self: flex-start; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: 50%; background: #f2f2ec; font-size: 1.2rem; }
+.pm-page .pm-close:hover { background: #e8e8e1; color: var(--pm-text); }
+
+/* Tabs as a segmented control */
+.pm-tabs { gap: 2px; margin: 0 12px; padding: 4px; border: 0; border-radius: 12px; background: #f2f2ec; }
+.pm-page .pm-tabs button {
+  flex: 1 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--pm-text-muted);
+  font-size: 0.74rem;
+}
+.pm-page .pm-tabs button:hover:not(.is-active) { color: var(--pm-text); background: rgb(255 255 255 / 55%); }
+.pm-page .pm-tabs button.is-active { background: #fff; color: var(--pm-text); box-shadow: 0 1px 4px rgb(32 42 40 / 10%); }
+.pm-tab-count { min-width: 18px; padding: 0 5px; border-radius: 999px; background: rgb(32 42 40 / 9%); font-size: 0.66rem; line-height: 16px; text-align: center; }
+.pm-tabs button.is-active .pm-tab-count { background: var(--pm-accent); color: #fff; }
+
+.pm-inspector-body { padding: 14px 16px 16px; font-size: 0.84rem; }
+.pm-notice { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 10px; background: #e5f1e8; font-weight: 600; }
+
+/* Health tiles */
+.pm-health { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.pm-health-card { display: grid; align-content: start; gap: 4px; padding: 11px 12px; border: 1px solid color-mix(in srgb, var(--tone) 22%, #fff); border-radius: 12px; background: color-mix(in srgb, var(--tone) 6%, #fff); }
+.pm-health-label { display: inline-flex; align-items: center; gap: 5px; color: var(--pm-text-faint); font-size: 0.66rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.pm-health-card strong { display: inline-flex; align-items: center; gap: 7px; color: var(--pm-text); font-size: 0.92rem; font-weight: 600; }
+.pm-health-card strong i { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--tone); box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 18%, transparent); }
+.pm-health-card p { margin: 2px 0 0; font-size: 0.76rem; line-height: 1.45; }
+.pm-status-list:empty { display: none; }
+.pm-health + .pm-status-list { margin-top: 10px; }
+
+/* Facts */
+.pm-facts { gap: 6px; margin-top: 12px; padding-top: 0; border-top: 0; }
+.pm-fact { padding: 9px 11px; border-radius: 10px; background: #f7f7f3; }
+.pm-fact span { margin-bottom: 2px; font-size: 0.64rem; }
+.pm-fact strong { font-size: 0.84rem; }
+
+/* Empty record note */
+.pm-empty-note, .pm-assistant-intro { display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; padding: 10px 12px; border: 1px dashed var(--pm-line-strong); border-radius: 12px; }
+.pm-empty-note p { margin: 0; font-size: 0.78rem; }
+.pm-empty-note b { color: var(--pm-text); }
+.pm-empty-icon { display: grid; flex: none; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: #edf2ed; color: #35564a; }
+
+/* Notes and recommendation */
+.pm-notes { padding: 10px 12px; border: 1px solid var(--pm-line); border-radius: 12px; }
+.pm-action { padding: 11px 12px; border: 0; border-left: 3px solid var(--tone); border-radius: 10px; background: color-mix(in srgb, var(--tone) 7%, #fafaf7); }
+.pm-action > span { display: inline-flex; align-items: center; gap: 6px; }
+.pm-action p { font-weight: 500; }
+
+/* Quick actions */
+.pm-quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.pm-page .pm-quick-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; padding: 0 10px; border-radius: 10px; font-size: 0.78rem; font-weight: 600; }
+
+/* Forms inside the card */
+.pm-form { gap: 11px; }
+.pm-form label { font-size: 0.74rem; color: var(--pm-text); }
+.pm-page .pm-form input:not([type='radio']):not([type='checkbox']), .pm-page .pm-form textarea { min-height: 38px; border-radius: 9px; font-size: 0.82rem; }
+.pm-page .pm-form input:focus, .pm-page .pm-form textarea:focus { border-color: var(--pm-accent); box-shadow: 0 0 0 3px rgb(38 63 57 / 10%); }
+.pm-segmented { gap: 6px; }
+.pm-segmented label { min-height: 34px; padding: 0 12px; border-color: var(--pm-line-strong); border-radius: 999px; }
+.pm-segmented label.is-checked { border-color: var(--pm-accent); background: var(--pm-accent); color: #fff; }
+.pm-segmented label.is-checked::before { content: '✓'; content: '✓' / ''; margin-right: 5px; font-weight: 700; }
+.pm-form .pm-check { padding: 9px 11px; border-radius: 10px; background: #f7f7f3; }
+.pm-form-note { padding: 9px 11px; border-radius: 10px; background: #f7f7f3; color: var(--pm-text-muted); }
+.pm-form-actions { position: sticky; bottom: -16px; margin: 6px -16px -16px; padding: 10px 16px 12px; border-top: 1px solid var(--pm-line); background: rgb(255 255 255 / 96%); }
+.pm-page .pm-form-actions button { min-height: 36px; border-radius: 10px; font-weight: 600; }
+
+/* History timeline */
+.pm-history { gap: 8px; }
+.pm-history li { padding: 10px 12px; border: 1px solid var(--pm-line); border-left: 3px solid var(--pm-line-strong); border-radius: 10px; }
+.pm-history li:last-child { border-bottom: 1px solid var(--pm-line); }
+
+/* AI */
+.pm-assistant-intro { margin-top: 0; border-style: solid; border-color: var(--pm-line); background: #fafaf7; }
+.pm-assistant-intro .pm-form-note { margin: 0; padding: 0; background: none; }
+.pm-assistant-answer { border-left-width: 3px; border-radius: 10px; padding: 10px 12px; }
+.pm-page .pm-assistant button { min-height: 38px; border-radius: 10px; font-weight: 600; }
+
+
+@media (max-width: 760px) {
+  .pm-callout { border-radius: 16px; }
+}
+
+/* Header: the component switcher gets its own full-width row so the title is never truncated. */
+.pm-inspector > header { flex-wrap: wrap; row-gap: 10px; }
+.pm-page .pm-close { order: 2; }
+.pm-switcher { order: 3; flex: 1 0 100%; margin-left: 0; }
+.pm-switcher select { width: 100%; max-width: none; border-radius: 10px; background: #fff; color: var(--pm-text); }
+/* Five tabs fit the card without clipping. */
+.pm-page .pm-tabs button { flex: 1 1 auto; padding: 0 6px; font-size: 0.72rem; }
+/* Keep the status dot on the first line when a value wraps. */
+.pm-health-card strong { align-items: flex-start; }
+.pm-health-card strong i { margin-top: 6px; }

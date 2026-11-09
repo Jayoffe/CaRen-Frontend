@@ -17,6 +17,7 @@ import AdminDashboardPage from './Pages/Admin/Pages/AdminDashboard.jsx'
 import VehicleManagementPage from './Pages/Admin/Pages/VehicleManagement.jsx'
 import VehicleDetailAdminPage from './Pages/Admin/Pages/VehicleDetailAdmin.jsx'
 import { invalidImage, parseFeatures } from './Services/vehicleData.js'
+import CarSilhouette from './Pages/Users/Components/CarSilhouette.jsx'
 import ReservationManagementPage from './Pages/Admin/Pages/ReservationManagement.jsx'
 import FleetOperationsPage from './Pages/Admin/Pages/FleetOperations.jsx'
 import MaintenanceManagementPage from './Pages/Admin/Pages/MaintenanceManagement.jsx'
@@ -31,6 +32,16 @@ import UserProfilePage from './Pages/Users/Pages/UserProfile.jsx'
 import ChatWidget from './Components/ChatWidget.jsx'
 import VehicleColorManager from './Pages/Admin/Components/VehicleColorManager.jsx'
 import './App.css'
+
+// Curated lifestyle photography for the landing page (Unsplash, free to use).
+const LANDING_IMAGES = {
+  hero: 'https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&w=2200&q=80',
+  ride: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=640&q=70',
+  about: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=1400&q=75',
+  why: 'https://images.unsplash.com/photo-1471444928139-48c5bf5173f8?auto=format&fit=crop&w=1200&q=75',
+  cta: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=2000&q=75',
+  fleet: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=2000&q=75',
+}
 
 gsap.registerPlugin(useGSAP, ScrollTrigger)
 
@@ -176,7 +187,7 @@ function App() {
   } else if (path === '/users/profile') {
     content = <UserProfilePage user={user} onProfileSaved={setUser} />
   } else if (path === '/users/payments') {
-    content = <PaymentHistoryPage />
+    content = <PaymentHistoryPage navigate={navigate} />
   } else if (path === '/users/recommendations') {
     content = <VehicleRecommendationsPage navigate={navigate} />
   } else if (path === '/users/reservations/create') {
@@ -497,12 +508,33 @@ function HomePage({ user, navigate, onOpenApiError, reloadKey }) {
   }, [onOpenApiError, reloadKey])
   const vehiclesPath = user?.role === 'admin' ? '/admin/vehicles' : user ? '/users/vehicles' : '/vehicles'
   const dashboardRoute = user?.role === 'admin' ? '/admin/dashboard' : '/users/dashboard'
-  const heroCar = cars[0]
-  const heroImage = heroCar ? getVehiclePhoto(heroCar) : ''
-  const heroBackdropImage = heroImage || 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1920&q=85'
   const fleetCars = cars.slice(0, 6)
+  const fleetMakes = [...new Set(cars.map((car) => car.make).filter(Boolean))]
   const aboutCopy = 'Useful details and a clear next step make every journey easier to plan.'
   const aboutWords = aboutCopy.split(' ')
+
+  useGSAP(() => {
+    const motion = gsap.matchMedia()
+    motion.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.from('[data-hero-reveal]', { y: 26, opacity: 0, duration: .9, ease: 'power3.out', stagger: .1, delay: .05 })
+      gsap.fromTo('[data-hero-media]', { scale: 1.12 }, { scale: 1, duration: 2.4, ease: 'power2.out' })
+      gsap.to('.home-hero-media', {
+        yPercent: 10,
+        ease: 'none',
+        scrollTrigger: { trigger: '.home-hero--cinematic', start: 'top top', end: 'bottom top', scrub: true },
+      })
+      gsap.utils.toArray('[data-reveal]', pageRef.current).forEach((element) => {
+        gsap.from(element, {
+          y: 34,
+          opacity: 0,
+          duration: .85,
+          ease: 'power3.out',
+          scrollTrigger: { trigger: element, start: 'top 86%', once: true },
+        })
+      })
+    })
+    return () => motion.revert()
+  }, { scope: pageRef })
 
   useGSAP(() => {
     const motion = gsap.matchMedia()
@@ -535,48 +567,68 @@ function HomePage({ user, navigate, onOpenApiError, reloadKey }) {
   }
 
   return <div className="public-page" ref={pageRef}>
-    <section className="home-hero home-hero--cinematic">
+    <section className="home-hero home-hero--cinematic home-hero--split">
       <div className="home-hero-media" aria-hidden="true">
-        <img src={heroBackdropImage} alt="" onError={handleVehicleImageError} />
+        <img data-hero-media src={LANDING_IMAGES.hero} alt="" fetchPriority="high" />
       </div>
       <div className="home-hero-copy">
-        <h1>Your next <span className="home-heading-image" style={{ backgroundImage: `url("${heroBackdropImage}")` }}>ride</span><br />starts here.</h1>
-        <p>Find a car that fits your plans. Compare real vehicles, clear daily rates, and details that make choosing easier.</p>
-        <div className="home-hero-actions">
+        <span className="home-hero-badge" data-hero-reveal>
+          <span className="home-hero-badge-dot" aria-hidden="true" />
+          {loading ? 'Checking the fleet' : cars.length ? 'Vehicles available to reserve now' : 'New vehicles arriving soon'}
+        </span>
+        <h1 data-hero-reveal>Your next <span className="home-heading-image" style={{ backgroundImage: `linear-gradient(100deg, rgb(141 106 83 / 55%), rgb(24 35 33 / 45%)), url("${LANDING_IMAGES.ride}")` }}>ride</span><br />starts here.</h1>
+        <p data-hero-reveal>Find a car that fits your plans. Compare real vehicles, clear daily rates, and details that make choosing easier.</p>
+        <div className="home-hero-actions" data-hero-reveal>
           <form className="home-hero-search" role="search" onSubmit={(event) => { event.preventDefault(); navigate(`${vehiclesPath}?search=${encodeURIComponent(search.trim())}`) }}>
             <Icon name="search" size={19} />
-            <input aria-label="Search available vehicles" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search make or model" />
+            <input aria-label="Search available vehicles" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search make or model, e.g. Toyota" />
             <button type="submit" className="button">Explore fleet <Icon name="arrow" size={16} /></button>
           </form>
           <a className="home-hero-secondary" href="#how-it-works">How it works <Icon name="arrow" size={16} /></a>
         </div>
+        {fleetMakes.length > 0 && <p className="home-hero-makes" data-hero-reveal><span>On the road with</span>{fleetMakes.slice(0, 5).map((make) => <b key={make}>{make}</b>)}</p>}
       </div>
+      <ul className="home-hero-trust" aria-label="Why rent with DriveRent" data-hero-reveal>
+        <li><Icon name="wallet" size={18} /><span><b>Rates up front</b>Daily price on every listing</span></li>
+        <li><Icon name="image" size={18} /><span><b>Real vehicles</b>Photos and full specifications</span></li>
+        <li><Icon name="calendar" size={18} /><span><b>Your dates</b>Request online, confirmed by us</span></li>
+      </ul>
+      <a className="home-hero-scroll" href="#available-fleet" aria-label="Scroll to available vehicles"><span /></a>
     </section>
     <nav className="home-anchor-nav" aria-label="Explore DriveRent">
-      <a href="#available-fleet">Explore the fleet</a>
-      <a href="#why-choose-us">The experience</a>
-      <a href="#faqs">Common questions</a>
+      <a href="#available-fleet"><small>01</small>Explore the fleet</a>
+      <a href="#why-choose-us"><small>02</small>The experience</a>
+      <a href="#how-it-works"><small>03</small>How it works</a>
+      <a href="#faqs"><small>04</small>Common questions</a>
     </nav>
     <section className="home-section home-fleet-section" id="available-fleet">
-      <div className="home-fleet-heading">
+      <div className="home-fleet-heading" data-reveal>
         <SectionHeading eyebrow="A GOOD PLACE TO START" title="Find the right ride for the day" description="Explore the vehicles available now, with pricing and useful details upfront." action="View all vehicles" onAction={() => navigate(vehiclesPath)} />
         {fleetCars.length > 3 && <div className="home-fleet-controls" aria-label="Featured vehicle carousel controls">
-          <button type="button" onClick={() => scrollFleet(-1)} aria-label="Show previous vehicles"><Icon name="arrow" size={18} /></button>
+          <button type="button" onClick={() => scrollFleet(-1)} aria-label="Show previous vehicles"><Icon name="back" size={18} /></button>
           <button type="button" onClick={() => scrollFleet(1)} aria-label="Show next vehicles"><Icon name="arrow" size={18} /></button>
         </div>}
       </div>
       {loading ? <Loading label="Loading available vehicles" /> : cars.length ? (
-        <div className="home-fleet-carousel" ref={fleetRef} role="region" aria-label="Available vehicles">
+        <div className="home-fleet-carousel" ref={fleetRef} role="region" aria-label="Available vehicles" data-reveal>
           {fleetCars.map((car) => {
             const photo = getVehiclePhoto(car)
             return <article className="home-fleet-card" key={car.id}>
               <button type="button" className="home-fleet-photo" onClick={() => navigate(`${vehiclesPath}/${car.id}`)} aria-label={`View ${car.make} ${car.model}`}>
-                <span className="home-fleet-placeholder" aria-hidden="true"><Icon name="car" size={38} /></span>
-                {photo && <img data-scroll-image src={photo} alt={`${car.make} ${car.model}`} loading="lazy" onError={handleVehicleImageError} />}
+                <span className="home-fleet-placeholder" aria-hidden="true">
+                  <span className="home-fleet-watermark">{car.make}</span>
+                  <CarSilhouette category={car.category} />
+                </span>
+                {photo && <img src={photo} alt={`${car.make} ${car.model}`} loading="lazy" onError={handleVehicleImageError} />}
+                <span className="home-fleet-chip"><span aria-hidden="true" />Available</span>
               </button>
               <div className="home-fleet-card-copy">
                 <div className="home-fleet-card-title"><div><h3>{car.make} {car.model}</h3><span>{[car.year, car.category].filter(Boolean).join(' · ') || 'Available now'}</span></div><strong>{money(car.daily_rental_price)}<small>/ day</small></strong></div>
-                <div className="home-fleet-card-specs"><span>{car.transmission || 'Transmission not listed'}</span><span>{car.seating_capacity || '—'} seats</span></div>
+                <div className="home-fleet-card-specs">
+                  <span><Icon name="gear" size={15} />{car.transmission || 'Not listed'}</span>
+                  <span><Icon name="seat" size={15} />{car.seating_capacity || '—'} seats</span>
+                  {car.fuel_type && <span><Icon name="fuel" size={15} />{car.fuel_type}</span>}
+                </div>
                 <button type="button" className="home-fleet-book" onClick={() => navigate(user ? `/users/reservations/create?car_id=${car.id}` : `${vehiclesPath}/${car.id}`)}>{user ? 'Choose this car' : 'View vehicle'} <Icon name="arrow" size={16} /></button>
               </div>
             </article>
@@ -585,14 +637,19 @@ function HomePage({ user, navigate, onOpenApiError, reloadKey }) {
       ) : <EmptyState title="No vehicles available right now" description="Check back soon to see new vehicles in our fleet." />}
     </section>
     <section className="home-about" id="about-us">
-      <div className="home-about-copy">
+      <div className="home-about-copy" data-reveal>
         <span className="eyebrow"><span className="eyebrow-line" />ABOUT DRIVERENT</span>
         <h2>More clarity for<br />the road ahead.</h2>
         <p>DriveRent makes it easier to find a rental car that suits your plans. Browse vehicles marked available, compare their details and daily rates, then send a reservation request with your dates.</p>
+        <ul className="home-about-list">
+          <li><Icon name="check" size={16} />Daily rates shown before you choose</li>
+          <li><Icon name="check" size={16} />Specifications listed for every vehicle</li>
+          <li><Icon name="check" size={16} />Reservation requests in a few steps</li>
+        </ul>
         <button className="text-action" onClick={() => navigate(vehiclesPath)}>Get to know the fleet <Icon name="arrow" size={16} /></button>
       </div>
       <div className="home-about-note">
-        {heroImage && <img data-scroll-image src={heroImage} alt={`${heroCar.make} ${heroCar.model}`} loading="lazy" onError={handleVehicleImageError} />}
+        <img data-scroll-image src={LANDING_IMAGES.about} alt="A driver's hands on the steering wheel at dusk" loading="lazy" />
         <div className="home-about-note-copy">
           <span className="home-about-icon"><Icon name="key" size={22} /></span>
           <p aria-label={aboutCopy}><span aria-hidden="true">{aboutWords.map((word, index) => <span data-reveal-word key={`${word}-${index}`}>{word}{index < aboutWords.length - 1 ? ' ' : ''}</span>)}</span></p>
@@ -601,31 +658,42 @@ function HomePage({ user, navigate, onOpenApiError, reloadKey }) {
       </div>
     </section>
     <section className="home-why" id="why-choose-us">
-      <SectionHeading eyebrow="THE DRIVERENT DIFFERENCE" title="A rental experience built around you" description="The essentials are easy to find, so you can choose with confidence." />
-      <div className="home-why-grid home-why-accordion">
-        <details className="home-why-card" open>
-          <summary><span className="home-why-icon"><Icon name="shield" size={21} /></span><h3>Know what it costs</h3><span className="home-why-toggle" aria-hidden="true">+</span></summary>
-          <p>See each vehicle’s daily rate up front and review an estimate when you choose your rental dates.</p>
-        </details>
-        <details className="home-why-card">
-          <summary><span className="home-why-icon"><Icon name="car" size={21} /></span><h3>Compare the details</h3><span className="home-why-toggle" aria-hidden="true">+</span></summary>
-          <p>Check vehicle photos, seating, fuel type, transmission and other listed specifications before you decide.</p>
-        </details>
-        <details className="home-why-card">
-          <summary><span className="home-why-icon"><Icon name="check" size={21} /></span><h3>Browse current availability</h3><span className="home-why-toggle" aria-hidden="true">+</span></summary>
-          <p>Start with vehicles currently listed as available and submit your preferred dates for confirmation.</p>
-        </details>
+      <div data-reveal><SectionHeading eyebrow="THE DRIVERENT DIFFERENCE" title="A rental experience built around you" description="The essentials are easy to find, so you can choose with confidence." /></div>
+      <div className="home-why-bento" data-reveal>
+        <figure className="home-why-photo">
+          <img src={LANDING_IMAGES.why} alt="A hatchback parked by the sea" loading="lazy" />
+          <figcaption><b>Plan the trip, not the paperwork.</b><span>Everything you need to decide is on the listing.</span></figcaption>
+        </figure>
+        <article className="home-why-item">
+          <span className="home-why-icon"><Icon name="wallet" size={21} /></span>
+          <div><h3>Know what it costs</h3><p>See each vehicle’s daily rate up front and review an estimate when you choose your rental dates.</p></div>
+        </article>
+        <article className="home-why-item">
+          <span className="home-why-icon"><Icon name="car" size={21} /></span>
+          <div><h3>Compare the details</h3><p>Check vehicle photos, seating, fuel type, transmission and other listed specifications before you decide.</p></div>
+        </article>
+        <article className="home-why-item">
+          <span className="home-why-icon"><Icon name="calendar" size={21} /></span>
+          <div><h3>Browse current availability</h3><p>Start with vehicles currently listed as available and submit your preferred dates for confirmation.</p></div>
+        </article>
       </div>
     </section>
-    <section className="home-how" id="how-it-works"><div className="how-heading"><span className="eyebrow"><span className="eyebrow-line" />MADE FOR THE MILES AHEAD</span><h2>A more considered<br />way to rent.</h2><p>{aboutCopy}</p><button className="button button-dark" onClick={() => navigate(vehiclesPath)}>Explore the fleet <Icon name="arrow" size={16} /></button></div><div className="how-points"><HowPoint number="01" title="Find your fit" text="Search an available fleet and choose a vehicle for your plans." /><HowPoint number="02" title="See the full picture" text="Compare prices, specifications, availability, and vehicle images." /><HowPoint number="03" title="Get ready to go" text="Review your vehicle details and make the most of the journey." /></div></section>
+    <section className="home-how" id="how-it-works">
+      <div className="how-heading" data-reveal><span className="eyebrow"><span className="eyebrow-line" />MADE FOR THE MILES AHEAD</span><h2>A more considered<br />way to rent.</h2><p>{aboutCopy}</p><button className="button button-dark" onClick={() => navigate(vehiclesPath)}>Explore the fleet <Icon name="arrow" size={16} /></button></div>
+      <ol className="home-steps" data-reveal>
+        <li><span className="home-step-icon"><Icon name="search" size={20} /></span><small>Step 01</small><h3>Find your fit</h3><p>Search the available fleet and choose a vehicle for your plans.</p></li>
+        <li><span className="home-step-icon"><Icon name="calendar" size={20} /></span><small>Step 02</small><h3>Pick your dates</h3><p>Compare prices and specifications, then send a request with your pickup and return dates.</p></li>
+        <li><span className="home-step-icon"><Icon name="key" size={20} /></span><small>Step 03</small><h3>Get ready to go</h3><p>Once your reservation is confirmed, review the details and enjoy the drive.</p></li>
+      </ol>
+    </section>
     <section className="home-faq" id="faqs">
-      <div className="home-faq-heading">
+      <div className="home-faq-heading" data-reveal>
         <span className="eyebrow"><span className="eyebrow-line" />GOOD TO KNOW</span>
         <h2>Frequently asked<br />questions.</h2>
         <p>Here are a few helpful details before you get started.</p>
       </div>
-      <div className="home-faq-list">
-        <details>
+      <div className="home-faq-list" data-reveal>
+        <details open>
           <summary>How do I reserve a vehicle?<span aria-hidden="true">+</span></summary>
           <p>Choose an available vehicle, select your pickup and return dates, then submit a reservation request. You’ll need to sign in to complete the request.</p>
         </details>
@@ -643,7 +711,11 @@ function HomePage({ user, navigate, onOpenApiError, reloadKey }) {
         </details>
       </div>
     </section>
-    <section className="home-cta"><div><span className="eyebrow">YOUR NEXT JOURNEY STARTS HERE</span><h2>Find a car for the<br />road ahead.</h2></div><button className="button button-white" onClick={() => navigate(user ? dashboardRoute : vehiclesPath)}>{user ? 'Go to your dashboard' : 'Browse available cars'} <Icon name="arrow" size={17} /></button></section>
+    <section className="home-cta">
+      <img className="home-cta-image" src={LANDING_IMAGES.cta} alt="" aria-hidden="true" loading="lazy" />
+      <div data-reveal><span className="eyebrow">YOUR NEXT JOURNEY STARTS HERE</span><h2>Find a car for the<br />road ahead.</h2></div>
+      <button className="button button-white" onClick={() => navigate(user ? dashboardRoute : vehiclesPath)}>{user ? 'Go to your dashboard' : 'Browse available cars'} <Icon name="arrow" size={17} /></button>
+    </section>
   </div>
 }
 
@@ -660,9 +732,6 @@ function SectionHeading({ eyebrow, title, description, action, onAction }) {
   return <div className="section-heading"><div><span className="eyebrow">{eyebrow}</span><h2>{title}</h2>{description && <p>{description}</p>}</div>{action && <button className="text-action" onClick={onAction}>{action}<Icon name="arrow" size={16} /></button>}</div>
 }
 
-function HowPoint({ number, title, text }) {
-  return <div className="how-point"><span>{number}</span><div><h3>{title}</h3><p>{text}</p></div><Icon name="arrow" size={17} /></div>
-}
 
 function CustomerDashboard({ user, navigate, reloadKey, vehicleBasePath = '/vehicles' }) {
   const [cars, setCars] = useState([])
@@ -727,9 +796,91 @@ function VehicleListing({ navigate, reloadKey, admin, user, vehicleBasePath = ad
     window.history.replaceState(window.history.state, '', `${window.location.pathname}${suffix ? `?${suffix}` : ''}`)
   }, [brand, category, page, query, sort, status])
 
-  const categories = result.meta.categories || []
-  const brands = result.meta.brands || []
+  // The public endpoint does not return filter facets, so derive them once from the available fleet.
+  const [facets, setFacets] = useState({ categories: [], brands: [] })
+  useEffect(() => {
+    if (admin) return undefined
+    let active = true
+    api.get('/api/cars/available?per_page=100')
+      .then((response) => {
+        if (!active) return
+        const cars = response.data || []
+        const unique = (key) => [...new Set(cars.map((car) => car[key]).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+        setFacets({ categories: unique('category'), brands: unique('make') })
+      })
+      .catch(() => {})
+    return () => { active = false }
+  }, [admin, reloadKey])
+  const categories = result.meta.categories?.length ? result.meta.categories : facets.categories
+  const brands = result.meta.brands?.length ? result.meta.brands : facets.brands
   const filtersChanged = (setter) => (value) => { setter(value); setPage(1) }
+  // The API reports `last_page`; older responses used `total_pages`.
+  const pageCount = Number(result.meta.total_pages || result.meta.last_page) || 0
+  if (!admin) {
+    const total = result.meta.total || 0
+    const hasFilters = Boolean(query.trim() || category || brand)
+    const clearFilters = () => { setQuery(''); setCategory(''); setBrand(''); setPage(1) }
+    const bookPath = (car) => user?.role === 'customer' ? `/users/reservations/create?car_id=${car.id}` : `/auth/login?next=${encodeURIComponent(`/users/reservations/create?car_id=${car.id}`)}`
+    return <div className="public-page fleet-page">
+      <section className="fleet-hero">
+        <img className="fleet-hero-image" src={LANDING_IMAGES.fleet} alt="" aria-hidden="true" />
+        <div className="fleet-hero-copy">
+          <span className="fleet-hero-eyebrow">THE DRIVERENT FLEET</span>
+          <h1>Find your vehicle.</h1>
+          <p>A vehicle for wherever you want to go. Compare daily rates and specifications, then request the dates that suit you.</p>
+          <label className="fleet-search">
+            <Icon name="search" size={19} />
+            <input aria-label="Search vehicles" value={query} onChange={(event) => filtersChanged(setQuery)(event.target.value)} placeholder="Search make, model or plate number" />
+            {query && <button type="button" onClick={() => filtersChanged(setQuery)('')} aria-label="Clear search"><Icon name="close" size={15} /></button>}
+          </label>
+        </div>
+        <dl className="fleet-hero-stats">
+          <div><dt>Available now</dt><dd>{loading && !total ? '—' : total}</dd></div>
+          <div><dt>Categories</dt><dd>{categories.length || '—'}</dd></div>
+          <div><dt>Brands</dt><dd>{brands.length || '—'}</dd></div>
+        </dl>
+      </section>
+
+      <div className="fleet-toolbar">
+        <div className="fleet-chips" role="group" aria-label="Filter by category">
+          <button type="button" aria-pressed={!category} className={!category ? 'active' : ''} onClick={() => filtersChanged(setCategory)('')}>All vehicles</button>
+          {categories.map((value) => <button type="button" key={value} aria-pressed={category === value} className={category === value ? 'active' : ''} onClick={() => filtersChanged(setCategory)(category === value ? '' : value)}>{value}</button>)}
+        </div>
+        <div className="fleet-selects">
+          <label><span>Brand</span><select value={brand} onChange={(event) => filtersChanged(setBrand)(event.target.value)}><option value="">All brands</option>{brands.map((value) => <option key={value}>{value}</option>)}</select></label>
+          <label><span>Sort by</span><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="newest">Newest</option><option value="price_asc">Price: low to high</option><option value="price_desc">Price: high to low</option><option value="name">Name</option></select></label>
+        </div>
+      </div>
+
+      <div className="fleet-results-bar">
+        <p aria-live="polite">{loading ? 'Updating results…' : <><b>{total}</b> vehicle{total === 1 ? '' : 's'} {hasFilters ? 'match your filters' : 'available to reserve'}</>}</p>
+        {hasFilters && <div className="fleet-active-filters">
+          {query.trim() && <button type="button" onClick={() => filtersChanged(setQuery)('')}>“{query.trim()}” <Icon name="close" size={13} /></button>}
+          {category && <button type="button" onClick={() => filtersChanged(setCategory)('')}>{category} <Icon name="close" size={13} /></button>}
+          {brand && <button type="button" onClick={() => filtersChanged(setBrand)('')}>{brand} <Icon name="close" size={13} /></button>}
+          <button type="button" className="fleet-clear" onClick={clearFilters}>Clear all</button>
+        </div>}
+      </div>
+
+      {error && <ErrorMessage message={error} />}
+      {loading ? <div className="fleet-grid" aria-hidden="true">{Array.from({ length: 6 }, (_, index) => <div className="fleet-skeleton" key={index}><span /><i /><i /><i /></div>)}</div>
+        : result.cars.length ? <>
+          <div className="fleet-grid">{result.cars.map((car) => <FleetCard key={car.id} car={car} onView={() => navigate(`${vehicleBasePath}/${car.id}${window.location.search}`)} onBook={() => navigate(bookPath(car))} />)}</div>
+          {pageCount > 1 && <Pagination page={page} pages={pageCount} onPage={(next) => { setPage(next); window.scrollTo({ top: 0, behavior: 'smooth' }) }} />}
+        </>
+        : <div className="fleet-empty">
+          <span className="fleet-empty-icon"><Icon name="search" size={26} /></span>
+          <h3>{hasFilters ? 'No vehicles match those filters' : 'No vehicles to show yet'}</h3>
+          <p>{hasFilters ? 'Try another category or brand, or clear your search.' : 'Please check back later for available vehicles.'}</p>
+          {hasFilters && <button type="button" className="button button-primary" onClick={clearFilters}>Clear all filters</button>}
+        </div>}
+
+      <section className="fleet-help">
+        <div><span className="fleet-help-icon"><Icon name="shield" size={20} /></span><p><b>Not sure which car fits?</b>Every listing shows its daily rate, seats, fuel type and transmission. Availability is confirmed when you send your dates.</p></div>
+        <a className="button button-white" href="/#faqs">Read the FAQs <Icon name="arrow" size={16} /></a>
+      </section>
+    </div>
+  }
   return <div className={admin ? 'admin-content content-width' : 'public-page content-width listing-content'}>
     <div className="listing-heading"><div><span className="eyebrow">{admin ? 'FLEET MANAGEMENT' : 'THE DRIVERENT FLEET'}</span><h1>{admin ? 'Vehicle management' : 'Find your vehicle'}</h1><p>{admin ? 'Manage every vehicle in one place.' : 'A vehicle for wherever you want to go.'}</p></div>{admin && <button className="button button-primary" onClick={() => navigate(`/admin/vehicles/create${window.location.search}`)}><Icon name="plus" size={16} /> Add vehicle</button>}</div>
     <div className="listing-toolbar">
@@ -743,7 +894,7 @@ function VehicleListing({ navigate, reloadKey, admin, user, vehicleBasePath = ad
     {error && <ErrorMessage message={error} />}
     {loading ? <Loading label="Loading vehicles" /> : result.cars.length ? <>
       <VehicleGrid cars={result.cars} navigate={navigate} admin={admin} user={user} vehicleBasePath={vehicleBasePath} />
-      {result.meta.total_pages > 1 && <Pagination page={page} pages={result.meta.total_pages} onPage={setPage} />}
+      {pageCount > 1 && <Pagination page={page} pages={pageCount} onPage={setPage} />}
     </> : <EmptyState title={query || category || brand || status ? 'No vehicles match those filters' : 'No vehicles to show yet'} description={query || category || brand || status ? 'Try removing a filter or changing your search.' : admin ? 'Add a vehicle to start managing your rental fleet.' : 'Please check back later for available vehicles.'} />}
   </div>
 }
@@ -764,6 +915,34 @@ function VehicleCard({ car, admin, onClick, onBook }) {
       <div className="vehicle-card-heading"><div><h3>{car.make} {car.model}</h3><p>{car.year} <span>·</span> {car.transmission || 'Automatic'}</p></div><span className="card-category">{car.category}</span></div>
       <div className="vehicle-specs"><span><Icon name="seat" size={15} />{car.seating_capacity || 5} seats</span><span><Icon name="fuel" size={15} />{car.fuel_type || 'Gasoline'}</span></div>
       <div className="vehicle-card-footer"><div className="daily-price"><b>{money(car.daily_rental_price)}</b><span>/ day</span></div><div className="vehicle-card-actions"><button className="card-detail-link" onClick={onClick}>{admin ? 'Manage' : 'Details'}<Icon name="arrow" size={15} /></button>{!admin && car.status === 'available' && <button className="card-book-link" onClick={onBook}>Book now</button>}</div></div>
+    </div>
+  </article>
+}
+
+function FleetCard({ car, onView, onBook }) {
+  const photo = getVehiclePhoto(car)
+  const available = (car.status || 'available') === 'available'
+  return <article className="home-fleet-card fleet-card">
+    <button type="button" className="home-fleet-photo" onClick={onView} aria-label={`View ${car.make} ${car.model}`}>
+      <span className="home-fleet-placeholder" aria-hidden="true">
+        <span className="home-fleet-watermark">{car.make}</span>
+        <CarSilhouette category={car.category} />
+      </span>
+      {photo && <img src={photo} alt={`${car.make} ${car.model}`} loading="lazy" onError={handleVehicleImageError} />}
+      <StatusPill status={car.status} />
+      {car.category && <span className="fleet-card-category">{car.category}</span>}
+    </button>
+    <div className="home-fleet-card-copy">
+      <div className="home-fleet-card-title"><div><h3>{car.make} {car.model}</h3><span>{[car.year, car.color].filter(Boolean).join(' · ') || 'Available now'}</span></div><strong>{money(car.daily_rental_price)}<small>/ day</small></strong></div>
+      <div className="home-fleet-card-specs">
+        <span><Icon name="gear" size={15} />{car.transmission || 'Not listed'}</span>
+        <span><Icon name="seat" size={15} />{car.seating_capacity || '—'} seats</span>
+        {car.fuel_type && <span><Icon name="fuel" size={15} />{car.fuel_type}</span>}
+      </div>
+      <div className="fleet-card-actions">
+        <button type="button" className="fleet-card-details" onClick={onView}>Details</button>
+        {available && <button type="button" className="fleet-card-book" onClick={onBook}>Book now <Icon name="arrow" size={15} /></button>}
+      </div>
     </div>
   </article>
 }
@@ -897,6 +1076,7 @@ function VehicleEditor({ carId, navigate, setToast, setApiError, onSaved }) {
   const [existingImages, setExistingImages] = useState([])
   const [formError, setFormError] = useState('')
   const [featuresText, setFeaturesText] = useState('')
+  const [dragging, setDragging] = useState(false)
   const previews = useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
     [files],
@@ -982,26 +1162,132 @@ function VehicleEditor({ carId, navigate, setToast, setApiError, onSaved }) {
     }
   }
 
+  const dropFiles = (event) => {
+    event.preventDefault()
+    setDragging(false)
+    selectFiles({ target: { files: event.dataTransfer.files, value: '' } })
+  }
+  const backPath = `${editing ? `/admin/vehicles/${carId}` : '/admin/vehicles'}${window.location.search}`
+  const features = featuresText.split(',').map((feature) => feature.trim()).filter(Boolean)
+  const required = [
+    ['Make', Boolean(String(values.make).trim())],
+    ['Model', Boolean(String(values.model).trim())],
+    ['Year', Boolean(values.year)],
+    ['Daily rental price', Number(values.daily_rental_price) > 0],
+  ]
+  const recommended = [
+    ['Plate number', Boolean(String(values.plate_number || '').trim())],
+    ['Description', String(values.description || '').trim().length >= 20],
+    ['At least one photo', files.length + existingImages.length > 0],
+  ]
+  const requiredDone = required.filter(([, done]) => done).length
+  const coverImage = previews[0]?.url || (existingImages.length ? imageUrl((existingImages.find((image) => Number(image.is_primary) === 1) || existingImages[0]).image_path) : '')
+  const colorOk = values.color && typeof CSS !== 'undefined' && CSS.supports?.('color', values.color)
+
   if (loading) return <div className="admin-content content-width"><Loading label="Loading vehicle details" /></div>
-  return <div className="admin-content content-width editor-page">
-    <button className="back-link" onClick={() => navigate(`${editing ? `/admin/vehicles/${carId}` : '/admin/vehicles'}${window.location.search}`)}><Icon name="back" size={16} />Back to vehicles</button>
-    <div className="listing-heading editor-heading"><div><span className="eyebrow">FLEET MANAGEMENT</span><h1>{editing ? 'Edit vehicle' : 'Add new vehicle'}</h1><p>{editing ? 'Update vehicle information and settings.' : 'Enter vehicle details and specifications.'}</p></div></div>
+  return <div className="admin-content content-width editor-page ve-page">
+    <button className="back-link" onClick={() => navigate(backPath)}><Icon name="back" size={16} />Back to vehicles</button>
+    <div className="listing-heading editor-heading"><div><span className="eyebrow">FLEET MANAGEMENT</span><h1>{editing ? 'Edit vehicle' : 'Add new vehicle'}</h1><p>{editing ? 'Update vehicle information and settings.' : 'Enter vehicle details and specifications. The preview on the right shows how the listing will look.'}</p></div></div>
     {formError && <ErrorMessage message={formError} />}
     <form onSubmit={submit}>
-      <div className="editor-grid">
-        <div className="editor-column">
-          <section className="form-panel"><FormSection number="01" title="Basic information" description="Vehicle identity and description" /><div className="form-grid"><FormField label="Make" required><input name="make" value={values.make} onChange={update} required maxLength="100" placeholder="e.g. Toyota" /></FormField><FormField label="Model" required><input name="model" value={values.model} onChange={update} required maxLength="100" placeholder="e.g. Fortuner" /></FormField><FormField label="Year" required><input name="year" type="number" value={values.year} onChange={update} min="1900" max={new Date().getFullYear() + 1} required /></FormField><FormField label="Category" required><select name="category" value={values.category} onChange={update}>{['SUV', 'Sedan', 'MPV', 'Van', 'Hatchback', 'Pickup', 'Coupe'].map((item) => <option key={item}>{item}</option>)}</select></FormField><FormField label="Plate number"><input name="plate_number" value={values.plate_number || ''} onChange={update} maxLength="40" placeholder="e.g. XYZ 1234" /></FormField><FormField label="Color"><input name="color" value={values.color || ''} onChange={update} maxLength="50" placeholder="e.g. Black" /></FormField><FormField label="Description" wide><textarea name="description" value={values.description || ''} onChange={update} rows="4" maxLength="5000" placeholder="Enter a detailed description…" /></FormField></div></section>
-          <section className="form-panel"><FormSection number="02" title="Specifications" description="Performance and comfort features" /><div className="form-grid"><FormField label="Transmission"><select name="transmission" value={values.transmission} onChange={update}><option>Automatic</option><option>Manual</option><option>CVT</option></select></FormField><FormField label="Fuel type"><select name="fuel_type" value={values.fuel_type} onChange={update}><option>Gasoline</option><option>Diesel</option><option>Hybrid</option><option>Electric</option></select></FormField><FormField label="Seating capacity"><input name="seating_capacity" type="number" min="1" max="50" value={values.seating_capacity} onChange={update} /></FormField><FormField label="Additional features" wide><input value={featuresText} onChange={(event) => setFeaturesText(event.target.value)} placeholder="Bluetooth, parking sensors, leather seats" /><small>Separate features with commas.</small></FormField></div><div className="checkbox-row"><label><input name="air_conditioning" type="checkbox" checked={values.air_conditioning} onChange={update} /><span>Air conditioning</span></label><label><input name="gps_navigation" type="checkbox" checked={values.gps_navigation} onChange={update} /><span>GPS navigation</span></label></div></section>
-        </div>
-        <div className="editor-column">
-          <section className="form-panel"><FormSection number="03" title="Rental information" description="Pricing and availability" /><div className="form-stack"><FormField label="Daily rental price" required><CurrencyInput name="daily_rental_price" value={values.daily_rental_price} onChange={update} /></FormField><FormField label="Security deposit"><CurrencyInput name="security_deposit" value={values.security_deposit} onChange={update} /></FormField><FormField label="Minimum rental duration"><select name="minimum_rental_duration" value={values.minimum_rental_duration} onChange={update}><option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option><option value="7">7 days</option></select></FormField><FormField label="Availability status"><select name="status" value={values.status} onChange={update}><option value="available">Available</option><option value="rented">Rented</option><option value="maintenance">Maintenance</option><option value="unavailable">Unavailable</option></select></FormField></div></section>
-          <section className="form-panel"><FormSection number="04" title="Vehicle images" description="JPEG, PNG, or WebP · maximum 5 MB each" /><label className="drop-area"><span className="upload-symbol"><Icon name="image" size={23} /></span><b>Choose vehicle images</b><span>Browse from your computer</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={selectFiles} /></label>{files.length > 0 && <div className="image-preview-grid">{files.map((file) => <div className="image-preview" key={`${file.name}-${file.lastModified}`}><img src={previews.find((preview) => preview.file === file)?.url} alt={file.name} /><button type="button" aria-label={`Remove ${file.name}`} onClick={() => setFiles((selected) => selected.filter((item) => item !== file))}><Icon name="close" size={13} /></button><small>{file.name}</small></div>)}</div>}{existingImages.length > 0 && <div className="existing-image-grid">{existingImages.map((image) => <div className="image-preview" key={image.id}><img src={imageUrl(image.image_path)} alt="Current vehicle" /><button type="button" aria-label="Remove current image" onClick={() => removeExistingImage(image)}><Icon name="close" size={13} /></button>{Number(image.is_primary) === 1 && <span className="primary-tag">Primary</span>}</div>)}</div>}</section>
+      <div className="ve-layout">
+        <div className="ve-main">
+          <section className="form-panel"><FormSection number="01" title="Basic information" description="Vehicle identity and description" />
+            <div className="form-grid">
+              <FormField label="Make" required><input name="make" value={values.make} onChange={update} required maxLength="100" placeholder="e.g. Toyota" /></FormField>
+              <FormField label="Model" required><input name="model" value={values.model} onChange={update} required maxLength="100" placeholder="e.g. Fortuner" /></FormField>
+              <FormField label="Year" required><input name="year" type="number" value={values.year} onChange={update} min="1900" max={new Date().getFullYear() + 1} required /></FormField>
+              <FormField label="Plate number"><input name="plate_number" value={values.plate_number || ''} onChange={update} maxLength="40" placeholder="e.g. XYZ 1234" /></FormField>
+              <ChoiceField label="Category" required name="category" value={values.category} onChange={update} options={['SUV', 'Sedan', 'MPV', 'Van', 'Hatchback', 'Pickup', 'Coupe'].map((item) => [item, item])} />
+              <FormField label="Color"><span className="ve-color-input">{colorOk && <i style={{ background: values.color }} aria-hidden="true" />}<input name="color" value={values.color || ''} onChange={update} maxLength="50" placeholder="e.g. Black" /></span></FormField>
+              <FormField label="Description" wide><textarea name="description" value={values.description || ''} onChange={update} rows="4" maxLength="5000" placeholder="What makes this vehicle a good choice? Mention space, comfort and typical trips." /><small className="ve-count">{String(values.description || '').length} / 5000</small></FormField>
+            </div>
+          </section>
+
+          <section className="form-panel"><FormSection number="02" title="Specifications" description="Performance and comfort features" />
+            <div className="form-grid">
+              <ChoiceField label="Transmission" name="transmission" value={values.transmission} onChange={update} options={[['Automatic', 'Automatic'], ['Manual', 'Manual'], ['CVT', 'CVT']]} />
+              <ChoiceField label="Fuel type" name="fuel_type" value={values.fuel_type} onChange={update} options={[['Gasoline', 'Gasoline'], ['Diesel', 'Diesel'], ['Hybrid', 'Hybrid'], ['Electric', 'Electric']]} />
+              <FormField label="Seating capacity"><input name="seating_capacity" type="number" min="1" max="50" value={values.seating_capacity} onChange={update} /></FormField>
+              <FormField label="Additional features" wide><input value={featuresText} onChange={(event) => setFeaturesText(event.target.value)} placeholder="Bluetooth, parking sensors, leather seats" /><small>Separate features with commas.</small>{features.length > 0 && <span className="ve-feature-chips">{features.map((feature, index) => <em key={`${feature}-${index}`}>{feature}</em>)}</span>}</FormField>
+            </div>
+            <div className="ve-toggles">
+              <label className={values.air_conditioning ? 'is-on' : ''}><input name="air_conditioning" type="checkbox" checked={values.air_conditioning} onChange={update} /><span className="ve-toggle-icon"><Icon name="check" size={15} /></span><span><b>Air conditioning</b><small>Shown on the listing</small></span></label>
+              <label className={values.gps_navigation ? 'is-on' : ''}><input name="gps_navigation" type="checkbox" checked={values.gps_navigation} onChange={update} /><span className="ve-toggle-icon"><Icon name="check" size={15} /></span><span><b>GPS navigation</b><small>Shown on the listing</small></span></label>
+            </div>
+          </section>
+
+          <section className="form-panel"><FormSection number="03" title="Rental information" description="Pricing and availability" />
+            <div className="form-grid">
+              <FormField label="Daily rental price" required><CurrencyInput name="daily_rental_price" value={values.daily_rental_price} onChange={update} /></FormField>
+              <FormField label="Security deposit"><CurrencyInput name="security_deposit" value={values.security_deposit} onChange={update} /></FormField>
+              <ChoiceField label="Minimum rental duration" name="minimum_rental_duration" value={values.minimum_rental_duration} onChange={update} options={[['1', '1 day'], ['2', '2 days'], ['3', '3 days'], ['7', '7 days']]} />
+              <ChoiceField label="Availability status" name="status" value={values.status} onChange={update} dots options={[['available', 'Available'], ['rented', 'Rented'], ['maintenance', 'Maintenance'], ['unavailable', 'Unavailable']]} />
+            </div>
+          </section>
+
+          <section className="form-panel"><FormSection number="04" title="Vehicle images" description="JPEG, PNG, or WebP · maximum 5 MB each" />
+            <label className={`drop-area${dragging ? ' is-dragging' : ''}`} onDragOver={(event) => { event.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={dropFiles}>
+              <span className="upload-symbol"><Icon name="image" size={23} /></span><b>{dragging ? 'Drop to add these images' : 'Choose vehicle images'}</b><span>Drag and drop here, or browse from your computer</span>
+              <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={selectFiles} />
+            </label>
+            {files.length > 0 && <><h3 className="ve-images-title">New images <small>{files.length} to upload when you save</small></h3><div className="image-preview-grid">{files.map((file) => <div className="image-preview" key={`${file.name}-${file.lastModified}`}><img src={previews.find((preview) => preview.file === file)?.url} alt={file.name} /><button type="button" aria-label={`Remove ${file.name}`} onClick={() => setFiles((selected) => selected.filter((item) => item !== file))}><Icon name="close" size={13} /></button><small>{file.name}</small></div>)}</div></>}
+            {existingImages.length > 0 && <><h3 className="ve-images-title">Current images <small>{existingImages.length} saved</small></h3><div className="existing-image-grid">{existingImages.map((image) => <div className="image-preview" key={image.id}><img src={imageUrl(image.image_path)} alt="Current vehicle" /><button type="button" aria-label="Remove current image" onClick={() => removeExistingImage(image)}><Icon name="close" size={13} /></button>{Number(image.is_primary) === 1 && <span className="primary-tag">Primary</span>}</div>)}</div></>}
+          </section>
+
           {editing
             ? <VehicleColorManager carId={carId} images={existingImages} onImagesChange={setExistingImages} />
-            : <section className="form-panel"><FormSection number="05" title="Colours and stock" description="Save this vehicle first, then edit it to add colours and stock." /></section>}
+            : <section className="form-panel ve-locked"><FormSection number="05" title="Colours and stock" description="Save this vehicle first, then edit it to add colours and stock." /></section>}
         </div>
+
+        <aside className="ve-side" aria-label="Listing preview">
+          <div className="ve-preview">
+            <span className="ve-side-label">Listing preview</span>
+            <div className="ve-preview-photo">
+              {coverImage ? <img src={coverImage} alt="" /> : <span className="ve-preview-placeholder">{values.make && <em>{values.make}</em>}<CarSilhouette category={values.category} /></span>}
+              <span className={`ve-preview-status is-${values.status}`}><i />{{ available: 'Available', rented: 'Rented', maintenance: 'Maintenance', unavailable: 'Unavailable' }[values.status] || values.status}</span>
+              {values.category && <span className="ve-preview-category">{values.category}</span>}
+            </div>
+            <div className="ve-preview-body">
+              <div className="ve-preview-title">
+                <div><h3>{[values.make, values.model].filter(Boolean).join(' ') || 'Vehicle name'}</h3><small>{[values.year, values.color, values.plate_number].filter(Boolean).join(' · ') || 'Year · colour · plate'}</small></div>
+                <strong>{Number(values.daily_rental_price) > 0 ? money(values.daily_rental_price) : '₱—'}<small>/ day</small></strong>
+              </div>
+              <div className="ve-preview-specs">
+                <span><Icon name="gear" size={14} />{values.transmission}</span>
+                <span><Icon name="seat" size={14} />{values.seating_capacity || '—'} seats</span>
+                <span><Icon name="fuel" size={14} />{values.fuel_type}</span>
+              </div>
+              {(values.air_conditioning || values.gps_navigation || features.length > 0) && (
+                <div className="ve-preview-features">
+                  {values.air_conditioning && <em>Air conditioning</em>}
+                  {values.gps_navigation && <em>GPS navigation</em>}
+                  {features.slice(0, 4).map((feature, index) => <em key={`${feature}-${index}`}>{feature}</em>)}
+                  {features.length > 4 && <em>+{features.length - 4} more</em>}
+                </div>
+              )}
+              <dl className="ve-preview-terms">
+                <div><dt>Deposit</dt><dd>{Number(values.security_deposit) > 0 ? money(values.security_deposit) : 'None'}</dd></div>
+                <div><dt>Minimum</dt><dd>{values.minimum_rental_duration} day{Number(values.minimum_rental_duration) === 1 ? '' : 's'}</dd></div>
+              </dl>
+            </div>
+          </div>
+
+          <div className="ve-checklist">
+            <div className="ve-checklist-head"><span className="ve-side-label">Ready to save</span><b>{requiredDone} of {required.length} required</b></div>
+            <div className="ve-progress" aria-hidden="true"><span style={{ width: `${(requiredDone / required.length) * 100}%` }} /></div>
+            <ul>
+              {required.map(([label, done]) => <li key={label} className={done ? 'is-done' : ''}><Icon name={done ? 'check' : 'alert'} size={14} />{label}<small>Required</small></li>)}
+              {recommended.map(([label, done]) => <li key={label} className={done ? 'is-done' : 'is-optional'}><Icon name={done ? 'check' : 'plus'} size={14} />{label}<small>Recommended</small></li>)}
+            </ul>
+          </div>
+        </aside>
       </div>
-      <div className="editor-footer"><button type="button" className="button button-outline" onClick={() => navigate(`${editing ? `/admin/vehicles/${carId}` : '/admin/vehicles'}${window.location.search}`)}>Cancel</button><button className="button button-primary" disabled={saving}>{saving ? 'Saving…' : editing ? 'Save changes' : 'Save vehicle'}<Icon name="arrow" size={16} /></button></div>
+      <div className="editor-footer ve-footer">
+        <span className="ve-footer-status">{requiredDone === required.length ? <><Icon name="check" size={15} /> All required details are filled in</> : `${required.length - requiredDone} required ${required.length - requiredDone === 1 ? 'field' : 'fields'} left`}</span>
+        <button type="button" className="button button-outline" onClick={() => navigate(backPath)}>Cancel</button>
+        <button className="button button-primary" disabled={saving}>{saving ? 'Saving…' : editing ? 'Save changes' : 'Save vehicle'}<Icon name="arrow" size={16} /></button>
+      </div>
     </form>
   </div>
 }
@@ -1012,6 +1298,25 @@ function FormSection({ number, title, description }) {
 
 function FormField({ label, required, wide, children }) {
   return <label className={`form-field ${wide ? 'field-wide' : ''}`}><span>{label}{required && <i> *</i>}</span>{children}</label>
+}
+
+function ChoiceField({ label, required, name, value, options, onChange, dots = false }) {
+  return (
+    <div className="form-field ve-choice-field" role="radiogroup" aria-label={label}>
+      <span>{label}{required && <i> *</i>}</span>
+      <div className="ve-choices">
+        {options.map(([optionValue, text]) => {
+          const selected = String(value) === String(optionValue)
+          return (
+            <label key={optionValue} className={`${selected ? 'is-selected' : ''}${dots ? ` has-dot is-${optionValue}` : ''}`}>
+              <input type="radio" name={name} value={optionValue} checked={selected} onChange={onChange} />
+              {dots && <i aria-hidden="true" />}{text}
+            </label>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 function CurrencyInput({ name, value, onChange }) {

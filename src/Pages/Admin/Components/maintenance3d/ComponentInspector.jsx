@@ -24,6 +24,20 @@ const RISK_LABELS = { high: 'High service need', medium: 'Service likely due', l
 
 const BODY_TYPE_LABELS = { sedan: 'sedans', suv: 'SUVs', pickup: 'pickups', van: 'vans', minivan: 'minivans', motorcycle: 'motorcycles' }
 
+const ICON_PATHS = {
+  part: 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7ZM19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1c.5.4 1.1.8 1.7 1l.4 2.5h4l.4-2.5c.6-.2 1.2-.6 1.7-1l2.4 1 2-3.4-2-1.6Z',
+  heart: 'M3 12h4l2-5 4 10 2-5h6',
+  calendar: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
+  clipboard: 'M9 4h6v3H9zM7 5H5v16h14V5h-2M9 12h6M9 16h4',
+  wrench: 'M14.7 6.3a4 4 0 0 0-5.4 5.2L3.5 17.3a1.4 1.4 0 0 0 2 2l5.8-5.8a4 4 0 0 0 5.2-5.4l-2.6 2.6-2-2 2.8-2.4Z',
+  spark: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3ZM19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7.7-2Z',
+  arrow: 'M5 12h14m-6-6 6 6-6 6',
+}
+
+function Icon({ name, size = 16 }) {
+  return <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={ICON_PATHS[name]} /></svg>
+}
+
 function Badge({ tone, children }) {
   return <span className={`pm-badge tone-${tone}`}><i />{children}</span>
 }
@@ -46,22 +60,35 @@ function joinParts(...parts) {
   return parts.filter(Boolean).join(' · ') || null
 }
 
-function Overview({ component, vehicle }) {
+function HealthCard({ icon, label, tone, value, children }) {
+  return (
+    <div className={`pm-health-card tone-${tone}`}>
+      <span className="pm-health-label"><Icon name={icon} size={14} />{label}</span>
+      <strong><i aria-hidden="true" />{value}</strong>
+      {children && <p>{children}</p>}
+    </div>
+  )
+}
+
+function Overview({ component, vehicle, onRecord, onSchedule }) {
   const { condition, schedule, prediction, latest_record: latest, last_service: service, recommended_action: action } = component
   const evidence = condition.evidence
   const nextDue = joinParts(formatDate(schedule.due_date), formatKm(schedule.due_km))
+  const noSchedule = schedule.status === 'not_configured'
 
   return (
     <>
-      <div className="pm-status-list">
-        <StatusRow label="Condition" tone={CONDITION_TONES[condition.status]} value={CONDITION_LABELS[condition.status]}>
+      <div className="pm-health">
+        <HealthCard icon="heart" label="Condition" tone={CONDITION_TONES[condition.status]} value={CONDITION_LABELS[condition.status]}>
           {condition.reason}
           {evidence && <small className="pm-evidence">Evidence: {joinParts(evidence.source, formatDate(evidence.date), evidence.technician && `technician ${evidence.technician}`, evidence.recorded_by && `recorded by ${evidence.recorded_by}`)}</small>}
-        </StatusRow>
-        <StatusRow label="Schedule" tone={SCHEDULE_TONES[schedule.status]} value={SCHEDULE_LABELS[schedule.status]}>
+        </HealthCard>
+        <HealthCard icon="calendar" label="Schedule" tone={SCHEDULE_TONES[schedule.status]} value={SCHEDULE_LABELS[schedule.status]}>
           {schedule.reason}
           {schedule.rule && <small className="pm-evidence">Interval: {joinParts(schedule.rule.interval_days && `every ${schedule.rule.interval_days} days`, schedule.rule.interval_km && `every ${formatKm(schedule.rule.interval_km)}`)} ({schedule.rule.scope === 'vehicle' ? 'this vehicle' : `all ${BODY_TYPE_LABELS[vehicle.body_type] || 'vehicles of this type'}`}) · source: {schedule.rule.basis}</small>}
-        </StatusRow>
+        </HealthCard>
+      </div>
+      <div className="pm-status-list">
         {prediction.status === 'available' && (
           <StatusRow label="Prediction" tone={prediction.status === 'available' ? PREDICTION_TONES[prediction.risk_category] || 'good' : 'unknown'} value={prediction.status === 'available' && prediction.risk_category ? RISK_LABELS[prediction.risk_category] : PREDICTION_LABELS[prediction.status]}>
             {prediction.status === 'available'
@@ -90,7 +117,12 @@ function Overview({ component, vehicle }) {
         <Fact label="Current odometer" value={formatKm(vehicle.current_mileage)} />
       </div>
 
-      {!latest && <p className="pm-muted">No inspection record available.</p>}
+      {!latest && (
+        <div className="pm-empty-note">
+          <span className="pm-empty-icon"><Icon name="clipboard" size={16} /></span>
+          <p><b>No inspection record yet.</b> Record what you observe to give this component a condition.</p>
+        </div>
+      )}
       {latest && (latest.findings || latest.confirmed_fault || latest.work_performed || latest.reported_symptoms || latest.dtc_codes.length > 0) && (
         <div className="pm-notes">
           <span>Latest record · {RECORDED_CONDITION_LABELS[latest.condition_rating]}</span>
@@ -103,11 +135,16 @@ function Overview({ component, vehicle }) {
       )}
 
       {action && (
-        <div className="pm-action">
-          <span>Recommended action <em>{action.source === 'inspection_record' ? 'from inspection record' : 'system rule'}</em></span>
+        <div className={`pm-action tone-${CONDITION_TONES[condition.status] || 'unknown'}`}>
+          <span><Icon name="wrench" size={13} />Recommended action <em>{action.source === 'inspection_record' ? 'from inspection record' : 'system rule'}</em></span>
           <p>{action.text}</p>
         </div>
       )}
+
+      <div className="pm-quick-actions">
+        <button type="button" className="is-primary" onClick={onRecord}><Icon name="clipboard" size={15} />{latest ? 'Record inspection' : 'Record first inspection'}</button>
+        <button type="button" onClick={onSchedule}><Icon name="calendar" size={15} />{noSchedule ? 'Set up schedule' : 'Edit schedule'}</button>
+      </div>
     </>
   )
 }
@@ -309,7 +346,10 @@ function Assistant({ vehicle, component }) {
 
   return (
     <div className="pm-assistant">
-      <p className="pm-form-note">The AI assistant explains the recorded evidence for this component. Its answer is guidance, not an inspection result.</p>
+      <div className="pm-assistant-intro">
+        <span className="pm-empty-icon"><Icon name="spark" size={16} /></span>
+        <p className="pm-form-note">The AI assistant explains the recorded evidence for this component. Its answer is guidance, not an inspection result.</p>
+      </div>
       {state.message && <div className="pm-assistant-answer" role="status">{state.message}</div>}
       {state.error && <p className="pm-error" role="alert">{state.error}</p>}
       <button type="button" className="is-primary" onClick={ask} disabled={state.busy}>{state.busy ? 'Reviewing records…' : state.message ? 'Ask again' : 'Explain this component'}</button>
@@ -337,11 +377,13 @@ export default function ComponentInspector({ vehicle, component, components, ref
   }
 
   return (
-    <div className="pm-inspector">
+    <div className={`pm-inspector tone-${CONDITION_TONES[component.condition.status] || 'unknown'}`}>
       <header>
-        <div>
+        <span className="pm-insp-icon" aria-hidden="true"><Icon name="part" size={20} /></span>
+        <div className="pm-insp-title">
           <span className="pm-kicker">{vehicle.make} {vehicle.model}{vehicle.plate_number ? ` · ${vehicle.plate_number}` : ''}</span>
           <h2>{component.name}</h2>
+          <Badge tone={CONDITION_TONES[component.condition.status]}>{CONDITION_LABELS[component.condition.status]}</Badge>
         </div>
         {components.length > 1 && (
           <label className="pm-switcher">
@@ -356,14 +398,14 @@ export default function ComponentInspector({ vehicle, component, components, ref
       <nav className="pm-tabs" aria-label="Component sections">
         {TABS.map(([key, label]) => (
           <button key={key} type="button" className={tab === key ? 'is-active' : ''} onClick={() => { setTab(key); setNotice('') }} aria-current={tab === key}>
-            {key === 'history' ? `${label} (${component.history_count})` : label}
+            {label}{key === 'history' && <span className="pm-tab-count">{component.history_count}</span>}
           </button>
         ))}
       </nav>
       <div className="pm-inspector-body">
         {notice && <p className="pm-notice" role="status">{notice}</p>}
         {refreshing && <p className="pm-muted" role="status">Refreshing records…</p>}
-        {tab === 'overview' && <Overview component={component} vehicle={vehicle} />}
+        {tab === 'overview' && <Overview component={component} vehicle={vehicle} onRecord={() => { setTab('inspect'); setNotice('') }} onSchedule={() => { setTab('schedule'); setNotice('') }} />}
         {tab === 'inspect' && <InspectionForm vehicle={vehicle} component={component} onSaved={saved} onCancel={() => setTab('overview')} />}
         {tab === 'schedule' && <ScheduleForm vehicle={vehicle} component={component} onSaved={saved} onCancel={() => setTab('overview')} />}
         {tab === 'history' && <History vehicle={vehicle} component={component} />}

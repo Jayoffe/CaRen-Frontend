@@ -222,12 +222,6 @@ export default function VehicleDetails({ carId, navigate }) {
                   {selectedVariant && <b>{selectedVariant.color}</b>}
                   {browsesColors && <small>{selectedPosition} of {variants.length}</small>}
                 </div>
-                {browsesColors && (
-                  <div className="vd-color-step">
-                    <button type="button" aria-label="Previous colour" onClick={() => step(-1)}><ChevronIcon direction="left" />Previous</button>
-                    <button type="button" aria-label="Next colour" onClick={() => step(1)}>Next<ChevronIcon direction="right" /></button>
-                  </div>
-                )}
               </div>
               <div className="vd-color-list" role="group" aria-label="Choose a colour">
                 {variants.map((variant) => {

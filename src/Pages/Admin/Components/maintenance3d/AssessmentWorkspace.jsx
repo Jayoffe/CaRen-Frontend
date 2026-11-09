@@ -13,6 +13,7 @@ import {
 import { rigFor } from './rigs.js'
 import { formatDate, formatKm, RECORDED_CONDITION_LABELS, todayISO } from './status.js'
 import VehicleInspection from './VehicleInspection.jsx'
+import CarSilhouette from '../../../Users/Components/CarSilhouette.jsx'
 
 const InspectionStage = lazy(() => import('./InspectionStage.jsx'))
 
@@ -112,10 +113,10 @@ function categoryIssues(category, component, assessedOn) {
   return issues
 }
 
-function VehicleThumb({ listing }) {
-  return listing?.primary_image
-    ? <img className="am-thumb" src={imageUrl(listing.primary_image)} alt="" onError={(event) => { event.currentTarget.style.visibility = 'hidden' }} />
-    : <span className="am-thumb am-thumb-empty"><PmIcon name="car" size={22} /></span>
+function VehicleThumb({ listing, category }) {
+  if (listing?.primary_image) return <img className="am-thumb" src={imageUrl(listing.primary_image)} alt="" onError={(event) => { event.currentTarget.style.visibility = 'hidden' }} />
+  // CarSilhouette renders nothing for unknown body types; CSS then shows the generic icon instead.
+  return <span className="am-thumb am-thumb-empty"><CarSilhouette category={category} /><PmIcon name="car" size={22} /></span>
 }
 
 /* ------------------------------------------------------------------ Assessment */
@@ -411,7 +412,7 @@ function AssessmentFlow({ workspace, catalog, onSubmitted, onExit, onProfileSave
     <div className="am-assess">
       <aside className="am-assess-nav">
         <div className="am-progress" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={complete} aria-label="Categories rated">
-          <div className="am-progress-label"><strong>{complete} of {total}</strong> categories rated</div>
+          <div className="am-progress-label"><span><strong>{complete} of {total}</strong> categories rated</span><b className="am-progress-pct">{Math.round((complete / total) * 100)}%</b></div>
           <div className="am-progress-track"><span style={{ width: `${(complete / total) * 100}%` }} /></div>
         </div>
         <div className="am-step-dots" role="list" aria-label="Assessment steps">
@@ -655,6 +656,7 @@ function CategoryResult({ category, assessment, canInspect, onInspect, onChanged
   return (
     <details className={`am-result${safetyFlag ? ' is-safety' : ''}`} open={findings.length > 0}>
       <summary>
+        <span className={`am-result-score am-tone-${rating.tone}`} aria-hidden="true">{rating.short}</span>
         <span className="am-result-name">
           {category.name}
           {category.safety_critical && <span className="am-safety-tag"><PmIcon name="alert" size={13} /> Safety-critical</span>}
@@ -663,6 +665,7 @@ function CategoryResult({ category, assessment, canInspect, onInspect, onChanged
           <Chip tone={rating.tone} title="Condition rating recorded by the assessor">{rating.label}</Chip>
           <Chip tone={screening.tone} title="Result of the condition-based screening rules">{screening.label}</Chip>
         </span>
+        <span className="am-result-chevron" aria-hidden="true"><PmIcon name="right" size={16} /></span>
       </summary>
       <div className="am-result-body">
         <Findings findings={findings} />
@@ -744,30 +747,47 @@ function ResultsSummary({ assessment, catalog, vehicle, partsByCategory, onInspe
   }
 
   const condition = overallCondition(assessment, catalog.categories)
+  // How many categories received each recorded rating, in scale order.
+  const breakdown = Object.entries(RATINGS)
+    .map(([key, rating]) => ({ key, rating, count: catalog.categories.filter((category) => assessment.components[category.key]?.rating === key).length }))
+    .filter((entry) => entry.count > 0)
+  const reviewed = assessment.review_status === 'reviewed'
+  const warnings = Number(assessment.safety_warning_count) || 0
   return (
     <div className="am-results">
       <section className={`am-summary am-tone-${condition.tone}`} aria-label="Vehicle overview">
+        <div className="am-summary-condition">
+          <span>Overall condition</span>
+          <strong>{condition.label}</strong>
+          <p>{condition.summary}</p>
+          {breakdown.length > 0 && (
+            <div className="am-breakdown">
+              <div className="am-breakdown-bar" aria-hidden="true">
+                {breakdown.map(({ key, rating, count }) => <span key={key} className={`am-tone-${rating.tone}`} style={{ flexGrow: count }} />)}
+              </div>
+              <ul className="am-breakdown-legend" aria-label="Condition ratings by category">
+                {breakdown.map(({ key, rating, count }) => <li key={key} className={`am-tone-${rating.tone}`}><i aria-hidden="true" />{rating.long || rating.label}<b>{count}</b></li>)}
+              </ul>
+            </div>
+          )}
+          <dl className="am-summary-priority"><dt>Maintenance priority</dt><dd>{condition.priority}</dd></dl>
+        </div>
         <div className="am-summary-vehicle">
           <dl className="am-status-grid">
             <div><dt>Assessment date</dt><dd>{formatDate(assessment.assessed_on)}</dd></div>
             <div><dt>Assessed by</dt><dd>{assessment.assessor_name}</dd></div>
             <div><dt>Odometer at assessment</dt><dd>{assessment.odometer_km === null ? 'Not recorded' : formatKm(assessment.odometer_km)}</dd></div>
             <div><dt>Current mileage</dt><dd>{vehicle.current_mileage === null ? 'Not recorded' : formatKm(vehicle.current_mileage)}</dd></div>
-            <div><dt>Safety warnings</dt><dd>{assessment.safety_warning_count}</dd></div>
-            <div><dt>Review</dt><dd>{assessment.review_status === 'reviewed' ? 'Reviewed' : 'Not yet reviewed'}</dd></div>
+            <div className={warnings > 0 ? 'is-alert' : 'is-clear'}><dt>Safety warnings</dt><dd>{warnings}</dd></div>
+            <div className={reviewed ? 'is-clear' : 'is-pending'}><dt>Review</dt><dd>{reviewed ? 'Reviewed' : 'Not yet reviewed'}</dd></div>
           </dl>
-        </div>
-        <div className="am-summary-condition">
-          <span>Overall condition</span>
-          <strong>{condition.label}</strong>
-          <p>{condition.summary}</p>
-          <dl className="am-summary-priority"><dt>Maintenance priority</dt><dd>{condition.priority}</dd></dl>
         </div>
       </section>
 
       {assessment.odometer_flag === 'decrease' && <p className="am-flag">Odometer is lower than the previous reading of {formatKm(assessment.previous_odometer_km)}. Vehicle mileage was not changed.</p>}
       {['failed', 'pending', 'processing'].includes(assessment.ai_status) && (
         <div className="am-banner">
+          <span className="am-banner-icon" aria-hidden="true"><PmIcon name="alert" size={18} /></span>
           <p>{assessment.ai_status === 'processing' ? 'The assessment and its findings are saved. Fault code lookup is still marked as running; if this does not change, retry it.' : 'The assessment and its findings are saved. Fault code lookup could not finish, so it is missing until a retry succeeds.'}</p>
           <button type="button" disabled={busy} onClick={() => act(() => retryAnalysis(assessment.id))}>{busy ? 'Retrying…' : 'Retry analysis'}</button>
         </div>
@@ -776,21 +796,33 @@ function ResultsSummary({ assessment, catalog, vehicle, partsByCategory, onInspe
 
       <SafetyWarnings warnings={assessment.safety_warnings} />
 
-      <h2 className="am-results-title">Component results</h2>
+      <div className="am-results-head">
+        <h2 className="am-results-title">Component results</h2>
+        <span>{catalog.categories.length} categories · open a row for findings, recorded details and photos</span>
+      </div>
       {catalog.categories.map((category) => (
         <CategoryResult key={category.key} category={category} assessment={assessment} canInspect={partsByCategory.has(category.key)} onInspect={onInspect} onChanged={onChanged} />
       ))}
 
       <PredictionNotice assessment={assessment} catalog={catalog} />
 
-      {assessment.review_status === 'reviewed' ? (
-        <p className="am-note">Reviewed {formatDate(assessment.reviewed_at)}{assessment.review_notes ? `: ${assessment.review_notes}` : '.'}</p>
-      ) : (
-        <div className="am-inline-form">
-          <label>Review notes<input maxLength={4000} value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
-          <button type="button" disabled={busy} onClick={() => act(() => reviewAssessment(assessment.id, notes))}>Mark as reviewed</button>
+      <section className="am-review-card" aria-labelledby="am-review-title">
+        <div className="am-review-card-head">
+          <span className={`am-review-card-icon${reviewed ? ' is-done' : ''}`} aria-hidden="true"><PmIcon name={reviewed ? 'check' : 'clipboard'} size={18} /></span>
+          <div>
+            <h3 id="am-review-title">Assessor review</h3>
+            <p>{reviewed ? 'This assessment has been reviewed.' : 'Check the findings above, then mark the assessment as reviewed.'}</p>
+          </div>
         </div>
-      )}
+        {reviewed ? (
+          <p className="am-note">Reviewed {formatDate(assessment.reviewed_at)}{assessment.review_notes ? `: ${assessment.review_notes}` : '.'}</p>
+        ) : (
+          <div className="am-inline-form">
+            <label>Review notes <small>Optional</small><input maxLength={4000} value={notes} placeholder="e.g. Findings match the workshop check." onChange={(event) => setNotes(event.target.value)} /></label>
+            <button type="button" className="is-primary" disabled={busy} onClick={() => act(() => reviewAssessment(assessment.id, notes))}><PmIcon name="check" size={15} /> Mark as reviewed</button>
+          </div>
+        )}
+      </section>
       <div className="am-results-actions">
         <button type="button" onClick={onReassess}><PmIcon name="clipboard" /> New assessment</button>
         <button type="button" className="is-primary" onClick={() => onInspect(null)}><PmIcon name="cube" /> Explore 3D inspection</button>
@@ -884,9 +916,19 @@ function formatMeasurement(value) {
 
 function ComparisonTable({ assessment, catalog }) {
   const comparison = assessment?.comparison
-  if (!comparison) return <p className="am-empty">A comparison appears once the vehicle has two assessments.</p>
+  if (!comparison) {
+    return (
+      <section className="am-section am-compare-empty">
+        <span className="am-compare-icon" aria-hidden="true"><PmIcon name="clipboard" size={20} /></span>
+        <div>
+          <h3>Assessment comparison</h3>
+          <p>A comparison appears once the vehicle has two assessments.</p>
+        </div>
+      </section>
+    )
+  }
   return (
-    <section className="am-section">
+    <section className="am-section am-compare">
       <h3>Compared with {formatDate(comparison.previous_assessed_on)} ({comparison.previous_odometer_km === null ? 'odometer not recorded' : formatKm(comparison.previous_odometer_km)})</h3>
       <div className="am-table-wrap">
         <table className="am-table">
@@ -913,6 +955,13 @@ function ComparisonTable({ assessment, catalog }) {
   )
 }
 
+const SERVICE_STATUS_TONES = { scheduled: 'pending', pending: 'pending', in_progress: 'fair', completed: 'good', done: 'good', cancelled: 'na', canceled: 'na' }
+
+function humanize(value) {
+  const text = String(value || '').replace(/[-_]+/g, ' ').trim()
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : '–'
+}
+
 function HistoryTab({ workspace, catalog, assessment, onView }) {
   const [categoryKey, setCategoryKey] = useState(catalog.categories[0].key)
   const [state, setState] = useState({ key: null, data: null, error: '' })
@@ -927,32 +976,51 @@ function HistoryTab({ workspace, catalog, assessment, onView }) {
   }, [vehicleId, categoryKey])
 
   const data = state.key === categoryKey ? state.data : null
+  // Service records are vehicle-wide, so the last loaded list stays visible while another category loads.
+  const serviceRecords = state.data?.service_records
+  const historyCount = workspace.history.length
 
   return (
     <div className="am-history">
       <section className="am-section">
-        <h3>Assessment history</h3>
-        <ul className="am-past-list">
+        <div className="am-section-head">
+          <h3>Assessment history</h3>
+          <span className="am-count">{historyCount} {historyCount === 1 ? 'assessment' : 'assessments'}</span>
+        </div>
+        <ol className="am-timeline">
           {workspace.history.map((row) => {
             const screening = SCREENING[row.overall_screening]
+            const shown = row.id === assessment?.id
             return (
-              <li key={row.id}>
-                <strong>{formatDate(row.assessed_on)}</strong>
-                {screening && <Chip tone={screening.tone}>{screening.label}</Chip>}
-                <small>{[row.assessor_name, row.odometer_km === null ? 'Odometer not recorded' : formatKm(row.odometer_km), row.safety_warning_count > 0 ? `${row.safety_warning_count} safety ${row.safety_warning_count === 1 ? 'warning' : 'warnings'}` : null].filter(Boolean).join(' · ')}</small>
-                {row.id === assessment?.id ? <span className="is-shown">Shown now</span> : <button type="button" className="am-link" onClick={() => onView(row.id)}>View results</button>}
+              <li key={row.id} className={shown ? 'is-shown' : ''}>
+                <span className={`am-timeline-dot am-tone-${screening?.tone || 'na'}`} aria-hidden="true" />
+                <div className="am-timeline-body">
+                  <div className="am-timeline-top">
+                    <strong>{formatDate(row.assessed_on)}</strong>
+                    {screening && <Chip tone={screening.tone}>{screening.label}</Chip>}
+                  </div>
+                  <small>{[row.assessor_name, row.odometer_km === null ? 'Odometer not recorded' : formatKm(row.odometer_km), row.safety_warning_count > 0 ? `${row.safety_warning_count} safety ${row.safety_warning_count === 1 ? 'warning' : 'warnings'}` : null].filter(Boolean).join(' · ')}</small>
+                </div>
+                {shown ? <span className="am-shown-badge"><PmIcon name="check" size={13} /> Shown now</span> : <button type="button" className="am-view-btn" onClick={() => onView(row.id)}>View results <PmIcon name="right" size={14} /></button>}
               </li>
             )
           })}
-        </ul>
+        </ol>
       </section>
       <ComparisonTable assessment={assessment} catalog={catalog} />
       <section className="am-section">
         <div className="am-section-head">
-          <h3>Component history</h3>
-          <select aria-label="Category" value={categoryKey} onChange={(event) => setCategoryKey(event.target.value)}>
-            {catalog.categories.map((category) => <option key={category.key} value={category.key}>{category.name}</option>)}
-          </select>
+          <div>
+            <h3>Component history</h3>
+            <p className="am-section-sub">Ratings and screening for one category across every assessment.</p>
+          </div>
+        </div>
+        <div className="am-cat-picker" role="group" aria-label="Category">
+          {catalog.categories.map((category) => (
+            <button key={category.key} type="button" aria-pressed={categoryKey === category.key} className={categoryKey === category.key ? 'is-active' : ''} onClick={() => setCategoryKey(category.key)}>
+              {category.name}
+            </button>
+          ))}
         </div>
         {state.key === categoryKey && state.error && <p className="am-error" role="alert">{state.error}</p>}
         {!data && !state.error && <p className="am-note" role="status">Loading…</p>}
@@ -1003,23 +1071,37 @@ function HistoryTab({ workspace, catalog, assessment, onView }) {
             )}
 
             {data.outcomes.length > 0 && <OutcomeList outcomes={data.outcomes} />}
-
-            <h4>Vehicle service records</h4>
-            {data.service_records.length === 0 ? <p className="am-note">No service records. These are vehicle-wide, not tied to one component.</p> : (
-              <div className="am-table-wrap">
-                <table className="am-table">
-                  <thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Odometer</th></tr></thead>
-                  <tbody>
-                    {data.service_records.map((row) => (
-                      <tr key={row.id}><td>{formatDate(row.date)}</td><td>{row.type}</td><td>{row.status}</td><td>{row.odometer_km === null ? <em>Not recorded</em> : formatKm(row.odometer_km)}</td></tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </>
         )}
       </section>
+      {serviceRecords && (
+        <section className="am-section">
+          <div className="am-section-head">
+            <div>
+              <h3>Vehicle service records</h3>
+              <p className="am-section-sub">Vehicle-wide, not tied to one component.</p>
+            </div>
+            <span className="am-count">{serviceRecords.length} {serviceRecords.length === 1 ? 'record' : 'records'}</span>
+          </div>
+          {serviceRecords.length === 0 ? <p className="am-empty">No service records yet.</p> : (
+            <div className="am-table-wrap">
+              <table className="am-table">
+                <thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Odometer</th></tr></thead>
+                <tbody>
+                  {serviceRecords.map((row) => (
+                    <tr key={row.id}>
+                      <td>{formatDate(row.date)}</td>
+                      <td>{humanize(row.type)}</td>
+                      <td><Chip tone={SERVICE_STATUS_TONES[String(row.status || '').toLowerCase()] || 'na'}>{humanize(row.status)}</Chip></td>
+                      <td>{row.odometer_km === null ? <em>Not recorded</em> : formatKm(row.odometer_km)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   )
 }
@@ -1029,30 +1111,35 @@ function HistoryTab({ workspace, catalog, assessment, onView }) {
 function OutcomeList({ outcomes, canVerify, onVerify }) {
   return (
     <ul className="am-outcomes">
-      {outcomes.map((outcome) => (
-        <li key={outcome.id}>
-          <div className="am-outcome-head">
-            <strong>{DECISIONS[outcome.decision]}</strong>
-            <span>{RESULTS[outcome.result]}</span>
-            <Chip tone={outcome.verification_status === 'verified' ? 'good' : outcome.verification_status === 'rejected' ? 'failed' : 'pending'}>{VERIFICATION[outcome.verification_status]}</Chip>
-          </div>
-          <p><small>Original recommendation, {formatDate(outcome.recommended_at)}:</small> {outcome.original_recommendation}</p>
-          <p>{CONFIRMATIONS[outcome.mechanic_confirmed]}{outcome.mechanic_name ? ` · ${outcome.mechanic_name}` : ''}</p>
-          {outcome.maintenance_performed && <p>Work: {outcome.maintenance_performed}</p>}
-          {outcome.parts_replaced && <p>Parts: {outcome.parts_replaced}</p>}
-          <p>
-            {outcome.failure_date && `Failed ${formatDate(outcome.failure_date)}. `}
-            {outcome.repair_date && `Repaired ${formatDate(outcome.repair_date)}. `}
-            {outcome.mileage_km !== null && `At ${formatKm(outcome.mileage_km)}.`}
-          </p>
-          {canVerify && outcome.verification_status === 'unverified' && (
-            <div className="am-outcome-actions">
-              <button type="button" onClick={() => onVerify(outcome.id, 'verified')}>Verify</button>
-              <button type="button" onClick={() => onVerify(outcome.id, 'rejected')}>Reject</button>
+      {outcomes.map((outcome) => {
+        const facts = [
+          ['Mechanic', `${CONFIRMATIONS[outcome.mechanic_confirmed]}${outcome.mechanic_name ? ` · ${outcome.mechanic_name}` : ''}`],
+          outcome.maintenance_performed && ['Work', outcome.maintenance_performed],
+          outcome.parts_replaced && ['Parts', outcome.parts_replaced],
+          outcome.failure_date && ['Failed', formatDate(outcome.failure_date)],
+          outcome.repair_date && ['Repaired', formatDate(outcome.repair_date)],
+          outcome.mileage_km !== null && outcome.mileage_km !== undefined && ['Mileage', formatKm(outcome.mileage_km)],
+        ].filter(Boolean)
+        return (
+          <li key={outcome.id} className={`am-outcome is-${outcome.verification_status}`}>
+            <div className="am-outcome-head">
+              <strong>{DECISIONS[outcome.decision]}</strong>
+              <span className="am-outcome-result">{RESULTS[outcome.result]}</span>
+              <Chip tone={outcome.verification_status === 'verified' ? 'good' : outcome.verification_status === 'rejected' ? 'failed' : 'pending'}>{VERIFICATION[outcome.verification_status]}</Chip>
             </div>
-          )}
-        </li>
-      ))}
+            <p className="am-outcome-rec"><small>Original recommendation, {formatDate(outcome.recommended_at)}</small>{outcome.original_recommendation}</p>
+            <dl className="am-outcome-facts">
+              {facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+            </dl>
+            {canVerify && outcome.verification_status === 'unverified' && (
+              <div className="am-outcome-actions">
+                <button type="button" className="is-verify" onClick={() => onVerify(outcome.id, 'verified')}><PmIcon name="check" size={14} /> Verify</button>
+                <button type="button" className="is-reject" onClick={() => onVerify(outcome.id, 'rejected')}>Reject</button>
+              </div>
+            )}
+          </li>
+        )
+      })}
     </ul>
   )
 }
@@ -1104,47 +1191,81 @@ function OutcomesTab({ assessment, catalog, parts, onChanged }) {
   return (
     <div className="am-outcome-layout">
       <form className="am-section am-outcome-form" onSubmit={submit}>
-        <h3>Record a maintenance outcome</h3>
-        <>
-            <label className="am-field-block">Recommendation or category
-              <select required value={form.source} onChange={set('source')}>
-                <option value="">Choose one</option>
-                {findings.map((item) => <option key={item.id} value={`f:${item.id}`}>{item.component_name}: {item.recommended_action}</option>)}
-                {catalog.categories.filter((category) => !flagged.has(category.key)).map((category) => <option key={category.key} value={`c:${category.key}`}>{category.name}: nothing was flagged</option>)}
+        <header className="am-outcome-form-head">
+          <h3>Record a maintenance outcome</h3>
+          <p>What happened after this assessment: the repair, a deferral, or a check that found nothing wrong.</p>
+        </header>
+
+        <fieldset className="am-ogroup">
+          <legend><span>1</span>What is this about? <small>Required</small></legend>
+          <label className="am-field-block">Recommendation or category
+            <select required value={form.source} onChange={set('source')}>
+              <option value="">Choose one</option>
+              {findings.map((item) => <option key={item.id} value={`f:${item.id}`}>{item.component_name}: {item.recommended_action}</option>)}
+              {catalog.categories.filter((category) => !flagged.has(category.key)).map((category) => <option key={category.key} value={`c:${category.key}`}>{category.name}: nothing was flagged</option>)}
+            </select>
+          </label>
+          <p className="am-tip"><PmIcon name="check" size={14} /> Record healthy results too, using No fault found, so the history is not limited to problems.</p>
+        </fieldset>
+
+        <fieldset className="am-ogroup">
+          <legend><span>2</span>Decision and result</legend>
+          <div className="am-field-row">
+            <label>Decision<select value={form.decision} onChange={set('decision')}>{Object.entries(DECISIONS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+            <label>Mechanic confirmation<select value={form.mechanic_confirmed} onChange={set('mechanic_confirmed')}>{Object.entries(CONFIRMATIONS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+            <label>Result<select value={form.result} onChange={set('result')}>{Object.entries(RESULTS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+          </div>
+        </fieldset>
+
+        <fieldset className="am-ogroup">
+          <legend><span>3</span>Where and who <small>Optional</small></legend>
+          <div className="am-field-row">
+            <label>Component
+              <select value={form.component_key} onChange={set('component_key')} disabled={!categoryKey}>
+                <option value="">Whole category</option>
+                {categoryParts.map((part) => <option key={part.key} value={part.key}>{part.name}</option>)}
               </select>
             </label>
-            <p className="am-note">Record healthy results too, using No fault found, so the history is not limited to problems.</p>
-            <div className="am-field-row">
-              <label>Decision<select value={form.decision} onChange={set('decision')}>{Object.entries(DECISIONS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-              <label>Mechanic confirmation<select value={form.mechanic_confirmed} onChange={set('mechanic_confirmed')}>{Object.entries(CONFIRMATIONS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-              <label>Result<select value={form.result} onChange={set('result')}>{Object.entries(RESULTS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-            </div>
-            <div className="am-field-row">
-              <label>Component
-                <select value={form.component_key} onChange={set('component_key')}>
-                  <option value="">Whole category</option>
-                  {categoryParts.map((part) => <option key={part.key} value={part.key}>{part.name}</option>)}
-                </select>
-              </label>
-              <label>Mechanic<input maxLength={150} value={form.mechanic_name} onChange={set('mechanic_name')} /></label>
-              <label>Mileage (km)<input type="number" min="0" placeholder="Not recorded" value={form.mileage_km} onChange={set('mileage_km')} /></label>
-            </div>
-            <div className="am-field-row">
-              <label>Failure date<input type="date" max={todayISO()} value={form.failure_date} onChange={set('failure_date')} /></label>
-              <label>Repair date<input type="date" max={todayISO()} value={form.repair_date} onChange={set('repair_date')} /></label>
-              <label>Check date, if no fault found<input type="date" max={todayISO()} value={form.outcome_date} onChange={set('outcome_date')} /></label>
-            </div>
-            <label className="am-field-block">Maintenance performed<textarea rows={2} value={form.maintenance_performed} onChange={set('maintenance_performed')} /></label>
-            <label className="am-field-block">Parts replaced<input value={form.parts_replaced} onChange={set('parts_replaced')} /></label>
-            <label className="am-field-block">Notes<textarea rows={2} value={form.notes} onChange={set('notes')} /></label>
-            {error && <p className="am-error" role="alert">{error}</p>}
-            <button type="submit" className="is-primary" disabled={saving}>{saving ? 'Saving…' : 'Record outcome'}</button>
-            <p className="am-note">Outcomes stay unverified until someone reviews them below.</p>
-        </>
+            <label>Mechanic<input maxLength={150} placeholder="Name of the mechanic" value={form.mechanic_name} onChange={set('mechanic_name')} /></label>
+            <label>Mileage (km)<input type="number" min="0" placeholder="Leave blank if not recorded" value={form.mileage_km} onChange={set('mileage_km')} /></label>
+          </div>
+          {!categoryKey && <p className="am-hint">Choose what this is about first to pick a specific component.</p>}
+        </fieldset>
+
+        <fieldset className="am-ogroup">
+          <legend><span>4</span>Dates <small>Optional</small></legend>
+          <div className="am-field-row">
+            <label>Failure date<input type="date" max={todayISO()} value={form.failure_date} onChange={set('failure_date')} /><span className="am-hint">When the part failed, if it did.</span></label>
+            <label>Repair date<input type="date" max={todayISO()} value={form.repair_date} onChange={set('repair_date')} /><span className="am-hint">When the repair was finished.</span></label>
+            <label>Check date<input type="date" max={todayISO()} value={form.outcome_date} onChange={set('outcome_date')} /><span className="am-hint">Use this when no fault was found.</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset className="am-ogroup">
+          <legend><span>5</span>Work done <small>Optional</small></legend>
+          <label className="am-field-block">Maintenance performed<textarea rows={2} placeholder="e.g. Replaced front brake pads and bled the brake lines." value={form.maintenance_performed} onChange={set('maintenance_performed')} /></label>
+          <label className="am-field-block">Parts replaced<input placeholder="e.g. Front brake pads (set of 4)" value={form.parts_replaced} onChange={set('parts_replaced')} /></label>
+          <label className="am-field-block">Notes<textarea rows={2} value={form.notes} onChange={set('notes')} /></label>
+        </fieldset>
+
+        {error && <p className="am-error" role="alert">{error}</p>}
+        <div className="am-outcome-submit">
+          <p className="am-note">Outcomes stay unverified until someone reviews them.</p>
+          <button type="submit" className="is-primary" disabled={saving}><PmIcon name="check" size={15} /> {saving ? 'Saving…' : 'Record outcome'}</button>
+        </div>
       </form>
-      <section className="am-section">
-        <h3>Outcomes on this assessment</h3>
-        {assessment.outcomes.length === 0 ? <p className="am-empty">None recorded yet.</p> : <OutcomeList outcomes={assessment.outcomes} canVerify onVerify={verify} />}
+      <section className="am-section am-outcome-panel">
+        <div className="am-section-head">
+          <h3>Outcomes on this assessment</h3>
+          <span className="am-count">{assessment.outcomes.length} recorded</span>
+        </div>
+        {assessment.outcomes.length === 0 ? (
+          <div className="am-outcome-empty">
+            <span className="am-compare-icon" aria-hidden="true"><PmIcon name="clipboard" size={20} /></span>
+            <strong>None recorded yet</strong>
+            <p>Outcomes you record appear here. Each one stays unverified until someone checks it and chooses Verify or Reject.</p>
+          </div>
+        ) : <OutcomeList outcomes={assessment.outcomes} canVerify onVerify={verify} />}
       </section>
     </div>
   )
@@ -1152,50 +1273,103 @@ function OutcomesTab({ assessment, catalog, parts, onChanged }) {
 
 /* ------------------------------------------------------------------ Profile */
 
+/** "3 months ago"-style wording for a past ISO date; null when the date is missing or in the future. */
+function timeSince(value) {
+  if (!value) return null
+  const then = new Date(`${String(value).slice(0, 10)}T00:00:00`)
+  const days = Math.floor((Date.now() - then.getTime()) / 86400000)
+  if (!Number.isFinite(days) || days < 0) return null
+  if (days === 0) return { short: 'today', long: 'less than a day' }
+  if (days < 60) return { short: `${days} ${days === 1 ? 'day' : 'days'} ago`, long: `${days} ${days === 1 ? 'day' : 'days'}` }
+  const months = Math.floor(days / 30.44)
+  if (months < 24) return { short: `${months} months ago`, long: `${months} months` }
+  const years = Math.floor(days / 365.25)
+  return { short: `${years} years ago`, long: `${years} years` }
+}
+
 function ProfileTab({ workspace, onSaved }) {
   const { vehicle } = workspace
-  const [form, setForm] = useState({
+  const initial = {
     acquisition_date: vehicle.acquisition_date || '',
     usage_frequency: vehicle.usage_frequency || '',
     previous_maintenance_date: vehicle.previous_maintenance_date || '',
-  })
+  }
+  const [form, setForm] = useState(initial)
+  const [baseline, setBaseline] = useState(initial)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
-  const set = (field) => (event) => { setSaved(false); setForm({ ...form, [field]: event.target.value }) }
+  const [saving, setSaving] = useState(false)
+  const setValue = (field, value) => { setSaved(false); setForm({ ...form, [field]: value }) }
+  const set = (field) => (event) => setValue(field, event.target.value)
+  const dirty = Object.keys(form).some((key) => form[key] !== baseline[key])
+  const inFleet = timeSince(form.acquisition_date)
+  const sinceService = timeSince(form.previous_maintenance_date)
 
   async function submit(event) {
     event.preventDefault()
     setError('')
+    setSaving(true)
     try {
       await saveVehicleProfile(vehicle.id, form)
+      setBaseline(form)
       setSaved(true)
       onSaved()
     } catch (requestError) {
       setError(requestError.message)
+    } finally {
+      setSaving(false)
     }
   }
 
   return (
     <form className="am-section am-profile" onSubmit={submit}>
-      <h3>Vehicle profile</h3>
-      <dl className="am-status-grid">
-        <div><dt>Current mileage</dt><dd>{vehicle.current_mileage === null ? 'Not recorded' : formatKm(vehicle.current_mileage)}</dd></div>
-        <div><dt>Age from model year</dt><dd>{vehicle.age_years === null ? 'Unavailable' : `${vehicle.age_years} ${vehicle.age_years === 1 ? 'year' : 'years'}`}</dd></div>
-        <div><dt>Fuel</dt><dd>{vehicle.fuel_type || 'Not recorded'}</dd></div>
-      </dl>
-      <div className="am-field-row">
-        <label>Acquisition date<input type="date" max={todayISO()} value={form.acquisition_date} onChange={set('acquisition_date')} /><span className="am-hint">Example: the day the vehicle joined the fleet.</span></label>
-        <label>Usage frequency
-          <select value={form.usage_frequency} onChange={set('usage_frequency')}>
-            <option value="">Not recorded</option>
-            {Object.entries(USAGE).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-          </select>
-        </label>
-        <label>Previous maintenance date<input type="date" max={todayISO()} value={form.previous_maintenance_date} onChange={set('previous_maintenance_date')} /><span className="am-hint">Example: the date of its last general service.</span></label>
+      <header className="am-profile-head">
+        <h3>Vehicle profile</h3>
+        <p>Background details the maintenance screening uses alongside each assessment.</p>
+      </header>
+
+      <div className="am-profile-block">
+        <h4>From the vehicle record <small>Read-only</small></h4>
+        <dl className="am-status-grid am-profile-facts">
+          <div><dt>Current mileage</dt><dd>{vehicle.current_mileage === null ? 'Not recorded' : formatKm(vehicle.current_mileage)}</dd></div>
+          <div><dt>Age from model year</dt><dd>{vehicle.age_years === null ? 'Unavailable' : `${vehicle.age_years} ${vehicle.age_years === 1 ? 'year' : 'years'}`}</dd></div>
+          <div><dt>Fuel</dt><dd>{vehicle.fuel_type || 'Not recorded'}</dd></div>
+        </dl>
       </div>
-      {error && <p className="am-error" role="alert">{error}</p>}
-      {saved && <p className="am-note" role="status">Vehicle profile saved.</p>}
-      <button type="submit" className="is-primary">Save profile</button>
+
+      <div className="am-profile-block">
+        <h4>Usage and service <small>Editable</small></h4>
+        <div className="am-field-row">
+          <label>Acquisition date
+            <input type="date" max={todayISO()} value={form.acquisition_date} onChange={set('acquisition_date')} />
+            <span className="am-hint">{inFleet ? <>In the fleet for <b>{inFleet.long}</b>.</> : 'Example: the day the vehicle joined the fleet.'}</span>
+          </label>
+          <label>Previous maintenance date
+            <input type="date" max={todayISO()} value={form.previous_maintenance_date} onChange={set('previous_maintenance_date')} />
+            <span className="am-hint">{sinceService ? <>Last general service <b>{sinceService.short}</b>.</> : 'Example: the date of its last general service.'}</span>
+          </label>
+        </div>
+        <fieldset className="am-usage">
+          <legend>Usage frequency</legend>
+          <div className="am-usage-options" role="radiogroup" aria-label="Usage frequency">
+            {[['', 'Not recorded'], ...Object.entries(USAGE)].map(([key, label]) => (
+              <label key={key || 'none'} className={form.usage_frequency === key ? 'is-selected' : ''}>
+                <input type="radio" name={`usage-${vehicle.id}`} value={key} checked={form.usage_frequency === key} onChange={() => setValue('usage_frequency', key)} />
+                {label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      </div>
+
+      <div className="am-profile-foot">
+        <div className="am-profile-status" aria-live="polite">
+          {error && <p className="am-error" role="alert">{error}</p>}
+          {!error && saved && <p className="am-saved"><PmIcon name="check" size={14} /> Vehicle profile saved.</p>}
+          {!error && !saved && dirty && <p className="am-note">You have unsaved changes.</p>}
+        </div>
+        <button type="submit" className="is-primary" disabled={!dirty || saving}>{saving ? 'Saving…' : 'Save profile'}</button>
+      </div>
     </form>
   )
 }
@@ -1324,12 +1498,14 @@ export default function AssessmentWorkspace({ vehicleId, view, listing, onView, 
       <FlowSteps view={activeView} hasAssessment={Boolean(assessment)} onFleet={onBack} onAssess={() => onView('assess')} onResults={() => onView('results')} />
 
       <header className="am-workspace-head">
-        <VehicleThumb listing={listing} />
+        <VehicleThumb listing={listing} category={vehicle.body_type || vehicle.category} />
         <div className="am-vehicle">
           <h1>{vehicle.make} {vehicle.model} <span>{vehicle.year}</span></h1>
-          <p>{[vehicle.plate_number || 'Plate not recorded', `Fleet ID #${vehicle.id}`, vehicle.category, vehicle.current_mileage === null ? 'Mileage not recorded' : formatKm(vehicle.current_mileage)].join(' · ')}</p>
+          <ul className="am-vehicle-meta" aria-label="Vehicle details">
+            {[vehicle.plate_number || 'Plate not recorded', `Fleet ID #${vehicle.id}`, vehicle.category, vehicle.current_mileage === null ? 'Mileage not recorded' : formatKm(vehicle.current_mileage)].filter(Boolean).map((item) => <li key={item}>{item}</li>)}
+          </ul>
         </div>
-        <div className="am-reassess">
+        <div className={`am-reassess am-tone-${reassessmentStatus.tone}`}>
           <span>Monthly reassessment</span>
           <Chip tone={reassessmentStatus.tone}>{reassessmentStatus.label}</Chip>
           {reassessment.due_on && <small>Due {formatDate(reassessment.due_on)}</small>}
