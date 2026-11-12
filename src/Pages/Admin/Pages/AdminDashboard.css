@@ -223,6 +223,12 @@
   background: var(--ad-amber-soft);
 }
 
+/* Coming up soon (reassessments due this week): informational, not yet late. */
+.ad-alert-info .ad-alert-icon {
+  color: var(--ad-forest);
+  background: var(--ad-green-soft);
+}
+
 .ad-alert-text {
   display: grid;
   min-width: 0;

@@ -258,6 +258,7 @@ export default function ModelTrainingPanel() {
                 <header>
                   <strong>{category.name}{category.safety_critical && <small> Safety-critical</small>}</strong>
                   <Chip tone={model?.available ? 'good' : 'not-assessed'}>{model?.available ? 'ML prediction enabled' : 'Prediction unavailable'}</Chip>
+                  {model?.available && model.demonstration && <Chip tone="unknown">Demo model, simulated data</Chip>}
                   <span className="am-model-actions">
                     <button type="button" onClick={() => (open ? setDataset({ key: null, value: null }) : review(category.key))}>{open ? 'Hide dataset' : 'Review dataset'}</button>
                     <button type="button" className={ready ? 'is-primary' : ''} disabled={!ready || busy || !data.service.reachable} title={ready ? '' : 'This category does not have enough eligible data.'} onClick={() => train(category.key)}>
@@ -267,6 +268,7 @@ export default function ModelTrainingPanel() {
                 </header>
                 {training === category.key && <p className="am-note" role="status">Training and evaluating {category.name}. This page updates when it finishes.</p>}
                 {model && !model.available && versions.length > 0 && <p className="am-note">{model.reason}</p>}
+                {model?.available && model.demonstration && <p className="am-note" role="note">{model.notice} Withdraw it before relying on predictions for real vehicles.</p>}
                 {open && dataset.value && <DatasetReview dataset={dataset.value} />}
                 {versions.map((entry) => (
                   <Evaluation key={entry.model_version} entry={entry} active={model.active_version === entry.model_version} busy={busy} onAccept={(item) => accept(category, item)} onRevoke={(item) => revoke(category, item)} />
