@@ -191,6 +191,17 @@ export default function ModelTrainingPanel() {
     if (reason?.trim()) void act(() => revokeModel(category.key, reason.trim()))
   }
 
+  /** Before real use: withdraws every model trained on simulated SAMPLE- vehicles in one step. */
+  function revokeDemoModels(demoModels) {
+    const names = demoModels.map((model) => model.key.replaceAll('_', ' ')).join(', ')
+    if (!window.confirm(`Withdraw all ${demoModels.length} demonstration models (${names})? Those categories return to prediction unavailable until a model is trained on real outcomes.`)) return
+    void act(async () => {
+      for (const model of demoModels) {
+        await revokeModel(model.key, 'Demonstration model trained on simulated SAMPLE- vehicles; withdrawn before real use.')
+      }
+    })
+  }
+
   if (!data) {
     return error ? <p className="am-error" role="alert">{error}</p> : <p className="am-note" role="status">Loading model training…</p>
   }
@@ -199,6 +210,7 @@ export default function ModelTrainingPanel() {
   const { policy } = data
   const qualified = categories.filter((category) => category.status === 'sufficient').length
   const models = Object.fromEntries(data.models.map((model) => [model.key, model]))
+  const demoModels = data.models.filter((model) => model.available && model.demonstration)
 
   return (
     <>
@@ -246,6 +258,15 @@ export default function ModelTrainingPanel() {
         <div className="am-section-head"><h2>Model training and registry</h2></div>
         {!data.service.reachable && <p className="am-banner">The AI service could not be reached, so model status is unknown and no training can run.</p>}
         {error && <p className="am-error" role="alert">{error}</p>}
+        {demoModels.length > 0 && (
+          <div className="am-banner" role="note">
+            <p>
+              <strong>{demoModels.length} demonstration {demoModels.length === 1 ? 'model is' : 'models are'} serving predictions.</strong>{' '}
+              They were trained on simulated SAMPLE- vehicles, not real fleet outcomes. Withdraw them before using predictions for real maintenance decisions.
+            </p>
+            <button type="button" disabled={busy || !data.service.reachable} onClick={() => revokeDemoModels(demoModels)}>Withdraw demo models</button>
+          </div>
+        )}
         <p className="am-note">Condition-based screening always runs. A machine learning prediction appears only for a category with an accepted model, and each category unlocks on its own.</p>
         <div className="am-models">
           {categories.map((category) => {
