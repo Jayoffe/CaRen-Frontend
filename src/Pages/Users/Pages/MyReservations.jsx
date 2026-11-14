@@ -26,14 +26,14 @@ const VIEW_COPY = {
     title: 'Reservation history',
     lede: 'Your completed and cancelled reservations, with their payment details.',
     emptyTitle: 'No reservation history yet',
-    emptyBody: 'Completed, cancelled, and rejected reservations will appear here.',
+    emptyBody: 'Completed, cancelled, expired, and rejected reservations will appear here.',
     emptyAction: 'Browse vehicles',
   },
 }
 
-const STATUS_LABELS = { pending: 'Pending payment', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled', rejected: 'Rejected' }
+const STATUS_LABELS = { pending: 'Pending payment', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled', rejected: 'Rejected', expired: 'Expired' }
 const PAYMENT_LABELS = { unpaid: 'Not paid', pending: 'Pending verification', paid: 'Paid', failed: 'Failed', not_required: 'Not required' }
-const HISTORY_STATUSES = ['completed', 'cancelled', 'rejected']
+const HISTORY_STATUSES = ['completed', 'cancelled', 'rejected', 'expired']
 const POLL_ATTEMPTS = 10
 
 function money(value) {
@@ -59,9 +59,24 @@ function formatDateTime(value) {
   return new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date)
 }
 
+/**
+ * An unpaid reservation holds its dates for a limited time (60 minutes). hold_seconds_left comes
+ * from the server; loadedAt is when the list was fetched, so no time zones are compared.
+ */
+function holdActive(reservation) {
+  if (reservation.status !== 'pending' || reservation.hold_seconds_left == null) return false
+  return Date.now() < (reservation.loadedAt || 0) + Number(reservation.hold_seconds_left) * 1000
+}
+
+function holdDeadline(reservation) {
+  const deadline = new Date((reservation.loadedAt || Date.now()) + Number(reservation.hold_seconds_left || 0) * 1000)
+  return new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' }).format(deadline)
+}
+
 /** Payment can be started or retried until it is verified. The server checks the same rules. */
 function canPay(reservation, today) {
   return Number(reservation.payment_required) === 1
+    && (reservation.status !== 'pending' || holdActive(reservation))
     && ['unpaid', 'pending', 'failed'].includes(reservation.payment_status)
     && ['pending', 'confirmed'].includes(reservation.status)
     && !reservation.checked_out_at
@@ -83,9 +98,10 @@ function nextStep(reservation) {
   }
   switch (reservation.status) {
     case 'pending':
+      if (!holdActive(reservation)) return { tone: 'attention', text: 'The time to pay ran out, so these dates were released. Make a new reservation to book again.' }
       if (reservation.payment_status === 'failed') return { tone: 'attention', text: 'The last payment attempt did not go through. Retry the payment to confirm this reservation.' }
       if (reservation.payment_status === 'pending') return { text: `${special ? 'Special duration request. ' : ''}Waiting for the payment provider to verify your payment. Your reservation is confirmed automatically once it does.` }
-      return { tone: 'attention', text: `${special ? 'Special duration request. ' : ''}Pay to confirm this reservation. It is confirmed automatically once the payment is verified.` }
+      return { tone: 'attention', text: `${special ? 'Special duration request. ' : ''}Pay by ${holdDeadline(reservation)} to keep these dates. The reservation is confirmed automatically once the payment is verified.` }
     case 'confirmed':
       if (Number(reservation.payment_required) === 1 && reservation.payment_status !== 'paid') return { tone: 'attention', text: 'Payment is still needed before vehicle handover.' }
       return { tone: 'good', text: 'Confirmed and paid. Bring a valid driver license at pickup.' }
@@ -95,6 +111,9 @@ function nextStep(reservation) {
       return { text: 'This reservation was cancelled.' }
     case 'rejected':
       return { text: 'This request was not approved. You can choose other dates or another vehicle.' }
+    case 'expired':
+      if (reservation.payment_status === 'paid') return { tone: 'attention', text: 'Your payment arrived after the time to pay ran out. An administrator will contact you to rebook or refund it.' }
+      return { text: 'Not paid in time, so the dates were released.' }
     default:
       return null
   }

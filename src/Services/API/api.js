@@ -116,7 +116,11 @@ async function request(endpoint, options = {}) {
         )
       : null
 
-    throw new Error(errorMessage || `Request failed with status ${response.status}.`)
+    const error = new Error(errorMessage || `Request failed with status ${response.status}.`)
+    // Lets pages react to specific failures, e.g. code 'email_not_verified' or HTTP 429.
+    error.status = response.status
+    error.code = typeof result === 'object' && result !== null && typeof result.code === 'string' ? result.code : null
+    throw error
   }
 
   return result

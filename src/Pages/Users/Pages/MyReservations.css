@@ -266,6 +266,7 @@
 }
 
 .rv-status-rejected,
+.rv-status-expired,
 .rv-status-cancelled {
   color: #8a2f2a;
   background: #fbeceb;

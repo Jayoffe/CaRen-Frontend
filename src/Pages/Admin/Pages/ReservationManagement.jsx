@@ -8,10 +8,10 @@ function money(value) {
 }
 
 // Reservations are confirmed only by a verified payment, so the only status change left here is cancelling.
-const STATUS_LABELS = { pending: 'Pending payment', confirmed: 'Confirmed', cancelled: 'Cancelled', rejected: 'Rejected', completed: 'Completed' }
+const STATUS_LABELS = { pending: 'Pending payment', confirmed: 'Confirmed', cancelled: 'Cancelled', rejected: 'Rejected', completed: 'Completed', expired: 'Expired (not paid in time)' }
 const PAYMENT_LABELS = { paid: 'Paid', pending: 'Pending', failed: 'Failed', unpaid: 'Not paid', not_required: 'Not required' }
 const ACTIVE_STATUSES = ['pending', 'confirmed']
-const HISTORY_STATUSES = ['completed', 'cancelled', 'rejected']
+const HISTORY_STATUSES = ['completed', 'cancelled', 'rejected', 'expired']
 
 function localToday() {
   const now = new Date()
@@ -274,6 +274,7 @@ export default function ReservationManagement({ historyView = false, setToast })
                         <span className={`rsv-pay is-${reservation.payment_status}`}><i />{PAYMENT_LABELS[reservation.payment_status] || reservation.payment_status}</span>
                         {reservation.payment_reference && <small className="rsv-ref" title={reservation.payment_reference}>{reservation.payment_reference}</small>}
                         {refund && <small className="rsv-refund"><Icon name="refund" size={13} /> Refund needed</small>}
+                        {reservation.payment_review_reason && <small className="rsv-refund">Needs review: {reservation.payment_review_reason}</small>}
                       </td>
                       <td>
                         <span className={`status-pill status-${reservation.status}`}><i />{STATUS_LABELS[reservation.status] || reservation.status}</span>

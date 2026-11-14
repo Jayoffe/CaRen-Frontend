@@ -5,6 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { api, clearTokens, getRefreshToken, imageUrl, storeTokens } from './api'
 import Login from './auth/Login'
 import SignUp from './auth/SignUp'
+import { ForgotPassword, ResetPassword, VerifyEmail } from './auth/AccountRecovery.jsx'
 import AdminLayout from './Pages/Admin/Layout/AdminLayout.jsx'
 import UserLayout from './Pages/Users/Layout/UserLayout.jsx'
 import ProtectedRoute from './Routes/ProtectedRoute.jsx'
@@ -158,11 +159,19 @@ function App() {
   const isUserRoute = path.startsWith('/users')
   const isCustomerDashboard = path === '/dashboard'
   const isAuthRoute = path === '/auth/login' || path === '/auth/sign-up' || path === '/login'
+  // Email-link pages work signed in or out, so they are not redirected like the sign-in page.
+  const isAccountLinkRoute = ['/auth/verify-email', '/auth/forgot-password', '/auth/reset-password'].includes(path)
 
   const shared = { user, navigate, logout, apiError, setApiError, toast, setToast }
   let content
 
-  if (isAuthRoute) {
+  if (isAccountLinkRoute) {
+    content = path === '/auth/verify-email'
+      ? <VerifyEmail navigate={navigate} />
+      : path === '/auth/forgot-password'
+        ? <ForgotPassword navigate={navigate} />
+        : <ResetPassword navigate={navigate} />
+  } else if (isAuthRoute) {
     content = user
       ? <Redirect navigate={navigate} to={admin ? '/admin/dashboard' : '/users/dashboard'} />
       : path === '/auth/sign-up'
@@ -235,7 +244,7 @@ function App() {
     content = <ProtectedRoute user={user} requiredRole={requiredRole} navigate={navigate}>{content}</ProtectedRoute>
   }
   const adminLayout = isAdminRoute && user?.role === 'admin'
-  if (isAuthRoute) return <main className="auth-shell">{content}</main>
+  if (isAuthRoute || isAccountLinkRoute) return <main className="auth-shell">{content}</main>
   const notifications = <>
     {toast && <div className="toast"><span className="toast-check"><Icon name="check" /></span>{toast}<button onClick={() => setToast('')} aria-label="Dismiss notification"><Icon name="close" /></button></div>}
     {apiError && <div className="global-error" role="alert"><Icon name="alert" /><span>{apiError}</span><button onClick={() => setApiError('')} aria-label="Dismiss error"><Icon name="close" /></button></div>}

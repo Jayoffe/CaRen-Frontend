@@ -620,7 +620,11 @@ function Prediction({ ai }) {
   return (
     <div className={`am-prediction${elevated ? ' is-elevated' : ''}`}>
       <h4>Machine learning prediction, within {ai.prediction.horizon_days} days</h4>
-      <p><Chip tone={elevated ? 'poor' : 'good'}>{elevated ? 'Elevated risk' : 'Not elevated'}</Chip></p>
+      <p>
+        <Chip tone={elevated ? 'poor' : 'good'}>{elevated ? 'Elevated risk' : 'Not elevated'}</Chip>
+        {ai.prediction.demonstration && <> <Chip tone="unknown">Demo model</Chip></>}
+      </p>
+      {ai.prediction.demonstration && <p className="am-demo-notice" role="note">{ai.prediction.notice}</p>}
       <p>{ai.prediction.explanation}</p>
       <small>On its evaluation data this model caught {Math.round(ai.prediction.evaluation.recall * ai.prediction.evaluation.faults)} of {ai.prediction.evaluation.faults} faults. It estimates risk and does not replace an inspection.</small>
     </div>
@@ -725,6 +729,10 @@ function PredictionNotice({ assessment, catalog }) {
   } else {
     const others = catalog.categories.filter((category) => !available.includes(category)).map((category) => category.name)
     text = `Machine learning prediction is shown for ${available.map((category) => category.name).join(', ')}.${others.length ? ` It is not currently available for ${others.join(', ')}, which rely on condition-based screening.` : ''}`
+    const demo = available.filter((category) => assessment.analysis.findings[category.key]?.prediction?.demonstration)
+    if (demo.length) {
+      text += ` ${demo.length === available.length ? 'These predictions come' : `The predictions for ${demo.map((category) => category.name).join(', ')} come`} from demonstration models trained on simulated SAMPLE- vehicles, not real fleet outcomes, so do not base maintenance decisions on them.`
+    }
   }
   return <p className="am-prediction-notice"><strong>Predictive information.</strong> {text}</p>
 }
