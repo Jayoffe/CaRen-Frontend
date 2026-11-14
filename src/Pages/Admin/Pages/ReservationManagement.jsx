@@ -7,10 +7,10 @@ function money(value) {
 }
 
 // Reservations are confirmed only by a verified payment, so the only status change left here is cancelling.
-const STATUS_LABELS = { pending: 'Pending payment', confirmed: 'Confirmed', cancelled: 'Cancelled', rejected: 'Rejected', completed: 'Completed' }
+const STATUS_LABELS = { pending: 'Pending payment', confirmed: 'Confirmed', cancelled: 'Cancelled', rejected: 'Rejected', completed: 'Completed', expired: 'Expired (not paid in time)' }
 const PAYMENT_LABELS = { paid: 'Paid', pending: 'Pending', failed: 'Failed', unpaid: 'Not paid', not_required: 'Not required' }
 const ACTIVE_STATUSES = ['pending', 'confirmed']
-const HISTORY_STATUSES = ['completed', 'cancelled', 'rejected']
+const HISTORY_STATUSES = ['completed', 'cancelled', 'rejected', 'expired']
 
 function localToday() {
   const now = new Date()
@@ -129,7 +129,7 @@ export default function ReservationManagement({ historyView = false, setToast })
                   <td>{money(reservation.total_amount)}</td>
                   <td>{PAYMENT_LABELS[reservation.payment_status] || reservation.payment_status}
                     {reservation.payment_reference && <small style={{ overflowWrap: 'anywhere' }}>{reservation.payment_reference}</small>}
-                    {reservation.payment_status === 'paid' && ['cancelled', 'rejected'].includes(reservation.status) && <small>Refund needed</small>}
+                    {reservation.payment_review_reason && <small className="status-warning">Needs review: {reservation.payment_review_reason}</small>}
                   </td>
                   <td><span className={`status-pill status-${reservation.status}`}><i />{STATUS_LABELS[reservation.status] || reservation.status}</span>
                     {reservation.checked_out_at && reservation.status === 'confirmed' && <small>Vehicle out</small>}

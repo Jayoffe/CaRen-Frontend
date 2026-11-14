@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getReservations } from '../../../Services/API/reservationAPI.js'
+import { getPaymentsNeedingReview, getReservations } from '../../../Services/API/reservationAPI.js'
 
 // Payments are verified by the gateway webhook and confirm their reservation automatically,
 // so this page is for monitoring only. There is nothing to approve here.
@@ -24,13 +24,16 @@ export default function PaymentManagement() {
   const [error, setError] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [review, setReview] = useState([])
 
   useEffect(() => {
     let active = true
-    getReservations()
-      .then((results) => {
-        // Each reservation keeps one payment record, its latest attempt.
-        if (active) setPayments(results.filter((item) => item.payment_id))
+    Promise.all([getReservations(), getPaymentsNeedingReview()])
+      .then(([results, flagged]) => {
+        if (!active) return
+        // One row per reservation, showing its latest payment attempt.
+        setPayments(results.filter((item) => item.payment_id))
+        setReview(flagged)
       })
       .catch((requestError) => {
         if (active) setError(requestError.message)
@@ -74,6 +77,14 @@ export default function PaymentManagement() {
           </label>
         </div>
         {error && <div className="global-error" role="alert">{error}</div>}
+        {review.length > 0 && <div className="review-queue" role="alert">
+          <h2>{review.length} payment{review.length === 1 ? '' : 's'} need{review.length === 1 ? 's' : ''} review</h2>
+          <p>Money was received for a reservation that can no longer use it. Contact the customer to refund or rebook.</p>
+          <ul>{review.map((item) => <li key={item.id}>
+            <b>{money(item.paid_amount ?? item.amount)}</b> from {item.full_name} for reservation #{item.reservation_id} ({item.reservation_status}), paid {formatDateTime(item.paid_at)}.
+            <small>{item.review_reason} Reference: {item.reference_number}</small>
+          </li>)}</ul>
+        </div>}
         {loading ? <div className="loading-state"><span className="spinner" />Loading payment records…</div>
           : visible.length ? (
             <div style={{ overflowX: 'auto' }}>
@@ -89,7 +100,7 @@ export default function PaymentManagement() {
                     <td>{payment.payment_method || '—'}</td>
                     <td>{formatDateTime(payment.payment_status === 'paid' ? payment.payment_paid_at : payment.payment_created_at)}<small>{payment.payment_status === 'paid' ? 'Paid' : 'Started'}</small></td>
                     <td><span className={`status-pill status-${PAYMENT_TONES[payment.payment_status] || 'pending'}`}><i />{PAYMENT_LABELS[payment.payment_status] || payment.payment_status}</span>
-                      {payment.payment_status === 'paid' && ['cancelled', 'rejected'].includes(payment.status) && <small>Reservation cancelled: refund needed</small>}
+                      {payment.payment_review_reason && <small className="status-warning">Needs review</small>}
                     </td>
                   </tr>
                 ))}</tbody>

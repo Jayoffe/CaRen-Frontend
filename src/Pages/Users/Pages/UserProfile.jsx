@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, authorizedFetch } from '../../../Services/API/api.js'
+import SignInMethods from '../Components/SignInMethods.jsx'
 import './UserProfile.css'
 
 const EMPTY_PROFILE = {
@@ -503,6 +504,7 @@ export default function UserProfile({ user, onProfileSaved }) {
           </form>
         </div>
       )}
+      {!loading && !loadError && <SignInMethods />}
     </div>
   )
 }
