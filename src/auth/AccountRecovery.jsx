@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { api } from '../api'
 
 /** Shared layout for the email-link pages, matching the sign-in page. */
@@ -20,33 +20,6 @@ function AuthCard({ navigate, eyebrow, title, intro, children }) {
 
 function tokenFromUrl() {
   return new URLSearchParams(window.location.search).get('token') || ''
-}
-
-/** /auth/verify-email?token=…: confirms the address as soon as the page opens. */
-export function VerifyEmail({ navigate }) {
-  const [state, setState] = useState({ status: 'working', message: '' })
-  const started = useRef(false)
-
-  useEffect(() => {
-    // React's development double-invoke must not spend the single-use token twice.
-    if (started.current) return
-    started.current = true
-    api.post('/api/email/verify', { token: tokenFromUrl() })
-      .then((response) => {
-        window.sessionStorage.setItem('authSuccess', response.message)
-        setState({ status: 'done', message: response.message })
-      })
-      .catch((error) => setState({ status: 'failed', message: error.message }))
-  }, [])
-
-  return <AuthCard navigate={navigate} eyebrow="EMAIL VERIFICATION" title="Verify your email">
-    {state.status === 'working' && <p role="status"><span className="button-spinner" /> Verifying your email address…</p>}
-    {state.status === 'done' && <>
-      <div className="auth-success" role="status">{state.message}</div>
-      <button type="button" className="button button-primary login-submit" onClick={() => navigate('/auth/login')}>Sign in</button>
-    </>}
-    {state.status === 'failed' && <div className="error-message" role="alert">{state.message}</div>}
-  </AuthCard>
 }
 
 /** /auth/forgot-password: asks for a reset link. The reply never says whether the address exists. */

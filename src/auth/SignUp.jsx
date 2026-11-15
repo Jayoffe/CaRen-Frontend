@@ -24,8 +24,7 @@ export default function SignUp({ navigate, onGoogleLogin }) {
         password: values.password,
       }))
       if (response?.success !== true) throw new Error('The API did not confirm account creation.')
-      // The account must be verified by email before it can sign in.
-      window.sessionStorage.setItem('authSuccess', response.message || 'Account created. Check your email for the verification link, then sign in.')
+      window.sessionStorage.setItem('authSuccess', response.message || 'Account created. You can now sign in.')
       navigate('/auth/login')
     } catch (requestError) {
       setError(requestError.message)

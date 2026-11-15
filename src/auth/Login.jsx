@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api'
 import GoogleSignInButton from './GoogleSignInButton.jsx'
 
 export default function Login({ onLogin, onGoogleLogin, navigate, onError, error }) {
@@ -9,8 +8,6 @@ export default function Login({ onLogin, onGoogleLogin, navigate, onError, error
   const [loading, setLoading] = useState(false)
   const [formError, setFormError] = useState('')
   const [success, setSuccess] = useState(() => window.sessionStorage.getItem('authSuccess') || '')
-  const [needsVerification, setNeedsVerification] = useState(false)
-  const [resending, setResending] = useState(false)
 
   useEffect(() => {
     if (success) window.sessionStorage.removeItem('authSuccess')
@@ -20,7 +17,6 @@ export default function Login({ onLogin, onGoogleLogin, navigate, onError, error
     event.preventDefault()
     setFormError('')
     setSuccess('')
-    setNeedsVerification(false)
     onError('')
     if (!email.trim() || !password) {
       setFormError('Email and password are required.')
@@ -31,23 +27,8 @@ export default function Login({ onLogin, onGoogleLogin, navigate, onError, error
       await onLogin({ email: email.trim(), password })
     } catch (requestError) {
       setFormError(requestError.message)
-      setNeedsVerification(requestError.code === 'email_not_verified')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const resendVerification = async () => {
-    setResending(true)
-    try {
-      const response = await api.post('/api/email/resend', { email: email.trim() })
-      setFormError('')
-      setNeedsVerification(false)
-      setSuccess(response.message)
-    } catch (requestError) {
-      setFormError(requestError.message)
-    } finally {
-      setResending(false)
     }
   }
 
@@ -76,9 +57,6 @@ export default function Login({ onLogin, onGoogleLogin, navigate, onError, error
       <div><span className="eyebrow">YOUR ACCOUNT</span><h2>Welcome back</h2><p>Enter your account details to continue.</p></div>
       {success && <div className="auth-success" role="status">{success}</div>}
       {(formError || error) && <div className="error-message" role="alert">{formError || error}</div>}
-      {needsVerification && <button type="button" className="button button-outline" onClick={resendVerification} disabled={resending || !email.includes('@')}>
-        {resending ? 'Sending…' : 'Send a new verification link'}
-      </button>}
       <GoogleSignInButton onCredential={googleCredential} onError={setFormError} />
       <div className="auth-divider"><span>or use email</span></div>
       <label className="form-field"><span>Email address or username</span><input type="text" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required /></label>
