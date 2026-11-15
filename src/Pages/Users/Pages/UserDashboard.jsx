@@ -28,7 +28,10 @@ function plural(count, word) {
 function describeTrip(trip, today) {
   if (!trip) return 'No trips planned yet. Pick a car and your dates, and your trip will show up here.'
   const name = vehicleName(trip)
-  if (trip.status === 'pending') return `Your ${name} reservation is waiting for payment. It is confirmed automatically once your payment is verified.`
+  if (trip.status === 'pending') return Number(trip.special_duration_request) === 1
+    ? `Your ${name} special rental is waiting for payment. It will be reviewed after payment is verified.`
+    : `Your ${name} reservation is waiting for payment. It is confirmed automatically once your payment is verified.`
+  if (trip.status === 'awaiting_approval') return `Payment for your ${name} is complete. Your special rental period is awaiting approval; pickup is ${formatDay(trip.start_date)} if approved.`
   if (trip.start_date <= today) return `You’re on the road. Your ${name} is due back ${formatDay(trip.end_date, { month: 'short', day: 'numeric' })}.`
   const days = Math.round((parseDay(trip.start_date) - parseDay(today)) / DAY_MS)
   if (days === 1) return `Pickup for your ${name} is tomorrow.`
@@ -56,7 +59,8 @@ function PickupLocation() {
 }
 
 function Status({ status }) {
-  return <span className={`status-pill status-${status}`}><i />{status === 'pending' ? 'Pending payment' : status}</span>
+  const label = { pending: 'Pending payment', awaiting_approval: 'Awaiting approval' }[status] || status
+  return <span className={`status-pill status-${status}`}><i />{label}</span>
 }
 
 function NextTripTicket({ trip, loading, failed, navigate }) {
@@ -135,20 +139,21 @@ export default function UserDashboard({ user, navigate }) {
   const now = new Date()
   const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
   const nextRental = reservations
-    .filter((item) => ['pending', 'confirmed'].includes(item.status) && item.end_date >= today)
+    .filter((item) => ['pending', 'awaiting_approval', 'confirmed'].includes(item.status) && item.end_date >= today)
     .sort((left, right) => left.start_date.localeCompare(right.start_date))[0]
   const recentReservations = reservations.slice(0, 4)
   const activeRentals = reservations.filter((item) => (
     item.status === 'confirmed' && item.start_date <= today && item.end_date > today
   )).length
   const pendingReservations = reservations.filter((item) => item.status === 'pending').length
+  const awaitingApproval = reservations.filter((item) => item.status === 'awaiting_approval').length
   const firstName = (user?.full_name || user?.username || 'Driver').trim().split(/\s+/)[0]
   const failed = Boolean(error)
 
   const stats = [
     { label: 'All reservations', value: reservations.length, href: '/users/reservations' },
     { label: 'On the road', value: activeRentals, href: '/users/rentals' },
-    { label: 'Awaiting payment', value: pendingReservations, href: '/users/reservations', attention: pendingReservations > 0 },
+    { label: 'Needs attention', value: pendingReservations + awaitingApproval, href: '/users/reservations', attention: pendingReservations + awaitingApproval > 0 },
   ]
 
   return (

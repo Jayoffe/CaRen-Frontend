@@ -87,15 +87,16 @@ function AgreementRows({ rows }) {
   )
 }
 
-export function AgreementDialog({ reservation, onClose }) {
-  const agreement = parseAgreement(reservation.contract_text)
+export function AgreementDialog({ reservation, contractText, onClose, onAccept, busy = false, error = '' }) {
+  const text = contractText ?? reservation?.contract_text ?? ''
+  const agreement = parseAgreement(text)
   return (
-    <Dialog className="rv-agreement" labelledBy="rv-agreement-title" onClose={onClose}>
+    <Dialog className="rv-agreement" labelledBy="rv-agreement-title" busy={busy} onClose={onClose}>
       <div className="rv-agreement-bar">
         <h2 id="rv-agreement-title">Rental agreement</h2>
         <div>
           <button type="button" className="rv-btn rv-btn-outline" onClick={() => window.print()}>Print</button>
-          <button type="button" className="rv-btn rv-btn-primary" data-autofocus onClick={onClose}>Close</button>
+          {!onAccept && <button type="button" className="rv-btn rv-btn-primary" data-autofocus onClick={onClose}>Close</button>}
         </div>
       </div>
       <div className="rv-agreement-scroll">
@@ -115,9 +116,23 @@ export function AgreementDialog({ reservation, onClose }) {
             )))}
           </article>
         ) : (
-          <pre className="rv-doc-plain">{reservation.contract_text}</pre>
+          <pre className="rv-doc-plain">{text}</pre>
         )}
       </div>
+      {onAccept && (
+        <div className="rv-agreement-actions">
+          <div>
+            <p>Review the rental details and terms above. Accepting records your agreement and continues to payment.</p>
+            {error && <p className="rv-field-error" role="alert">{error}</p>}
+          </div>
+          <div>
+            <button type="button" className="rv-btn rv-btn-outline" disabled={busy} data-autofocus onClick={onClose}>Back</button>
+            <button type="button" className="rv-btn rv-btn-primary" disabled={busy} onClick={onAccept}>
+              {busy ? 'Submitting…' : 'Accept & continue to payment'}
+            </button>
+          </div>
+        </div>
+      )}
     </Dialog>
   )
 }

@@ -643,6 +643,11 @@
   background: #fbf1da;
 }
 
+.vda-bookings .is-awaiting_approval {
+  color: #705b24;
+  background: #f7f0dc;
+}
+
 .vda-bookings .is-confirmed {
   color: var(--vda-green);
   background: #e6f1e8;

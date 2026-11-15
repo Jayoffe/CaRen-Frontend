@@ -10,7 +10,7 @@ const SKELETON_CARDS = [1, 2]
 const VIEW_COPY = {
   all: {
     title: 'My reservations',
-    lede: 'Your current bookings. A reservation is confirmed automatically as soon as your payment is verified.',
+    lede: 'Check each reservation’s payment and approval status, pickup date, and next step.',
     emptyTitle: 'No current reservations',
     emptyBody: 'Choose a vehicle and dates to make a reservation. Past bookings are in Reservation history.',
     emptyAction: 'Find a vehicle',
@@ -31,7 +31,7 @@ const VIEW_COPY = {
   },
 }
 
-const STATUS_LABELS = { pending: 'Pending payment', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled', rejected: 'Rejected' }
+const STATUS_LABELS = { pending: 'Pending payment', awaiting_approval: 'Awaiting approval', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled', rejected: 'Rejected' }
 const PAYMENT_LABELS = { unpaid: 'Not paid', pending: 'Pending verification', paid: 'Paid', failed: 'Failed', not_required: 'Not required' }
 const HISTORY_STATUSES = ['completed', 'cancelled', 'rejected']
 const POLL_ATTEMPTS = 10
@@ -83,18 +83,26 @@ function nextStep(reservation) {
   }
   switch (reservation.status) {
     case 'pending':
-      if (reservation.payment_status === 'failed') return { tone: 'attention', text: 'The last payment attempt did not go through. Retry the payment to confirm this reservation.' }
-      if (reservation.payment_status === 'pending') return { text: `${special ? 'Special duration request. ' : ''}Waiting for the payment provider to verify your payment. Your reservation is confirmed automatically once it does.` }
-      return { tone: 'attention', text: `${special ? 'Special duration request. ' : ''}Pay to confirm this reservation. It is confirmed automatically once the payment is verified.` }
+      if (reservation.payment_status === 'failed') return { tone: 'attention', text: special
+        ? 'The last payment attempt did not go through. Retry payment to submit this special rental for approval.'
+        : 'The last payment attempt did not go through. Retry payment to confirm this reservation.' }
+      if (reservation.payment_status === 'pending') return { text: `Waiting for the payment provider to verify your payment.${special ? ' This special rental will then be reviewed by an administrator.' : ' Your reservation will be confirmed automatically.'}` }
+      return { tone: 'attention', text: `Pay to continue.${special ? ' Your special rental request will be reviewed after payment.' : ' Your reservation will be confirmed automatically when payment is verified.'}` }
+    case 'awaiting_approval':
+      return { text: `Payment received. This special rental is waiting for administrator approval. Pickup is ${formatDate(reservation.start_date)} if approved.` }
     case 'confirmed':
       if (Number(reservation.payment_required) === 1 && reservation.payment_status !== 'paid') return { tone: 'attention', text: 'Payment is still needed before vehicle handover.' }
-      return { tone: 'good', text: 'Confirmed and paid. Bring a valid driver license at pickup.' }
+      return { tone: 'good', text: `Confirmed and paid. Pick up on ${formatDate(reservation.start_date)} and bring a valid driver license.` }
     case 'completed':
       return { text: 'Rental completed.' }
     case 'cancelled':
-      return { text: 'This reservation was cancelled.' }
+      return { text: reservation.payment_status === 'paid'
+        ? 'This reservation was cancelled after payment. Contact DriveRent to arrange a refund.'
+        : 'This reservation was cancelled.' }
     case 'rejected':
-      return { text: 'This request was not approved. You can choose other dates or another vehicle.' }
+      return { text: reservation.payment_status === 'paid'
+        ? 'This special rental request was not approved. Contact DriveRent to arrange a refund.'
+        : 'This request was not approved. You can choose other dates or another vehicle.' }
     default:
       return null
   }
@@ -168,18 +176,33 @@ function PaymentResult({ result, reservation, checking, onRefresh, onRetry, onDi
   }
 
   const paid = reservation.payment_status === 'paid'
+  const special = Number(reservation.special_duration_request) === 1
+  const awaitingApproval = reservation.status === 'awaiting_approval'
+  const inactivePaid = paid && ['cancelled', 'rejected'].includes(reservation.status)
   const failed = !paid && (result === 'cancelled' || reservation.payment_status === 'failed')
   const state = paid ? 'paid' : failed ? 'failed' : 'pending'
   const heading = {
-    paid: 'Payment successful. Your reservation is confirmed.',
+    paid: awaitingApproval
+      ? 'Payment received. Approval is still pending.'
+      : inactivePaid
+        ? 'Payment received, but this reservation is no longer active.'
+        : 'Payment successful. Your reservation is confirmed.',
     pending: 'We are verifying your payment',
     failed: 'Payment was not completed',
   }[state]
   const body = {
-    paid: 'The payment provider verified your payment and the reservation was confirmed automatically. No further approval is needed.',
+    paid: awaitingApproval
+      ? 'The payment provider verified your payment. An administrator must approve this special rental period before it is confirmed. Your pickup date is listed below.'
+      : inactivePaid
+        ? 'Payment was verified after the reservation was no longer active. Contact DriveRent to arrange a refund.'
+        : 'The payment provider verified your payment and the reservation was confirmed automatically. Your pickup date is listed below.',
     pending: checking
-      ? 'Waiting for confirmation from the payment provider. This page updates automatically.'
-      : 'Confirmation has not arrived yet. Your reservation is not confirmed until the payment is verified. Check again in a moment.',
+      ? special
+        ? 'Waiting for payment verification. This special rental will be sent for administrator approval once payment is confirmed.'
+        : 'Waiting for confirmation from the payment provider. This page updates automatically.'
+      : special
+        ? 'Payment confirmation has not arrived yet. Once verified, this special rental will wait for administrator approval.'
+        : 'Confirmation has not arrived yet. Your reservation is not confirmed until the payment is verified. Check again in a moment.',
     failed: 'No payment was taken for this attempt and the reservation is not confirmed. You can try again.',
   }[state]
 
@@ -358,7 +381,7 @@ export default function MyReservations({ navigate, view = 'all' }) {
         onRetry={resultReservation && canPay(resultReservation, today) ? () => openDialog(setPayFor)(resultReservation) : null}
         onDismiss={dismissResult}
       />}
-      {paymentResult && !resultId && <div className="rv-banner" role="status">Your payment status is shown on each reservation below. A reservation is confirmed once its payment is verified.</div>}
+      {paymentResult && !resultId && <div className="rv-banner" role="status">Your latest payment and approval status are shown on each reservation below.</div>}
       {notice && <div className="rv-banner rv-banner-good" role="status">{notice}</div>}
       {error && !loadFailed && <div className="rv-banner rv-banner-bad" role="alert">{error}</div>}
 

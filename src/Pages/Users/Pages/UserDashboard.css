@@ -215,6 +215,11 @@
   font-weight: 600;
 }
 
+.dash .status-pill.status-awaiting_approval {
+  color: #705b24;
+  background: #f7f0dc;
+}
+
 /* Stat strip: one surface split by hairlines */
 .dash-stats {
   display: grid;

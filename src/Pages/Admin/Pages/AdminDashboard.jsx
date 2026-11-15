@@ -77,8 +77,16 @@ function attentionItems(reservations, today) {
       action: 'Review',
       href: '/admin/reservations?status=confirmed',
     },
-    // Payments are verified by the gateway and confirm reservations automatically, so nothing
-    // here asks the administrator to approve. Unpaid bookings close to pickup are shown for follow-up.
+    {
+      key: 'special-approval',
+      level: 'warning',
+      count: reservations.filter((item) => reservationStatus(item) === 'awaiting_approval').length,
+      label: (n) => `${plural(n, 'paid special rental')} awaiting approval`,
+      action: 'Review',
+      href: '/admin/reservations?status=awaiting_approval',
+    },
+    // Standard reservations are confirmed by the payment gateway; unpaid bookings close to pickup
+    // are shown here for follow-up.
     {
       key: 'awaiting-payment',
       level: 'warning',
@@ -213,11 +221,12 @@ export default function AdminDashboard({ navigate }) {
     setAttempt((value) => value + 1)
   }
 
-  const counted = reservations.filter((item) => ['pending', 'confirmed', 'completed'].includes(reservationStatus(item)))
+  const counted = reservations.filter((item) => ['pending', 'awaiting_approval', 'confirmed', 'completed'].includes(reservationStatus(item)))
   const bookingValue = counted.reduce((sum, item) => sum + Number(item.total_amount || 0), 0)
   const paidValue = counted.reduce((sum, item) => sum + (item.payment_status === 'paid' ? Number(item.total_amount || 0) : 0), 0)
   const onTheRoad = reservations.filter((item) => reservationStatus(item) === 'confirmed' && item.checked_out_at && !item.returned_at).length
   const pendingCount = reservations.filter((item) => reservationStatus(item) === 'pending').length
+  const awaitingApprovalCount = reservations.filter((item) => reservationStatus(item) === 'awaiting_approval').length
   const confirmedCount = reservations.filter((item) => reservationStatus(item) === 'confirmed').length
 
   const attention = attentionItems(reservations, today)
@@ -260,8 +269,8 @@ export default function AdminDashboard({ navigate }) {
             </div>
             <div className="ad-card ad-tile">
               <dt>Open bookings</dt>
-              <dd className="ad-value">{pendingCount + confirmedCount}</dd>
-              <dd className="ad-detail">{pendingCount} pending · {confirmedCount} confirmed</dd>
+              <dd className="ad-value">{pendingCount + awaitingApprovalCount + confirmedCount}</dd>
+              <dd className="ad-detail">{pendingCount} payment · {awaitingApprovalCount} approval · {confirmedCount} confirmed</dd>
             </div>
             <div className="ad-card ad-tile">
               <dt>Booking value</dt>

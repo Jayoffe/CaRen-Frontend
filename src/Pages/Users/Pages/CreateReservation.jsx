@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, imageUrl } from '../../../Services/API/api.js'
-import { createReservation } from '../../../Services/API/reservationAPI.js'
+import { createReservation, previewReservationAgreement } from '../../../Services/API/reservationAPI.js'
+import { AgreementDialog } from '../Components/ReservationDialogs.jsx'
 import './CreateReservation.css'
 
 const DAY_MS = 86400000
@@ -87,7 +88,10 @@ export default function CreateReservation({ navigate, carId, setToast }) {
   const [startDate, setStartDate] = useState(requested.start)
   const [endDate, setEndDate] = useState(requested.end)
   const [specialRequest, setSpecialRequest] = useState(requested.days > STANDARD_MAX_DAYS)
-  const [acceptContract, setAcceptContract] = useState(false)
+  const [agreementText, setAgreementText] = useState('')
+  const [agreementFingerprint, setAgreementFingerprint] = useState('')
+  const [agreementOpen, setAgreementOpen] = useState(false)
+  const [agreementError, setAgreementError] = useState('')
   const [availability, setAvailability] = useState(null)
   const [checkingAvailability, setCheckingAvailability] = useState(Boolean(requested.start))
   const [photoFailed, setPhotoFailed] = useState(false)
@@ -128,7 +132,6 @@ export default function CreateReservation({ navigate, carId, setToast }) {
   else if (checkingAvailability) blockedReason = 'Checking these dates…'
   else if (availability === false) blockedReason = 'Choose different dates to continue.'
   else if (availability !== true) blockedReason = 'We couldn’t confirm availability for these dates.'
-  else if (!acceptContract) blockedReason = 'Accept the rental agreement to continue.'
 
   useEffect(() => {
     let active = true
@@ -219,19 +222,45 @@ export default function CreateReservation({ navigate, carId, setToast }) {
     }
     setSubmitting(true)
     try {
+      const response = await previewReservationAgreement({
+        car_id: Number(carId),
+        start_date: startDate,
+        end_date: endDate,
+        special_request: specialRequest,
+        ...(selectedVariantId ? { variant_id: selectedVariantId } : {}),
+      })
+      if (!response?.data?.contract_text || !response?.data?.agreement_fingerprint) {
+        throw new Error('The rental agreement could not be loaded. Please try again.')
+      }
+      setAgreementText(response.data.contract_text)
+      setAgreementFingerprint(response.data.agreement_fingerprint)
+      setAgreementError('')
+      setAgreementOpen(true)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function acceptAgreement() {
+    setSubmitting(true)
+    setAgreementError('')
+    try {
       const response = await createReservation({
         car_id: Number(carId),
         start_date: startDate,
         end_date: endDate,
         special_request: specialRequest,
-        accept_contract: acceptContract,
+        accept_contract: true,
+        agreement_fingerprint: agreementFingerprint,
         ...(selectedVariantId ? { variant_id: selectedVariantId } : {}),
       })
+      setAgreementOpen(false)
       setToast?.(response?.message || 'Reservation created. Complete payment to confirm it.')
-      // Straight to payment: the reservation is confirmed once the payment is verified.
       navigate(response?.data?.id ? `/users/reservations?pay=${response.data.id}` : '/users/reservations')
     } catch (requestError) {
-      setError(requestError.message)
+      setAgreementError(requestError.message)
     } finally {
       setSubmitting(false)
     }
@@ -344,22 +373,12 @@ export default function CreateReservation({ navigate, carId, setToast }) {
             </label>
           </section>
 
-          <section className="rsv-section">
-            <SectionHead step="2" done={acceptContract} title="Rental agreement" />
-            <p className="rsv-terms">This reservation records the vehicle, dates, rental total, and any security deposit. It is confirmed automatically once your payment is verified by the payment provider. Extensions require approval and an updated agreement.</p>
-            <label className="rsv-check rsv-accept">
-              <input type="checkbox" checked={acceptContract} onChange={(event) => setAcceptContract(event.target.checked)} />
-              <span>I accept the rental dates, listed charges, and agreement terms.</span>
-            </label>
-          </section>
-
           <section className="rsv-next">
-            <h3>What happens next</h3>
-            <ol>
-              <li>You pay online right after submitting.</li>
-              <li>The payment provider verifies your payment.</li>
-              <li>Your reservation is confirmed automatically.</li>
-            </ol>
+            <h3>After you request</h3>
+            <p>Read and accept the agreement, then complete online payment.</p>
+            <p>{specialRequest
+              ? 'Special rental periods are reviewed by an administrator after payment. Your reservation is confirmed after approval.'
+              : 'Standard rentals are confirmed automatically when payment is verified.'}</p>
           </section>
         </form>
 
@@ -404,7 +423,7 @@ export default function CreateReservation({ navigate, carId, setToast }) {
 
             <div className="rsv-actions">
               <button className="rsv-submit" type="submit" form="reservation-form" disabled={submitting || Boolean(blockedReason)}>
-                {submitting ? 'Submitting…' : 'Request reservation'}
+                {submitting ? 'Preparing agreement…' : 'Request reservation'}
               </button>
               {blockedReason && <p className="rsv-hint">{blockedReason}</p>}
               <button className="rsv-cancel" type="button" onClick={backToVehicle}>Cancel</button>
@@ -412,6 +431,17 @@ export default function CreateReservation({ navigate, carId, setToast }) {
           </div>
         </aside>
       </div>
+      {agreementOpen && <AgreementDialog
+        contractText={agreementText}
+        onAccept={acceptAgreement}
+        onClose={() => {
+          if (submitting) return
+          setAgreementOpen(false)
+          setAgreementError('')
+        }}
+        busy={submitting}
+        error={agreementError}
+      />}
     </div>
   )
 }

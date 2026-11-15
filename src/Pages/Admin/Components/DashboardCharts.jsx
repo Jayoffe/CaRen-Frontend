@@ -18,7 +18,7 @@ const COLORS = {
 const DAY_MS = 86400000
 const WEEKS = 8
 const FORECAST_DAYS = 14
-const COUNTED = ['pending', 'confirmed', 'completed']
+const COUNTED = ['pending', 'awaiting_approval', 'confirmed', 'completed']
 
 const dateOnly = (value) => String(value || '').slice(0, 10)
 const addDays = (day, count) => new Date(Date.parse(`${day}T00:00:00Z`) + count * DAY_MS).toISOString().slice(0, 10)

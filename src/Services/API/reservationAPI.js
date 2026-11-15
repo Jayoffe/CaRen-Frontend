@@ -14,8 +14,16 @@ export async function createReservation(payload) {
   return api.post('/api/reservations', payload)
 }
 
+export async function previewReservationAgreement(payload) {
+  return api.post('/api/reservations/agreement-preview', payload)
+}
+
 export async function updateReservationStatus(id, status) {
   return api.patch(`/api/reservations/${id}`, { status })
+}
+
+export async function sendAgreementEmail(id) {
+  return api.post(`/api/reservations/${id}/agreement-email`, {})
 }
 
 export async function createPaymentCheckout(id) {
