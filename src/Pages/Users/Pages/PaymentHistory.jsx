@@ -6,6 +6,14 @@ import './PaymentHistory.css'
 
 // The server returns only the signed-in customer's reservations, so only their payments appear here.
 const PAYMENT_LABELS = { paid: 'Paid', pending: 'Pending verification', failed: 'Failed' }
+const RESERVATION_LABELS = {
+  pending: 'Awaiting payment',
+  awaiting_approval: 'Special rental awaiting approval',
+  confirmed: 'Reservation confirmed',
+  completed: 'Rental completed',
+  cancelled: 'Reservation cancelled',
+  rejected: 'Reservation rejected',
+}
 const FILTERS = [
   ['all', 'All payments'],
   ['paid', 'Paid'],
@@ -87,7 +95,7 @@ function CopyReference({ value }) {
   )
 }
 
-function PaymentCard({ item, onView }) {
+function PaymentCard({ item }) {
   const status = item.payment_status
   const photo = item.primary_image ? imageUrl(item.primary_image) : ''
   const [photoFailed, setPhotoFailed] = useState(false)
@@ -114,7 +122,7 @@ function PaymentCard({ item, onView }) {
       <div className="pay-card-amount">
         <span className={`pay-status pay-status--${status}`}><i />{PAYMENT_LABELS[status] || status}</span>
         <strong>{money(paymentAmount(item))}</strong>
-        {onView && <button type="button" onClick={onView}>View reservation <Icon name="arrow" size={14} /></button>}
+        <small className="pay-reservation-status">{RESERVATION_LABELS[item.status] || item.status}</small>
       </div>
     </article>
   )
@@ -125,23 +133,57 @@ export default function PaymentHistory({ navigate }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState('all')
+  const [paymentNotice, setPaymentNotice] = useState('')
 
   useEffect(() => {
     let active = true
-    getReservations()
-      .then((results) => {
+    let timer
+    let attempts = 0
+    const params = new URLSearchParams(window.location.search)
+    const paymentResult = params.get('payment')
+    const reservationId = Number(params.get('reservation'))
+
+    async function refresh() {
+      try {
+        const results = await getReservations()
         if (!active) return
         const withPayments = results.filter((item) => item.payment_id)
         withPayments.sort((a, b) => (parseDate(paymentDate(b))?.getTime() || 0) - (parseDate(paymentDate(a))?.getTime() || 0))
         setPayments(withPayments)
-      })
-      .catch((requestError) => {
+        attempts += 1
+
+        if (paymentResult === 'cancelled') {
+          setPaymentNotice('Checkout was cancelled. No payment was completed.')
+        } else if (paymentResult === 'success') {
+          const reservation = results.find((item) => Number(item.id) === reservationId)
+          if (reservation?.payment_status === 'paid') {
+            setPaymentNotice(reservation.status === 'awaiting_approval'
+              ? `Payment verified. Your special rental is awaiting approval. Pickup is ${formatShortDate(reservation.start_date)}.`
+              : `Payment verified. Your reservation is confirmed. Pickup is ${formatShortDate(reservation.start_date)}.`)
+          } else if (reservation?.payment_status === 'failed') {
+            setPaymentNotice('The payment provider reported that this payment failed. You can retry from the Next trip panel on your dashboard.')
+          } else if (attempts < 8) {
+            setPaymentNotice('Payment submitted. Waiting for the provider to verify it…')
+            timer = window.setTimeout(refresh, 3000)
+          } else {
+            setPaymentNotice('Payment submitted, but verification is still pending. Refresh this page later to check the latest status.')
+          }
+        }
+      } catch (requestError) {
         if (active) setError(requestError.message)
-      })
-      .finally(() => {
+      } finally {
         if (active) setLoading(false)
-      })
-    return () => { active = false }
+      }
+    }
+
+    if (paymentResult || params.has('reservation')) {
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+    refresh()
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+    }
   }, [])
 
   const summary = useMemo(() => {
@@ -163,9 +205,11 @@ export default function PaymentHistory({ navigate }) {
         <div>
           <span className="pay-eyebrow">YOUR ACCOUNT</span>
           <h1>Payment history</h1>
-          <p>Payments are verified by the payment provider. A reservation is confirmed automatically once its payment shows as Paid.</p>
+          <p>Payments are verified by the provider. Standard reservations confirm automatically; special rental periods need administrator approval.</p>
         </div>
       </header>
+
+      {paymentNotice && <div className="pay-return" role="status">{paymentNotice}</div>}
 
       <section className="pay-stats" aria-label="Payment summary">
         <article className="pay-stat pay-stat--feature">
@@ -214,7 +258,7 @@ export default function PaymentHistory({ navigate }) {
           </div>
         ) : visible.length ? (
           <div className="pay-list">
-            {visible.map((item) => <PaymentCard key={item.payment_id} item={item} onView={navigate ? () => navigate('/users/reservations') : null} />)}
+            {visible.map((item) => <PaymentCard key={item.payment_id} item={item} />)}
           </div>
         ) : !error && (
           <div className="pay-empty" role="status">
@@ -228,7 +272,7 @@ export default function PaymentHistory({ navigate }) {
 
       <aside className="pay-note">
         <span className="pay-note-icon"><Icon name="shield" size={20} /></span>
-        <p><b>How payments are verified</b>Your reservation is confirmed automatically once its payment shows as Paid. If a payment stays pending, keep your transaction reference handy — you can copy it from the list above.</p>
+        <p><b>How payments are verified</b>Standard reservations are confirmed when payment is verified. Special rental periods are sent for administrator approval. If a payment stays pending, keep your transaction reference handy — you can copy it from the list above.</p>
       </aside>
     </div>
   )

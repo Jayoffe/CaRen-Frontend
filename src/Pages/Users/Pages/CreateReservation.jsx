@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, imageUrl } from '../../../Services/API/api.js'
-import { createReservation, previewReservationAgreement } from '../../../Services/API/reservationAPI.js'
-import { AgreementDialog } from '../Components/ReservationDialogs.jsx'
+import { createPaymentCheckout, createReservation, previewReservationAgreement } from '../../../Services/API/reservationAPI.js'
+import { AgreementDialog, PaymentDialog } from '../Components/ReservationDialogs.jsx'
 import './CreateReservation.css'
 
 const DAY_MS = 86400000
@@ -92,6 +92,7 @@ export default function CreateReservation({ navigate, carId, setToast }) {
   const [agreementFingerprint, setAgreementFingerprint] = useState('')
   const [agreementOpen, setAgreementOpen] = useState(false)
   const [agreementError, setAgreementError] = useState('')
+  const [payFor, setPayFor] = useState(null)
   const [availability, setAvailability] = useState(null)
   const [checkingAvailability, setCheckingAvailability] = useState(Boolean(requested.start))
   const [photoFailed, setPhotoFailed] = useState(false)
@@ -256,14 +257,22 @@ export default function CreateReservation({ navigate, carId, setToast }) {
         agreement_fingerprint: agreementFingerprint,
         ...(selectedVariantId ? { variant_id: selectedVariantId } : {}),
       })
+      if (!response?.data?.id) throw new Error('The reservation was created, but its payment details were not returned.')
       setAgreementOpen(false)
       setToast?.(response?.message || 'Reservation created. Complete payment to confirm it.')
-      navigate(response?.data?.id ? `/users/reservations?pay=${response.data.id}` : '/users/reservations')
+      setPayFor(response.data)
     } catch (requestError) {
       setAgreementError(requestError.message)
     } finally {
       setSubmitting(false)
     }
+  }
+
+  async function startPayment() {
+    const response = await createPaymentCheckout(payFor.id)
+    const checkoutUrl = response?.data?.checkout_url
+    if (!checkoutUrl) throw new Error('The payment checkout link was not returned.')
+    window.location.assign(checkoutUrl)
   }
 
   if (loading) return <LoadingView />
@@ -441,6 +450,15 @@ export default function CreateReservation({ navigate, carId, setToast }) {
         }}
         busy={submitting}
         error={agreementError}
+      />}
+      {payFor && <PaymentDialog
+        reservation={payFor}
+        amount={money(payFor.total_amount)}
+        onCheckout={startPayment}
+        onClose={() => {
+          setPayFor(null)
+          navigate('/users/dashboard')
+        }}
       />}
     </div>
   )

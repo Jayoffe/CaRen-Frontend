@@ -12,7 +12,6 @@ import UserDashboardPage from './Pages/Users/Pages/UserDashboard.jsx'
 import VehicleListingPage from './Pages/Users/Pages/VehicleListing.jsx'
 import VehicleDetailsPage from './Pages/Users/Pages/VehicleDetails.jsx'
 import CreateReservationPage from './Pages/Users/Pages/CreateReservation.jsx'
-import MyReservationsPage from './Pages/Users/Pages/MyReservations.jsx'
 import AdminDashboardPage from './Pages/Admin/Pages/AdminDashboard.jsx'
 import VehicleManagementPage from './Pages/Admin/Pages/VehicleManagement.jsx'
 import VehicleDetailAdminPage from './Pages/Admin/Pages/VehicleDetailAdmin.jsx'
@@ -178,12 +177,6 @@ function App() {
     content = <VehicleListingPage {...shared} navigate={navigate} />
   } else if (/^\/users\/vehicles\/\d+$/.test(path)) {
     content = <VehicleDetailsPage {...shared} navigate={navigate} carId={path.split('/')[3]} />
-  } else if (path === '/users/reservations') {
-    content = <MyReservationsPage {...shared} navigate={navigate} />
-  } else if (path === '/users/rentals') {
-    content = <MyReservationsPage {...shared} navigate={navigate} view="active" />
-  } else if (path === '/users/reservations/history') {
-    content = <MyReservationsPage {...shared} navigate={navigate} view="history" />
   } else if (path === '/users/profile') {
     content = <UserProfilePage user={user} onProfileSaved={setUser} />
   } else if (path === '/users/payments') {
@@ -326,7 +319,7 @@ function Navbar({ user, adminLayout, customerLayout = false, path, navigate, log
     <header className={`topbar ${adminLayout ? 'topbar-admin' : ''}`}>
       {!adminLayout && <Logo onClick={() => navigate('/')} />}
       {adminLayout || customerLayout
-        ? <div className="admin-breadcrumb"><span>{adminLayout ? 'Workspace' : 'Your Drive'}</span><b>/</b><strong>{customerLayout ? (path.endsWith('/reservations/create') ? 'New reservation' : path.includes('/recommendations') ? 'Vehicle finder' : path.includes('/vehicles') ? 'Browse vehicles' : path.endsWith('/rentals') ? 'Active rentals' : path.endsWith('/history') ? 'Reservation history' : path.includes('/reservations') ? 'My reservations' : path.includes('payments') ? 'Payment history' : path.includes('profile') ? 'Profile' : 'Dashboard') : path.includes('/maintenance/predictions') ? 'Predictive maintenance' : path.includes('/maintenance/model-management') ? 'Model management' : path.includes('/maintenance/records') ? 'Vehicle maintenance records' : path === '/admin/maintenance' ? 'Fleet operations' : path.includes('/intelligence/demand') ? 'Demand intelligence' : path.includes('/intelligence/risk') ? 'Risk analysis' : path.includes('payments') ? 'Payment history' : path.endsWith('/reservations/history') ? 'Reservation history' : path.includes('reservations') ? 'Reservation management' : path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>
+        ? <div className="admin-breadcrumb"><span>{adminLayout ? 'Workspace' : 'Your Drive'}</span><b>/</b><strong>{customerLayout ? (path.endsWith('/reservations/create') ? 'New reservation' : path.includes('/recommendations') ? 'Vehicle finder' : path.includes('/vehicles') ? 'Browse vehicles' : path.includes('payments') ? 'Payment history' : path.includes('profile') ? 'Profile' : 'Dashboard') : path.includes('/maintenance/predictions') ? 'Predictive maintenance' : path.includes('/maintenance/model-management') ? 'Model management' : path.includes('/maintenance/records') ? 'Vehicle maintenance records' : path === '/admin/maintenance' ? 'Fleet operations' : path.includes('/intelligence/demand') ? 'Demand intelligence' : path.includes('/intelligence/risk') ? 'Risk analysis' : path.includes('payments') ? 'Payment history' : path.endsWith('/reservations/history') ? 'Reservation history' : path.includes('reservations') ? 'Reservation management' : path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>
         : <nav className={menuOpen ? 'public-nav open' : 'public-nav'}>{customerLinks.map(([href, label]) => <button key={href} className={path === href ? 'nav-link active' : 'nav-link'} onClick={() => { navigate(href); setMenuOpen(false) }}>{label}</button>)}</nav>}
       <div className="topbar-right">
         <span className="connection-dot" title="Backend API" />
@@ -433,13 +426,6 @@ function CustomerSidebar({ user, path, navigate, logout, open, onNavigate }) {
       items: [
         ['/users/dashboard', 'dashboard', 'Dashboard'],
         ['/users/vehicles', 'car', 'Browse Vehicles'],
-      ],
-    },
-    {
-      title: 'RENTAL ACTIVITY',
-      items: [
-        ['/users/rentals', 'key', 'Active Rentals'],
-        ['/users/reservations/history', 'history', 'Reservation History'],
       ],
     },
     {

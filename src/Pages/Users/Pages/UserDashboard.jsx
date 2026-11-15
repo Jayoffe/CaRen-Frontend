@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../../Services/API/api.js'
+import { createPaymentCheckout } from '../../../Services/API/reservationAPI.js'
+import { PaymentDialog } from '../Components/ReservationDialogs.jsx'
 import './UserDashboard.css'
 
 const DAY_MS = 86400000
@@ -23,6 +25,10 @@ function vehicleName(reservation) {
 
 function plural(count, word) {
   return `${count} ${word}${Number(count) === 1 ? '' : 's'}`
+}
+
+function money(value) {
+  return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value || 0))
 }
 
 function describeTrip(trip, today) {
@@ -63,7 +69,7 @@ function Status({ status }) {
   return <span className={`status-pill status-${status}`}><i />{label}</span>
 }
 
-function NextTripTicket({ trip, loading, failed, navigate }) {
+function NextTripTicket({ trip, loading, failed, onPay }) {
   if (loading) {
     return (
       <div className="dash-ticket" aria-hidden="true">
@@ -100,7 +106,7 @@ function NextTripTicket({ trip, loading, failed, navigate }) {
       </div>
       <footer>
         <span>{trip.rental_days ? `${plural(trip.rental_days, 'day')} · ` : ''}#{trip.id}</span>
-        <button type="button" onClick={() => navigate('/users/reservations')}>Manage <ArrowIcon /></button>
+        {trip.status === 'pending' && <button type="button" onClick={() => onPay(trip)}>Complete payment <ArrowIcon /></button>}
       </footer>
     </article>
   )
@@ -111,6 +117,7 @@ export default function UserDashboard({ user, navigate }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
+  const [payFor, setPayFor] = useState(null)
 
   useEffect(() => {
     let active = true
@@ -136,6 +143,13 @@ export default function UserDashboard({ user, navigate }) {
     setAttempt((value) => value + 1)
   }
 
+  async function startPayment() {
+    const response = await createPaymentCheckout(payFor.id)
+    const checkoutUrl = response?.data?.checkout_url
+    if (!checkoutUrl) throw new Error('The payment checkout link was not returned.')
+    window.location.assign(checkoutUrl)
+  }
+
   const now = new Date()
   const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
   const nextRental = reservations
@@ -151,9 +165,9 @@ export default function UserDashboard({ user, navigate }) {
   const failed = Boolean(error)
 
   const stats = [
-    { label: 'All reservations', value: reservations.length, href: '/users/reservations' },
-    { label: 'On the road', value: activeRentals, href: '/users/rentals' },
-    { label: 'Needs attention', value: pendingReservations + awaitingApproval, href: '/users/reservations', attention: pendingReservations + awaitingApproval > 0 },
+    { label: 'Reservations', value: reservations.length },
+    { label: 'On the road', value: activeRentals },
+    { label: 'Needs attention', value: pendingReservations + awaitingApproval, attention: pendingReservations + awaitingApproval > 0 },
   ]
 
   return (
@@ -165,7 +179,7 @@ export default function UserDashboard({ user, navigate }) {
           <p>{loading ? 'Checking your trips…' : failed ? 'Your trip details are unavailable right now.' : describeTrip(nextRental, today)}</p>
           <button className="dash-hero-action" type="button" onClick={() => navigate('/users/vehicles')}>Browse vehicles <ArrowIcon /></button>
         </div>
-        <NextTripTicket trip={nextRental} loading={loading} failed={failed} navigate={navigate} />
+        <NextTripTicket trip={nextRental} loading={loading} failed={failed} onPay={setPayFor} />
       </section>
 
       {error && (
@@ -179,13 +193,12 @@ export default function UserDashboard({ user, navigate }) {
         {stats.map((stat) => {
           const empty = !loading && !failed && stat.value === 0
           return (
-            <button className="dash-stat" type="button" key={stat.label} onClick={() => navigate(stat.href)}>
+            <article className="dash-stat" key={stat.label}>
               {loading
                 ? <span className="dash-skeleton dash-skeleton-num" />
                 : <b className={`${empty ? 'is-zero' : ''}${stat.attention ? ' is-attention' : ''}`}>{failed ? '—' : stat.value}</b>}
               <span>{stat.label}</span>
-              <ArrowIcon />
-            </button>
+            </article>
           )
         })}
       </section>
@@ -194,7 +207,6 @@ export default function UserDashboard({ user, navigate }) {
         <section className="dash-panel dash-recent" aria-labelledby="dash-recent-title" aria-busy={loading}>
           <header>
             <h2 id="dash-recent-title">Recent reservations</h2>
-            {recentReservations.length > 0 && <button className="dash-link" type="button" onClick={() => navigate('/users/reservations')}>View all <ArrowIcon /></button>}
           </header>
           {loading ? (
             <div className="dash-rows" aria-hidden="true">
@@ -212,7 +224,10 @@ export default function UserDashboard({ user, navigate }) {
                     <b>{vehicleName(reservation)}</b>
                     <small>{formatDay(reservation.start_date, { month: 'short', day: 'numeric' })} – {formatDay(reservation.end_date)} · #{reservation.id}</small>
                   </div>
-                  <Status status={reservation.status} />
+                  <div className="dash-row-status">
+                    <Status status={reservation.status} />
+                    {reservation.status === 'pending' && <button className="dash-row-pay" type="button" onClick={() => setPayFor(reservation)}>Pay</button>}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -230,6 +245,12 @@ export default function UserDashboard({ user, navigate }) {
           <PickupLocation />
         </aside>
       </div>
+      {payFor && <PaymentDialog
+        reservation={payFor}
+        amount={money(payFor.total_amount)}
+        onCheckout={startPayment}
+        onClose={() => setPayFor(null)}
+      />}
     </div>
   )
 }

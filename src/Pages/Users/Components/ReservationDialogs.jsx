@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import './ReservationDialogs.css'
 
 // Rendered on <body> so that printing the agreement can hide the whole app behind it.
 function Dialog({ className = '', labelledBy, busy = false, onClose, children }) {
@@ -137,39 +138,10 @@ export function AgreementDialog({ reservation, contractText, onClose, onAccept, 
   )
 }
 
-export function CancelDialog({ reservation, dates, onConfirm, onClose }) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-
-  async function confirm() {
-    setBusy(true)
-    setError('')
-    try {
-      await onConfirm()
-    } catch (requestError) {
-      setError(requestError.message)
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Dialog className="rv-small" labelledBy="rv-cancel-title" busy={busy} onClose={onClose}>
-      <div className="rv-small-body">
-        <h2 id="rv-cancel-title">Cancel this reservation?</h2>
-        <p>{reservation.make} {reservation.model}, {dates}. You can't undo this. To rent on these dates again, you'd make a new reservation.</p>
-        {error && <p className="rv-field-error" role="alert">{error}</p>}
-        <div className="rv-small-actions">
-          <button type="button" className="rv-btn rv-btn-outline" data-autofocus disabled={busy} onClick={onClose}>Keep reservation</button>
-          <button type="button" className="rv-btn rv-btn-danger" disabled={busy} onClick={confirm}>{busy ? 'Cancelling…' : 'Cancel reservation'}</button>
-        </div>
-      </div>
-    </Dialog>
-  )
-}
-
 export function PaymentDialog({ reservation, amount, onCheckout, onClose }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const specialRental = Number(reservation.special_duration_request) === 1
 
   async function submit(event) {
     event.preventDefault()
@@ -195,7 +167,7 @@ export function PaymentDialog({ reservation, amount, onCheckout, onClose }) {
           </div>
         </dl>
         {error && <p className="rv-field-error" role="alert">{error}</p>}
-        <p className="rv-hint">Xendit opens a secure checkout where you can pay with GCash or another listed method. Your reservation is confirmed automatically once Xendit verifies the payment.</p>
+        <p className="rv-hint">Xendit opens a secure checkout where you can pay with GCash or another listed method. {specialRental ? 'Once payment is verified, your special rental period will be sent for administrator approval.' : 'Your reservation is confirmed automatically once Xendit verifies the payment.'}</p>
         <div className="rv-small-actions">
           <button type="button" className="rv-btn rv-btn-outline" data-autofocus disabled={busy} onClick={onClose}>Not now</button>
           <button type="submit" className="rv-btn rv-btn-primary" disabled={busy}>{busy ? 'Opening checkout...' : 'Continue to payment'}</button>
