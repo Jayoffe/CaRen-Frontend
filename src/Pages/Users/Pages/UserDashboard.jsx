@@ -41,7 +41,7 @@ function ArrowIcon() {
 
 function PickupLocation() {
   return (
-    <section className="dash-panel dash-location" aria-labelledby="dash-location-title">
+    <section className="dash-location" aria-labelledby="dash-location-title">
       <div className="dash-location-copy">
         <span className="dash-location-kicker">Pickup location</span>
         <h2 id="dash-location-title">Find us in Calapan</h2>
@@ -222,8 +222,8 @@ export default function UserDashboard({ user, navigate }) {
           <h2>Not sure which car fits?</h2>
           <p>Tell us about your trip and we’ll compare your needs with the vehicles available now.</p>
           <button className="dash-link" type="button" onClick={() => navigate('/users/recommendations')}>Get recommendations <ArrowIcon /></button>
+          <PickupLocation />
         </aside>
-        <PickupLocation />
       </div>
     </div>
   )

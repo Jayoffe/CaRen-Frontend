@@ -265,6 +265,7 @@ export default function FleetOperations({ navigate }) {
       setNotice(`${vehicleLabel(row.item)} ${row.action === 'checkout' ? `checked out to ${customerName(row.item)}` : `returned by ${customerName(row.item)}`}.`)
       setConfirmKey(null)
       setAttempt((value) => value + 1)
+      window.dispatchEvent(new Event('reservations:changed'))
     } catch (requestError) {
       setActionError(requestError.message)
     } finally {

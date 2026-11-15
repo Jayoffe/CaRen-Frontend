@@ -129,6 +129,7 @@ export default function ReservationManagement({ historyView = false, setToast })
     try {
       await updateVehicleUse(id, action)
       await refresh()
+      window.dispatchEvent(new Event('reservations:changed'))
       setToast?.(action === 'checkout' ? 'Vehicle handover recorded.' : 'Vehicle return recorded.')
     } catch (requestError) {
       setError(requestError.message)
