@@ -390,11 +390,12 @@
 }
 
 .dash-location {
-  grid-column: 2;
   display: grid;
   grid-template-columns: minmax(150px, .75fr) minmax(0, 1.25fr);
   gap: 18px;
-  padding: 18px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgb(36 58 52 / 14%);
   background: #f1f2ec;
 }
 
@@ -552,7 +553,7 @@
   }
 
   .dash-location {
-    grid-column: auto;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
