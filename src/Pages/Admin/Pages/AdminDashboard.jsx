@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../../../Services/API/api.js'
 import { getFleetCounts } from '../../../Services/API/vehicleAPI.js'
 import DashboardCharts from '../Components/DashboardCharts.jsx'
-import { getAssessmentFleet } from '../../../Services/API/assessmentAPI.js'
 import './AdminDashboard.css'
 
 const DAY_MS = 86400000
@@ -103,37 +102,6 @@ function attentionItems(reservations, today) {
   ].filter((item) => item.count > 0)
 }
 
-/** Monthly vehicle reassessments, from the status the assessment overview computes for each vehicle. */
-function reassessmentItems(vehicles) {
-  const count = (status) => vehicles.filter((vehicle) => vehicle.reassessment?.status === status).length
-  return [
-    {
-      key: 'reassessment-overdue',
-      level: 'warning',
-      count: count('overdue'),
-      label: (n) => `${plural(n, 'vehicle')} overdue for the monthly reassessment`,
-      action: 'Assess',
-      href: '/admin/maintenance/predictions',
-    },
-    {
-      key: 'reassessment-due-soon',
-      level: 'info',
-      count: count('due_soon'),
-      label: (n) => `${plural(n, 'vehicle')} due for reassessment within 7 days`,
-      action: 'Plan',
-      href: '/admin/maintenance/predictions',
-    },
-    {
-      key: 'reassessment-never',
-      level: 'info',
-      count: count('never_assessed'),
-      label: (n) => `${plural(n, 'vehicle')} never assessed`,
-      action: 'Assess',
-      href: '/admin/maintenance/predictions',
-    },
-  ].filter((item) => item.count > 0)
-}
-
 /** Each reservation gives a pickup and a return, placed on the days they fall due. */
 function scheduleEvents(reservations, today) {
   const lastDay = addDays(today, SCHEDULE_DAYS)
@@ -181,25 +149,22 @@ function DashboardSkeleton() {
 export default function AdminDashboard({ navigate }) {
   const [fleet, setFleet] = useState({ total: 0, available: 0, rented: 0, maintenance: 0 })
   const [reservations, setReservations] = useState([])
-  const [assessedVehicles, setAssessedVehicles] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
   const today = useMemo(() => localToday(), [])
 
   const loadDashboard = useCallback(async () => {
-    // Reassessment reminders are extra: if the assessment overview fails, the rest of the dashboard still loads.
-    return Promise.all([getFleetCounts(), api.get('/api/reservations', { cache: 'no-store' }), getAssessmentFleet().catch(() => null)])
+    return Promise.all([getFleetCounts(), api.get('/api/reservations', { cache: 'no-store' })])
   }, [])
 
   useEffect(() => {
     let active = true
     loadDashboard()
-      .then(([fleetCounts, reservationsResponse, assessmentFleet]) => {
+      .then(([fleetCounts, reservationsResponse]) => {
         if (!active) return
         setFleet(fleetCounts)
         setReservations(reservationsResponse?.data || [])
-        setAssessedVehicles(assessmentFleet?.vehicles || [])
       })
       .catch((requestError) => {
         if (active) setError(requestError.message)
@@ -215,11 +180,10 @@ export default function AdminDashboard({ navigate }) {
     const refreshWhenVisible = () => {
       if (document.visibilityState !== 'visible') return
       loadDashboard()
-        .then(([fleetCounts, reservationsResponse, assessmentFleet]) => {
+        .then(([fleetCounts, reservationsResponse]) => {
           if (!active) return
           setFleet(fleetCounts)
           setReservations(reservationsResponse?.data || [])
-          if (assessmentFleet) setAssessedVehicles(assessmentFleet.vehicles || [])
           setError('')
         })
         .catch((requestError) => {
@@ -256,7 +220,7 @@ export default function AdminDashboard({ navigate }) {
   const pendingCount = reservations.filter((item) => reservationStatus(item) === 'pending').length
   const confirmedCount = reservations.filter((item) => reservationStatus(item) === 'confirmed').length
 
-  const attention = [...attentionItems(reservations, today), ...reassessmentItems(assessedVehicles)]
+  const attention = attentionItems(reservations, today)
   const events = scheduleEvents(reservations, today)
   const visibleEvents = events.slice(0, SCHEDULE_LIMIT)
   const eventDays = [...new Set(visibleEvents.map((event) => event.day))]
@@ -319,7 +283,7 @@ export default function AdminDashboard({ navigate }) {
                         <span className="ad-alert-icon">{entry.level === 'critical' ? <AlertIcon /> : <ClockIcon />}</span>
                         <span className="ad-alert-text">
                           {entry.label(entry.count)}
-                          <small>{entry.level === 'critical' ? 'Urgent' : entry.level === 'info' ? 'Coming up' : 'To do'}</small>
+                          <small>{entry.level === 'critical' ? 'Urgent' : 'To do'}</small>
                         </span>
                         <span className="ad-alert-action">{entry.action}</span>
                       </button>

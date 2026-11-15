@@ -24,7 +24,7 @@ export default function SignUp({ navigate, onGoogleLogin }) {
         password: values.password,
       }))
       if (response?.success !== true) throw new Error('The API did not confirm account creation.')
-      window.sessionStorage.setItem('authSuccess', response.message || 'Account created. You can now sign in.')
+      window.sessionStorage.setItem('authSuccess', 'Your account was created successfully. Please sign in.')
       navigate('/auth/login')
     } catch (requestError) {
       setError(requestError.message)

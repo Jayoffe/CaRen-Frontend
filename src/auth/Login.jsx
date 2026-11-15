@@ -7,7 +7,7 @@ export default function Login({ onLogin, onGoogleLogin, navigate, onError, error
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [formError, setFormError] = useState('')
-  const [success, setSuccess] = useState(() => window.sessionStorage.getItem('authSuccess') || '')
+  const [success] = useState(() => window.sessionStorage.getItem('authSuccess') || '')
 
   useEffect(() => {
     if (success) window.sessionStorage.removeItem('authSuccess')
@@ -16,7 +16,6 @@ export default function Login({ onLogin, onGoogleLogin, navigate, onError, error
   const submit = async (event) => {
     event.preventDefault()
     setFormError('')
-    setSuccess('')
     onError('')
     if (!email.trim() || !password) {
       setFormError('Email and password are required.')
@@ -61,7 +60,6 @@ export default function Login({ onLogin, onGoogleLogin, navigate, onError, error
       <div className="auth-divider"><span>or use email</span></div>
       <label className="form-field"><span>Email address or username</span><input type="text" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required /></label>
       <label className="form-field"><span>Password</span><div className="password-input"><input autoComplete="current-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" required /><button type="button" onClick={() => setShowPassword((show) => !show)}>{showPassword ? 'Hide' : 'Show'}</button></div></label>
-      <p className="auth-switch"><button type="button" onClick={() => navigate('/auth/forgot-password')}>Forgot password?</button></p>
       <button className="button button-primary login-submit" disabled={loading}>{loading ? <><span className="button-spinner" />Signing in…</> : 'Sign in'}</button>
       <p className="auth-switch">New to DriveRent? <button type="button" onClick={() => navigate('/auth/sign-up')}>Create an account</button></p>
       <div className="login-safe">Your account is securely authenticated.</div>
