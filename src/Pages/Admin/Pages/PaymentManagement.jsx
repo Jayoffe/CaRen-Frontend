@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getReservations } from '../../../Services/API/reservationAPI.js'
+import { getPaymentsNeedingReview, getReservations } from '../../../Services/API/reservationAPI.js'
 import './PaymentManagement.css'
 
 // Payments are verified by the gateway webhook and confirm their reservation automatically,
@@ -91,16 +91,19 @@ export default function PaymentManagement() {
   const [error, setError] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [search, setSearch] = useState('')
+  // Paid attempts an administrator must act on: paid after the reservation was cancelled or expired, or duplicates.
+  const [review, setReview] = useState([])
 
   useEffect(() => {
     let active = true
-    getReservations()
-      .then((results) => {
-        // Each reservation keeps one payment record, its latest attempt. Newest first.
+    Promise.all([getReservations(), getPaymentsNeedingReview()])
+      .then(([results, flagged]) => {
+        // Each reservation shows its latest payment attempt. Newest first.
         if (!active) return
         const withPayments = results.filter((item) => item.payment_id)
         withPayments.sort((a, b) => (parseDate(dateOf(b))?.getTime() || 0) - (parseDate(dateOf(a))?.getTime() || 0))
         setPayments(withPayments)
+        setReview(flagged || [])
       })
       .catch((requestError) => {
         if (active) setError(requestError.message)
@@ -186,6 +189,18 @@ export default function PaymentManagement() {
         </div>
 
         {error && <div className="global-error" role="alert">{error}</div>}
+        {review.length > 0 && (
+          <div className="review-queue" role="alert">
+            <h2>{review.length} payment{review.length === 1 ? '' : 's'} need{review.length === 1 ? 's' : ''} review</h2>
+            <p>Money was received for a reservation that can no longer use it. Contact the customer to refund or rebook.</p>
+            <ul>{review.map((item) => (
+              <li key={item.id}>
+                <b>{money(item.paid_amount ?? item.amount)}</b> from {item.full_name} for reservation #{item.reservation_id} ({item.reservation_status}), paid {formatDate(item.paid_at)} {formatTime(item.paid_at)}.
+                <small>{item.review_reason} Reference: {item.reference_number}</small>
+              </li>
+            ))}</ul>
+          </div>
+        )}
         {loading ? (
           <div className="pmt-loading" aria-busy="true" aria-label="Loading payment records">
             {[0, 1, 2, 3].map((key) => <span key={key} />)}
@@ -221,6 +236,7 @@ export default function PaymentManagement() {
                         <td>
                           <span className={`pmt-status is-${payment.payment_status}`}><i />{PAYMENT_LABELS[payment.payment_status] || capitalize(payment.payment_status)}</span>
                           {refund && <small className="pmt-refund"><Icon name="refund" size={13} /> Reservation cancelled: refund needed</small>}
+                          {payment.payment_review_reason && <small className="pmt-refund">Needs review</small>}
                         </td>
                       </tr>
                     )
