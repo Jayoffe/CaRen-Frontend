@@ -320,7 +320,7 @@ function Navbar({ user, adminLayout, customerLayout = false, path, navigate, log
   const customerLinks = user?.role === 'admin'
     ? [['/admin/maintenance', 'Fleet Operations'], ['/admin/intelligence/demand', 'Demand Intelligence'], ['/admin/maintenance/predictions', 'Predictive Maintenance'], ['/admin/payments', 'Payment History'], ['/admin/reservations', 'Reservations'], ['/admin/reservations/history', 'Reservation History']]
     : user
-    ? [['/', 'Home'], ['/users/vehicles', 'Vehicles'], ['/users/recommendations', 'Recommendations'], ['/users/reservations', 'Reservations'], ['/users/payments', 'Payments'], ['/users/dashboard', 'Dashboard']]
+    ? [['/', 'Home'], ['/users/vehicles', 'Vehicles'], ['/users/recommendations', 'Recommendations'], ['/users/payments', 'Payments'], ['/users/dashboard', 'Dashboard']]
       : [['/', 'Home'], ['/vehicles', 'Vehicles']]
   return (
     <header className={`topbar ${adminLayout ? 'topbar-admin' : ''}`}>
@@ -433,7 +433,6 @@ function CustomerSidebar({ user, path, navigate, logout, open, onNavigate }) {
       items: [
         ['/users/dashboard', 'dashboard', 'Dashboard'],
         ['/users/vehicles', 'car', 'Browse Vehicles'],
-        ['/users/reservations', 'calendar', 'My Reservations'],
       ],
     },
     {
