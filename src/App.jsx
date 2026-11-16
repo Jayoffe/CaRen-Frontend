@@ -13,7 +13,7 @@ import UserDashboardPage from './Pages/Users/Pages/UserDashboard.jsx'
 import VehicleListingPage from './Pages/Users/Pages/VehicleListing.jsx'
 import VehicleDetailsPage from './Pages/Users/Pages/VehicleDetails.jsx'
 import CreateReservationPage from './Pages/Users/Pages/CreateReservation.jsx'
-import MyReservationsPage from './Pages/Users/Pages/MyReservations.jsx'
+import ReservationActivityPage from './Pages/Users/Pages/ReservationActivity.jsx'
 import AdminDashboardPage from './Pages/Admin/Pages/AdminDashboard.jsx'
 import VehicleManagementPage from './Pages/Admin/Pages/VehicleManagement.jsx'
 import VehicleDetailAdminPage from './Pages/Admin/Pages/VehicleDetailAdmin.jsx'
@@ -186,11 +186,13 @@ function App() {
   } else if (/^\/users\/vehicles\/\d+$/.test(path)) {
     content = <VehicleDetailsPage {...shared} navigate={navigate} carId={path.split('/')[3]} />
   } else if (path === '/users/reservations') {
-    content = <MyReservationsPage {...shared} navigate={navigate} />
+    // The old My Reservations address (older payment links, bookmarks, assistant answers): pending bookings and
+    // their Pay buttons are on the dashboard now.
+    content = <Redirect navigate={navigate} to={`/users/dashboard${window.location.search}`} />
   } else if (path === '/users/rentals') {
-    content = <MyReservationsPage {...shared} navigate={navigate} view="active" />
+    content = <ReservationActivityPage navigate={navigate} view="active" />
   } else if (path === '/users/reservations/history') {
-    content = <MyReservationsPage {...shared} navigate={navigate} view="history" />
+    content = <ReservationActivityPage navigate={navigate} view="history" />
   } else if (path === '/users/profile') {
     content = <UserProfilePage user={user} onProfileSaved={setUser} />
   } else if (path === '/users/payments') {
@@ -327,13 +329,13 @@ function Navbar({ user, adminLayout, customerLayout = false, path, navigate, log
   const customerLinks = user?.role === 'admin'
     ? [['/admin/maintenance', 'Fleet Operations'], ['/admin/intelligence/demand', 'Demand Intelligence'], ['/admin/maintenance/predictions', 'Predictive Maintenance'], ['/admin/payments', 'Payment History'], ['/admin/reservations', 'Reservations'], ['/admin/reservations/history', 'Reservation History']]
     : user
-    ? [['/', 'Home'], ['/users/vehicles', 'Vehicles'], ['/users/recommendations', 'Recommendations'], ['/users/reservations', 'Reservations'], ['/users/payments', 'Payments'], ['/users/dashboard', 'Dashboard']]
+    ? [['/', 'Home'], ['/users/vehicles', 'Vehicles'], ['/users/recommendations', 'Recommendations'], ['/users/payments', 'Payments'], ['/users/dashboard', 'Dashboard']]
       : [['/', 'Home'], ['/vehicles', 'Vehicles']]
   return (
     <header className={`topbar ${adminLayout ? 'topbar-admin' : ''}`}>
       {!adminLayout && <Logo onClick={() => navigate('/')} />}
       {adminLayout || customerLayout
-        ? <div className="admin-breadcrumb"><span>{adminLayout ? 'Workspace' : 'Your Drive'}</span><b>/</b><strong>{customerLayout ? (path.endsWith('/reservations/create') ? 'New reservation' : path.includes('/recommendations') ? 'Vehicle finder' : path.includes('/vehicles') ? 'Browse vehicles' : path.endsWith('/rentals') ? 'Active rentals' : path.endsWith('/history') ? 'Reservation history' : path.includes('/reservations') ? 'My reservations' : path.includes('payments') ? 'Payment history' : path.includes('profile') ? 'Profile' : 'Dashboard') : path.includes('/maintenance/predictions') ? 'Predictive maintenance' : path.includes('/maintenance/model-management') ? 'Model management' : path.includes('/maintenance/records') ? 'Vehicle maintenance records' : path === '/admin/maintenance' ? 'Fleet operations' : path.includes('/intelligence/demand') ? 'Demand intelligence' : path.includes('/intelligence/risk') ? 'Risk analysis' : path.includes('payments') ? 'Payment history' : path.endsWith('/reservations/history') ? 'Reservation history' : path.includes('reservations') ? 'Reservation management' : path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>
+        ? <div className="admin-breadcrumb"><span>{adminLayout ? 'Workspace' : 'Your Drive'}</span><b>/</b><strong>{customerLayout ? (path.endsWith('/reservations/create') ? 'New reservation' : path.includes('/recommendations') ? 'Vehicle finder' : path.includes('/vehicles') ? 'Browse vehicles' : path.endsWith('/rentals') ? 'Active rentals' : path.endsWith('/history') ? 'Reservation history' : path.includes('payments') ? 'Payment history' : path.includes('profile') ? 'Profile' : 'Dashboard') : path.includes('/maintenance/predictions') ? 'Predictive maintenance' : path.includes('/maintenance/model-management') ? 'Model management' : path.includes('/maintenance/records') ? 'Vehicle maintenance records' : path === '/admin/maintenance' ? 'Fleet operations' : path.includes('/intelligence/demand') ? 'Demand intelligence' : path.includes('/intelligence/risk') ? 'Risk analysis' : path.includes('payments') ? 'Payment history' : path.endsWith('/reservations/history') ? 'Reservation history' : path.includes('reservations') ? 'Reservation management' : path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>
         : <nav className={menuOpen ? 'public-nav open' : 'public-nav'}>{customerLinks.map(([href, label]) => <button key={href} className={path === href ? 'nav-link active' : 'nav-link'} onClick={() => { navigate(href); setMenuOpen(false) }}>{label}</button>)}</nav>}
       <div className="topbar-right">
         <span className="connection-dot" title="Backend API" />
@@ -440,7 +442,6 @@ function CustomerSidebar({ user, path, navigate, logout, open, onNavigate }) {
       items: [
         ['/users/dashboard', 'dashboard', 'Dashboard'],
         ['/users/vehicles', 'car', 'Browse Vehicles'],
-        ['/users/reservations', 'calendar', 'My Reservations'],
       ],
     },
     {

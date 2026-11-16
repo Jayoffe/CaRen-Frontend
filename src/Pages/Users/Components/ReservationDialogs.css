@@ -1,3 +1,4 @@
+/* Reservation activity and dialog styles. */
 .rv,
 .rv-dialog {
   --rv-ink: #202a28;
@@ -257,6 +258,11 @@
 .rv-status-pending {
   color: #7d5510;
   background: #fbf1da;
+}
+
+.rv-status-awaiting_approval {
+  color: #705b24;
+  background: #f7f0dc;
 }
 
 .rv-status-confirmed,
@@ -556,6 +562,35 @@ html:has(.rv-dialog[open]) {
   gap: 8px;
 }
 
+.rv-agreement-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--rv-line);
+  background: #fff;
+}
+
+.rv-agreement-actions p {
+  margin: 0;
+  color: var(--rv-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.rv-agreement-actions .rv-field-error {
+  margin-top: 6px;
+  color: var(--rv-red);
+}
+
+.rv-agreement-actions > div:last-child {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
 .rv-agreement-scroll {
   flex: 1;
   min-height: 0;
@@ -732,6 +767,15 @@ html:has(.rv-dialog[open]) {
   .rv-agreement-bar {
     padding-left: 16px;
   }
+
+  .rv-agreement-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .rv-agreement-actions > div:last-child {
+    justify-content: flex-end;
+  }
 }
 
 /* Printing shows the agreement alone, as plain paper. */
@@ -758,6 +802,10 @@ html:has(.rv-dialog[open]) {
   }
 
   .rv-agreement-bar {
+    display: none;
+  }
+
+  .rv-agreement-actions {
     display: none;
   }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../../Services/API/api.js'
 import { getFleetCounts } from '../../../Services/API/vehicleAPI.js'
 import DashboardCharts from '../Components/DashboardCharts.jsx'
@@ -55,6 +55,10 @@ function reservationStatus(item) {
 function attentionItems(reservations, today) {
   const confirmed = reservations.filter((item) => reservationStatus(item) === 'confirmed')
   const notCheckedOut = confirmed.filter((item) => !item.checked_out_at)
+  const missedPickups = notCheckedOut.filter((item) => (
+    dateOnly(item.start_date) < today
+    && dateOnly(item.end_date) > today
+  ))
   const paymentsDue = notCheckedOut.filter((item) => (
     Number(item.payment_required) === 1
     && ['unpaid', 'failed'].includes(item.payment_status)
@@ -73,13 +77,21 @@ function attentionItems(reservations, today) {
     {
       key: 'missed-pickups',
       level: 'critical',
-      count: notCheckedOut.filter((item) => dateOnly(item.start_date) < today).length,
+      count: missedPickups.length,
       label: (n) => `${plural(n, 'pickup')} past the date, not checked out`,
       action: 'Review',
       href: '/admin/reservations?status=confirmed',
     },
-    // Payments are verified by the gateway and confirm reservations automatically, so nothing
-    // here asks the administrator to approve. Unpaid bookings close to pickup are shown for follow-up.
+    {
+      key: 'special-approval',
+      level: 'warning',
+      count: reservations.filter((item) => reservationStatus(item) === 'awaiting_approval').length,
+      label: (n) => `${plural(n, 'paid special rental')} awaiting approval`,
+      action: 'Review',
+      href: '/admin/reservations?status=awaiting_approval',
+    },
+    // Standard reservations are confirmed by the payment gateway; unpaid bookings close to pickup
+    // are shown here for follow-up.
     {
       key: 'awaiting-payment',
       level: 'warning',
@@ -185,7 +197,17 @@ export default function AdminDashboard({ navigate }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
-  const today = useMemo(() => localToday(), [])
+  const [today, setToday] = useState(localToday)
+
+  useEffect(() => {
+    const refreshToday = () => setToday(localToday())
+    const interval = window.setInterval(refreshToday, 60_000)
+    window.addEventListener('focus', refreshToday)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refreshToday)
+    }
+  }, [])
 
   const loadDashboard = useCallback(async () => {
     // Reassessment reminders are extra: if the assessment overview fails, the rest of the dashboard still loads.
@@ -249,11 +271,12 @@ export default function AdminDashboard({ navigate }) {
     setAttempt((value) => value + 1)
   }
 
-  const counted = reservations.filter((item) => ['pending', 'confirmed', 'completed'].includes(reservationStatus(item)))
+  const counted = reservations.filter((item) => ['pending', 'awaiting_approval', 'confirmed', 'completed'].includes(reservationStatus(item)))
   const bookingValue = counted.reduce((sum, item) => sum + Number(item.total_amount || 0), 0)
   const paidValue = counted.reduce((sum, item) => sum + (item.payment_status === 'paid' ? Number(item.total_amount || 0) : 0), 0)
   const onTheRoad = reservations.filter((item) => reservationStatus(item) === 'confirmed' && item.checked_out_at && !item.returned_at).length
   const pendingCount = reservations.filter((item) => reservationStatus(item) === 'pending').length
+  const awaitingApprovalCount = reservations.filter((item) => reservationStatus(item) === 'awaiting_approval').length
   const confirmedCount = reservations.filter((item) => reservationStatus(item) === 'confirmed').length
 
   const attention = [...attentionItems(reservations, today), ...reassessmentItems(assessedVehicles)]
@@ -296,8 +319,8 @@ export default function AdminDashboard({ navigate }) {
             </div>
             <div className="ad-card ad-tile">
               <dt>Open bookings</dt>
-              <dd className="ad-value">{pendingCount + confirmedCount}</dd>
-              <dd className="ad-detail">{pendingCount} pending · {confirmedCount} confirmed</dd>
+              <dd className="ad-value">{pendingCount + awaitingApprovalCount + confirmedCount}</dd>
+              <dd className="ad-detail">{pendingCount} payment · {awaitingApprovalCount} approval · {confirmedCount} confirmed</dd>
             </div>
             <div className="ad-card ad-tile">
               <dt>Booking value</dt>

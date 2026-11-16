@@ -42,6 +42,17 @@
   line-height: 1.65;
 }
 
+.pay-return {
+  margin-bottom: 18px;
+  padding: 14px 18px;
+  border: 1px solid #d9e7dc;
+  border-radius: 12px;
+  background: #edf5ef;
+  color: #35564a;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 /* Summary tiles */
 .pay-stats {
   display: grid;
@@ -357,6 +368,11 @@
   font-weight: 600;
   letter-spacing: -.02em;
   font-variant-numeric: tabular-nums;
+}
+
+.pay-reservation-status {
+  color: var(--pay-muted);
+  font-size: 12px;
 }
 
 .pay-card-amount button {

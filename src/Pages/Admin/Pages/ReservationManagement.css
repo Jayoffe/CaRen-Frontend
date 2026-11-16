@@ -114,6 +114,7 @@
 .rsv-page .rsv-btn.is-danger { border-color: #ecd3d0; color: #a3463a; }
 .rsv-page .rsv-btn.is-danger:hover:not(:disabled) { border-color: #a3463a; background: #fdf5f4; }
 .rsv-page .rsv-no-action { color: var(--rsv-faint); font-size: 12.5px; white-space: nowrap; }
+.rsv-page .status-pill.status-awaiting_approval { color: #705b24; background: #f7f0dc; }
 
 .rsv-page .rsv-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; padding: 14px 4px 2px; color: var(--rsv-muted); font-size: 13px; }
 .rsv-page .rsv-foot b { color: var(--rsv-ink); }

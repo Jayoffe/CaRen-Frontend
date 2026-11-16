@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { getPaymentsNeedingReview, getReservations } from '../../../Services/API/reservationAPI.js'
 import './PaymentManagement.css'
 
-// Payments are verified by the gateway webhook and confirm their reservation automatically,
-// so this page is for monitoring only. There is nothing to approve here.
+// Payments are verified by the gateway webhook. Special rental periods still need approval,
+// so this page monitors payment records without changing reservation status.
 const PAYMENT_LABELS = { paid: 'Paid', pending: 'Pending', failed: 'Failed' }
-const RESERVATION_TONES = { pending: 'amber', confirmed: 'blue', active: 'teal', ongoing: 'teal', completed: 'green', cancelled: 'red', rejected: 'red' }
+const RESERVATION_TONES = { pending: 'amber', awaiting_approval: 'amber', confirmed: 'blue', active: 'teal', ongoing: 'teal', completed: 'green', cancelled: 'red', rejected: 'red' }
+const RESERVATION_LABELS = { pending: 'Pending payment', awaiting_approval: 'Awaiting approval' }
 const FILTERS = [
   ['all', 'All payments'],
   ['paid', 'Paid'],
@@ -227,7 +228,7 @@ export default function PaymentManagement() {
                         </td>
                         <td>
                           <b>#{payment.id}</b>
-                          <span className={`pmt-tag tone-${RESERVATION_TONES[payment.status] || 'grey'}`}>{payment.status === 'pending' ? 'Pending payment' : capitalize(payment.status)}</span>
+                          <span className={`pmt-tag tone-${RESERVATION_TONES[payment.status] || 'grey'}`}>{RESERVATION_LABELS[payment.status] || capitalize(payment.status)}</span>
                         </td>
                         <td><b>{payment.make} {payment.model}</b>{payment.plate_number && <small className="pmt-plate">{payment.plate_number}</small>}</td>
                         <td><Method value={payment.payment_method} /></td>
@@ -235,7 +236,7 @@ export default function PaymentManagement() {
                         <td className="is-num"><b className="pmt-amount">{money(amountOf(payment))}</b></td>
                         <td>
                           <span className={`pmt-status is-${payment.payment_status}`}><i />{PAYMENT_LABELS[payment.payment_status] || capitalize(payment.payment_status)}</span>
-                          {refund && <small className="pmt-refund"><Icon name="refund" size={13} /> Reservation cancelled: refund needed</small>}
+                          {refund && <small className="pmt-refund"><Icon name="refund" size={13} /> Reservation {payment.status}: refund needed</small>}
                           {payment.payment_review_reason && <small className="pmt-refund">Needs review</small>}
                         </td>
                       </tr>

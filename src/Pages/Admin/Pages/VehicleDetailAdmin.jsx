@@ -284,7 +284,7 @@ export default function VehicleDetailAdmin({ carId, navigate, onChanged, setToas
   const minimum = Number(car.minimum_rental_duration || 1)
   const today = localToday()
   const activeBookings = (bookings || [])
-    .filter((item) => ['pending', 'confirmed'].includes(item.status) && !item.returned_at && String(item.end_date).slice(0, 10) >= today)
+    .filter((item) => ['pending', 'awaiting_approval', 'confirmed'].includes(item.status) && !item.returned_at && String(item.end_date).slice(0, 10) >= today)
     .sort((left, right) => String(left.start_date).localeCompare(String(right.start_date)))
 
   return (
@@ -427,7 +427,13 @@ export default function VehicleDetailAdmin({ carId, navigate, onChanged, setToas
                             <b>{item.full_name || item.username || `Customer #${item.user_id}`}</b>
                             <small>{formatDay(item.start_date, false)} to {formatDay(item.end_date, false)}</small>
                           </span>
-                          <em className={out ? 'is-out' : `is-${item.status}`}>{out ? 'Out now' : item.status === 'pending' ? 'Pending' : 'Confirmed'}</em>
+                          <em className={out ? 'is-out' : `is-${item.status}`}>{out
+                            ? 'Out now'
+                            : item.status === 'pending'
+                              ? 'Pending payment'
+                              : item.status === 'awaiting_approval'
+                                ? 'Awaiting approval'
+                                : 'Confirmed'}</em>
                         </li>
                       )
                     })}

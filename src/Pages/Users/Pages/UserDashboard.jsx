@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../../Services/API/api.js'
+import { createPaymentCheckout } from '../../../Services/API/reservationAPI.js'
+import { PaymentDialog } from '../Components/ReservationDialogs.jsx'
 import './UserDashboard.css'
 
 const DAY_MS = 86400000
@@ -25,10 +27,17 @@ function plural(count, word) {
   return `${count} ${word}${Number(count) === 1 ? '' : 's'}`
 }
 
+function money(value) {
+  return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value || 0))
+}
+
 function describeTrip(trip, today) {
   if (!trip) return 'No trips planned yet. Pick a car and your dates, and your trip will show up here.'
   const name = vehicleName(trip)
-  if (trip.status === 'pending') return `Your ${name} reservation is waiting for payment. It is confirmed automatically once your payment is verified.`
+  if (trip.status === 'pending') return Number(trip.special_duration_request) === 1
+    ? `Your ${name} special rental is waiting for payment. It will be reviewed after payment is verified.`
+    : `Your ${name} reservation is waiting for payment. It is confirmed automatically once your payment is verified.`
+  if (trip.status === 'awaiting_approval') return `Payment for your ${name} is complete. Your special rental period is awaiting approval; pickup is ${formatDay(trip.start_date)} if approved.`
   if (trip.start_date <= today) return `You’re on the road. Your ${name} is due back ${formatDay(trip.end_date, { month: 'short', day: 'numeric' })}.`
   const days = Math.round((parseDay(trip.start_date) - parseDay(today)) / DAY_MS)
   if (days === 1) return `Pickup for your ${name} is tomorrow.`
@@ -56,10 +65,11 @@ function PickupLocation() {
 }
 
 function Status({ status }) {
-  return <span className={`status-pill status-${status}`}><i />{status === 'pending' ? 'Pending payment' : status}</span>
+  const label = { pending: 'Pending payment', awaiting_approval: 'Awaiting approval' }[status] || status
+  return <span className={`status-pill status-${status}`}><i />{label}</span>
 }
 
-function NextTripTicket({ trip, loading, failed, navigate }) {
+function NextTripTicket({ trip, loading, failed, onPay }) {
   if (loading) {
     return (
       <div className="dash-ticket" aria-hidden="true">
@@ -96,7 +106,7 @@ function NextTripTicket({ trip, loading, failed, navigate }) {
       </div>
       <footer>
         <span>{trip.rental_days ? `${plural(trip.rental_days, 'day')} · ` : ''}#{trip.id}</span>
-        <button type="button" onClick={() => navigate('/users/reservations')}>Manage <ArrowIcon /></button>
+        {trip.status === 'pending' && <button type="button" onClick={() => onPay(trip)}>Complete payment <ArrowIcon /></button>}
       </footer>
     </article>
   )
@@ -107,6 +117,7 @@ export default function UserDashboard({ user, navigate }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
+  const [payFor, setPayFor] = useState(null)
 
   useEffect(() => {
     let active = true
@@ -132,23 +143,31 @@ export default function UserDashboard({ user, navigate }) {
     setAttempt((value) => value + 1)
   }
 
+  async function startPayment() {
+    const response = await createPaymentCheckout(payFor.id)
+    const checkoutUrl = response?.data?.checkout_url
+    if (!checkoutUrl) throw new Error('The payment checkout link was not returned.')
+    window.location.assign(checkoutUrl)
+  }
+
   const now = new Date()
   const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
   const nextRental = reservations
-    .filter((item) => ['pending', 'confirmed'].includes(item.status) && item.end_date >= today)
+    .filter((item) => ['pending', 'awaiting_approval', 'confirmed'].includes(item.status) && item.end_date >= today)
     .sort((left, right) => left.start_date.localeCompare(right.start_date))[0]
   const recentReservations = reservations.slice(0, 4)
   const activeRentals = reservations.filter((item) => (
     item.status === 'confirmed' && item.start_date <= today && item.end_date > today
   )).length
   const pendingReservations = reservations.filter((item) => item.status === 'pending').length
+  const awaitingApproval = reservations.filter((item) => item.status === 'awaiting_approval').length
   const firstName = (user?.full_name || user?.username || 'Driver').trim().split(/\s+/)[0]
   const failed = Boolean(error)
 
   const stats = [
-    { label: 'All reservations', value: reservations.length, href: '/users/reservations' },
-    { label: 'On the road', value: activeRentals, href: '/users/rentals' },
-    { label: 'Awaiting payment', value: pendingReservations, href: '/users/reservations', attention: pendingReservations > 0 },
+    { label: 'Reservations', value: reservations.length },
+    { label: 'On the road', value: activeRentals },
+    { label: 'Needs attention', value: pendingReservations + awaitingApproval, attention: pendingReservations + awaitingApproval > 0 },
   ]
 
   return (
@@ -160,7 +179,7 @@ export default function UserDashboard({ user, navigate }) {
           <p>{loading ? 'Checking your trips…' : failed ? 'Your trip details are unavailable right now.' : describeTrip(nextRental, today)}</p>
           <button className="dash-hero-action" type="button" onClick={() => navigate('/users/vehicles')}>Browse vehicles <ArrowIcon /></button>
         </div>
-        <NextTripTicket trip={nextRental} loading={loading} failed={failed} navigate={navigate} />
+        <NextTripTicket trip={nextRental} loading={loading} failed={failed} onPay={setPayFor} />
       </section>
 
       {error && (
@@ -174,13 +193,12 @@ export default function UserDashboard({ user, navigate }) {
         {stats.map((stat) => {
           const empty = !loading && !failed && stat.value === 0
           return (
-            <button className="dash-stat" type="button" key={stat.label} onClick={() => navigate(stat.href)}>
+            <article className="dash-stat" key={stat.label}>
               {loading
                 ? <span className="dash-skeleton dash-skeleton-num" />
                 : <b className={`${empty ? 'is-zero' : ''}${stat.attention ? ' is-attention' : ''}`}>{failed ? '—' : stat.value}</b>}
               <span>{stat.label}</span>
-              <ArrowIcon />
-            </button>
+            </article>
           )
         })}
       </section>
@@ -189,7 +207,6 @@ export default function UserDashboard({ user, navigate }) {
         <section className="dash-panel dash-recent" aria-labelledby="dash-recent-title" aria-busy={loading}>
           <header>
             <h2 id="dash-recent-title">Recent reservations</h2>
-            {recentReservations.length > 0 && <button className="dash-link" type="button" onClick={() => navigate('/users/reservations')}>View all <ArrowIcon /></button>}
           </header>
           {loading ? (
             <div className="dash-rows" aria-hidden="true">
@@ -207,7 +224,10 @@ export default function UserDashboard({ user, navigate }) {
                     <b>{vehicleName(reservation)}</b>
                     <small>{formatDay(reservation.start_date, { month: 'short', day: 'numeric' })} – {formatDay(reservation.end_date)} · #{reservation.id}</small>
                   </div>
-                  <Status status={reservation.status} />
+                  <div className="dash-row-status">
+                    <Status status={reservation.status} />
+                    {reservation.status === 'pending' && <button className="dash-row-pay" type="button" onClick={() => setPayFor(reservation)}>Pay</button>}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -225,6 +245,12 @@ export default function UserDashboard({ user, navigate }) {
           <PickupLocation />
         </aside>
       </div>
+      {payFor && <PaymentDialog
+        reservation={payFor}
+        amount={money(payFor.total_amount)}
+        onCheckout={startPayment}
+        onClose={() => setPayFor(null)}
+      />}
     </div>
   )
 }

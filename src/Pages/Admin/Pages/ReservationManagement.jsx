@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { getReservations, updateReservationStatus, updateVehicleUse } from '../../../Services/API/reservationAPI.js'
+import { getReservations, sendAgreementEmail, updateReservationStatus, updateVehicleUse } from '../../../Services/API/reservationAPI.js'
 import './ReservationManagement.css'
 
 function money(value) {
@@ -7,10 +7,10 @@ function money(value) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: amount % 1 ? 2 : 0 }).format(amount)
 }
 
-// Reservations are confirmed only by a verified payment, so the only status change left here is cancelling.
-const STATUS_LABELS = { pending: 'Pending payment', confirmed: 'Confirmed', cancelled: 'Cancelled', rejected: 'Rejected', completed: 'Completed', expired: 'Expired (not paid in time)' }
+// Reservations are confirmed by a verified payment; a paid special-duration request then waits here for approval.
+const STATUS_LABELS = { pending: 'Pending payment', awaiting_approval: 'Awaiting approval', confirmed: 'Confirmed', cancelled: 'Cancelled', rejected: 'Rejected', completed: 'Completed', expired: 'Expired (not paid in time)' }
 const PAYMENT_LABELS = { paid: 'Paid', pending: 'Pending', failed: 'Failed', unpaid: 'Not paid', not_required: 'Not required' }
-const ACTIVE_STATUSES = ['pending', 'confirmed']
+const ACTIVE_STATUSES = ['pending', 'awaiting_approval', 'confirmed']
 const HISTORY_STATUSES = ['completed', 'cancelled', 'rejected', 'expired']
 
 function localToday() {
@@ -108,14 +108,19 @@ export default function ReservationManagement({ historyView = false, setToast })
   }, [])
 
   async function updateStatus(id, status) {
+    const reservation = reservations.find((item) => Number(item.id) === Number(id))
     if (status === 'cancelled' && !window.confirm(`Cancel reservation #${id}? The record is kept in Reservation History.`)) return
+    if (status === 'confirmed' && reservation?.status === 'awaiting_approval'
+      && !window.confirm(`Approve special reservation #${id}? The customer will be emailed the agreement and pickup date.`)) return
+    if (status === 'rejected' && reservation?.status === 'awaiting_approval'
+      && !window.confirm(`Reject special reservation #${id}? Payment has been received; a refund will need to be arranged.`)) return
     setUpdatingId(id)
     setError('')
     try {
-      await updateReservationStatus(id, status)
+      const response = await updateReservationStatus(id, status)
       await refresh()
       window.dispatchEvent(new Event('reservations:changed'))
-      setToast?.('Reservation status updated.')
+      setToast?.(response?.message || 'Reservation status updated.')
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -138,9 +143,23 @@ export default function ReservationManagement({ historyView = false, setToast })
     }
   }
 
+  async function resendAgreement(id) {
+    setUpdatingId(id)
+    setError('')
+    try {
+      const response = await sendAgreementEmail(id)
+      await refresh()
+      setToast?.(response?.message || 'Rental agreement emailed.')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
   const viewStatuses = historyView ? HISTORY_STATUSES : ACTIVE_STATUSES
   const inView = useMemo(() => reservations.filter((reservation) => viewStatuses.includes(reservation.status)), [reservations, viewStatuses])
-  const activeFilter = viewStatuses.includes(statusFilter) || ['pickup', 'out', 'overdue', 'refund'].includes(statusFilter) ? statusFilter : 'all'
+  const activeFilter = viewStatuses.includes(statusFilter) || ['pickup', 'out', 'overdue', 'refund', 'attention'].includes(statusFilter) ? statusFilter : 'all'
 
   const stats = useMemo(() => {
     const counts = { all: inView.length }
@@ -155,11 +174,13 @@ export default function ReservationManagement({ historyView = false, setToast })
       refunds: inView.filter(needsRefund).length,
       refundAmount: inView.filter(needsRefund).reduce((sum, item) => sum + Number(item.total_amount || 0), 0),
       pendingValue: inView.filter((item) => item.status === 'pending').reduce((sum, item) => sum + Number(item.total_amount || 0), 0),
+      awaitingApproval: inView.filter((item) => item.status === 'awaiting_approval').length,
       completedValue: inView.filter((item) => item.status === 'completed').reduce((sum, item) => sum + Number(item.total_amount || 0), 0),
     }
   }, [inView, viewStatuses, today])
 
   const matchesQuick = (reservation) => {
+    if (activeFilter === 'attention') return ['pending', 'awaiting_approval'].includes(reservation.status)
     if (activeFilter === 'pickup') return reservation.status === 'confirmed' && !reservation.checked_out_at && reservation.start_date <= today && reservation.end_date > today
     if (activeFilter === 'out') return reservation.status === 'confirmed' && Boolean(reservation.checked_out_at)
     if (activeFilter === 'overdue') return reservation.status === 'confirmed' && reservation.checked_out_at && reservation.end_date < today
@@ -189,7 +210,7 @@ export default function ReservationManagement({ historyView = false, setToast })
       <header className="rsv-header">
         <span className="rsv-eyebrow">{historyView ? 'RECORDS' : 'BOOKING OPERATIONS'}</span>
         <h1>{historyView ? 'Reservation History' : 'Reservations'}</h1>
-        <p>{historyView ? 'Completed and cancelled reservations, with their payment details.' : 'Current reservations. A reservation is confirmed automatically once its payment is verified.'}</p>
+        <p>{historyView ? 'Completed and cancelled reservations, with their payment details.' : 'Standard rentals confirm after verified payment. Special rental periods need administrator approval after payment.'}</p>
       </header>
 
       <section className="rsv-stats" aria-label="Reservation summary">
@@ -202,7 +223,7 @@ export default function ReservationManagement({ historyView = false, setToast })
           <Stat icon="key" tone="is-green" label="Ready for check-out" value={loading ? '—' : stats.pickupsToday} note={stats.pickupsToday ? 'Paid and within the rental dates' : 'No handovers waiting'} onClick={stats.pickupsToday ? () => toggle('pickup') : undefined} active={activeFilter === 'pickup'} />
           <Stat icon="car" tone="is-teal" label="Vehicles out" value={loading ? '—' : stats.out} note={stats.dueToday ? `${stats.dueToday} due back today` : 'Currently with customers'} onClick={stats.out ? () => toggle('out') : undefined} active={activeFilter === 'out'} />
           <Stat icon="alert" tone="is-red" label="Overdue returns" value={loading ? '—' : stats.overdue} note={stats.overdue ? 'Past their return date' : 'Nothing overdue'} onClick={stats.overdue ? () => toggle('overdue') : undefined} active={activeFilter === 'overdue'} />
-          <Stat icon="clock" tone="is-amber" label="Awaiting payment" value={loading ? '—' : stats.counts.pending} note={stats.counts.pending ? `${money(stats.pendingValue)} not yet paid` : 'All paid'} onClick={stats.counts.pending ? () => toggle('pending') : undefined} active={activeFilter === 'pending'} />
+          <Stat icon="clock" tone="is-amber" label="Needs attention" value={loading ? '—' : stats.counts.pending + stats.awaitingApproval} note={`${stats.counts.pending || 0} awaiting payment · ${stats.awaitingApproval} awaiting approval`} onClick={stats.counts.pending + stats.awaitingApproval ? () => toggle('attention') : undefined} active={activeFilter === 'attention'} />
         </>}
       </section>
 
@@ -216,7 +237,7 @@ export default function ReservationManagement({ historyView = false, setToast })
             ))}
             {!['all', ...viewStatuses].includes(activeFilter) && (
               <button type="button" role="tab" aria-selected="true" className="active is-quick" onClick={() => setStatusFilter('all')}>
-                {{ pickup: 'Ready for check-out', out: 'Vehicles out', overdue: 'Overdue returns', refund: 'Refunds needed' }[activeFilter]}<Icon name="x" size={13} />
+                {{ pickup: 'Ready for check-out', out: 'Vehicles out', overdue: 'Overdue returns', refund: 'Refunds needed', attention: 'Needs attention' }[activeFilter]}<Icon name="x" size={13} />
               </button>
             )}
           </div>
@@ -246,6 +267,10 @@ export default function ReservationManagement({ historyView = false, setToast })
                     && ['paid', 'not_required'].includes(reservation.payment_status)
                     && reservation.start_date <= today && reservation.end_date > today
                   const waitingForPickup = reservation.status === 'confirmed' && !reservation.checked_out_at && reservation.start_date > today
+                  const awaitingApproval = reservation.status === 'awaiting_approval'
+                  const canResendAgreement = reservation.status === 'confirmed'
+                    && reservation.payment_status === 'paid'
+                    && !reservation.agreement_email_sent_at
                   return (
                     <tr key={reservation.id} className={`${when?.tone === 'red' || refund ? 'is-alert' : ''}`}>
                       <td>
@@ -284,6 +309,21 @@ export default function ReservationManagement({ historyView = false, setToast })
                       {!historyView && (
                         <td>
                           <div className="rsv-actions">
+                            {awaitingApproval && (
+                              <>
+                                <button type="button" className="rsv-btn is-primary" disabled={busy} onClick={() => updateStatus(reservation.id, 'confirmed')}>
+                                  {busy ? 'Saving…' : 'Approve'}
+                                </button>
+                                <button type="button" className="rsv-btn is-danger" disabled={busy} onClick={() => updateStatus(reservation.id, 'rejected')}>
+                                  {busy ? 'Saving…' : 'Reject'}
+                                </button>
+                              </>
+                            )}
+                            {canResendAgreement && (
+                              <button type="button" className="rsv-btn" disabled={busy} onClick={() => resendAgreement(reservation.id)}>
+                                {busy ? 'Sending…' : 'Send agreement email'}
+                              </button>
+                            )}
                             {canCheckout && (
                               <button type="button" className="rsv-btn is-primary" disabled={busy} onClick={() => updateUse(reservation.id, 'checkout')}>
                                 <Icon name="key" size={15} />{busy ? 'Saving…' : 'Check out vehicle'}
@@ -299,7 +339,7 @@ export default function ReservationManagement({ historyView = false, setToast })
                                 {busy ? 'Saving…' : 'Cancel'}
                               </button>
                             )}
-                            {!canCheckout && !canReturn && !canCancel && (
+                            {!awaitingApproval && !canResendAgreement && !canCheckout && !canReturn && !canCancel && (
                               <span className="rsv-no-action">{waitingForPickup ? `Check-out opens ${shortDate(reservation.start_date)}` : 'No action needed'}</span>
                             )}
                           </div>

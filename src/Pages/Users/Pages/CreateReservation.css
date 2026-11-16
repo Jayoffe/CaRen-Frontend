@@ -555,14 +555,16 @@
   font-weight: 600;
 }
 
-.rsv-next ol {
+.rsv-next p {
   display: grid;
-  gap: 4px;
   margin: 0;
-  padding-left: 18px;
   color: var(--rsv-muted);
   font-size: 13px;
   line-height: 1.45;
+}
+
+.rsv-next p + p {
+  margin-top: 5px;
 }
 
 /* Loading */
