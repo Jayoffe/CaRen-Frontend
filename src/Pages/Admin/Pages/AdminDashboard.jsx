@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../../Services/API/api.js'
 import { getFleetCounts } from '../../../Services/API/vehicleAPI.js'
 import DashboardCharts from '../Components/DashboardCharts.jsx'
@@ -54,6 +54,10 @@ function reservationStatus(item) {
 function attentionItems(reservations, today) {
   const confirmed = reservations.filter((item) => reservationStatus(item) === 'confirmed')
   const notCheckedOut = confirmed.filter((item) => !item.checked_out_at)
+  const missedPickups = notCheckedOut.filter((item) => (
+    dateOnly(item.start_date) < today
+    && dateOnly(item.end_date) > today
+  ))
   const paymentsDue = notCheckedOut.filter((item) => (
     Number(item.payment_required) === 1
     && ['unpaid', 'failed'].includes(item.payment_status)
@@ -72,7 +76,7 @@ function attentionItems(reservations, today) {
     {
       key: 'missed-pickups',
       level: 'critical',
-      count: notCheckedOut.filter((item) => dateOnly(item.start_date) < today).length,
+      count: missedPickups.length,
       label: (n) => `${plural(n, 'pickup')} past the date, not checked out`,
       action: 'Review',
       href: '/admin/reservations?status=confirmed',
@@ -160,7 +164,17 @@ export default function AdminDashboard({ navigate }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
-  const today = useMemo(() => localToday(), [])
+  const [today, setToday] = useState(localToday)
+
+  useEffect(() => {
+    const refreshToday = () => setToday(localToday())
+    const interval = window.setInterval(refreshToday, 60_000)
+    window.addEventListener('focus', refreshToday)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refreshToday)
+    }
+  }, [])
 
   const loadDashboard = useCallback(async () => {
     return Promise.all([getFleetCounts(), api.get('/api/reservations', { cache: 'no-store' })])
