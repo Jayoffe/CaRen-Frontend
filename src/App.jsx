@@ -33,6 +33,7 @@ import UserProfilePage from './Pages/Users/Pages/UserProfile.jsx'
 import ChatWidget from './Components/ChatWidget.jsx'
 import VehicleColorManager from './Pages/Admin/Components/VehicleColorManager.jsx'
 import './App.css'
+import './Pages/Admin/Layout/AdminSidebar.css'
 
 // Curated lifestyle photography for the landing page (Unsplash, free to use).
 const LANDING_IMAGES = {
@@ -335,11 +336,11 @@ function Navbar({ user, adminLayout, customerLayout = false, path, navigate, log
     <header className={`topbar ${adminLayout ? 'topbar-admin' : ''}`}>
       {!adminLayout && <Logo onClick={() => navigate('/')} />}
       {adminLayout || customerLayout
-        ? <div className="admin-breadcrumb"><span>{adminLayout ? 'Workspace' : 'Your Drive'}</span><b>/</b><strong>{customerLayout ? (path.endsWith('/reservations/create') ? 'New reservation' : path.includes('/recommendations') ? 'Vehicle finder' : path.includes('/vehicles') ? 'Browse vehicles' : path.endsWith('/rentals') ? 'Active rentals' : path.endsWith('/history') ? 'Reservation history' : path.includes('payments') ? 'Payment history' : path.includes('profile') ? 'Profile' : 'Dashboard') : path.includes('/maintenance/predictions') ? 'Predictive maintenance' : path.includes('/maintenance/model-management') ? 'Model management' : path.includes('/maintenance/records') ? 'Vehicle maintenance records' : path === '/admin/maintenance' ? 'Fleet operations' : path.includes('/intelligence/demand') ? 'Demand intelligence' : path.includes('/intelligence/risk') ? 'Risk analysis' : path.includes('payments') ? 'Payment history' : path.endsWith('/reservations/history') ? 'Reservation history' : path.includes('reservations') ? 'Reservation management' : path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>
+        ? <div className="admin-breadcrumb">{!adminLayout && <><span>Your Drive</span><b>/</b></>}<strong>{customerLayout ? (path.endsWith('/reservations/create') ? 'New reservation' : path.includes('/recommendations') ? 'Vehicle finder' : path.includes('/vehicles') ? 'Browse vehicles' : path.endsWith('/rentals') ? 'Active rentals' : path.endsWith('/history') ? 'Reservation history' : path.includes('payments') ? 'Payment history' : path.includes('profile') ? 'Profile' : 'Dashboard') : path.includes('/maintenance/predictions') ? 'Predictive maintenance' : path.includes('/maintenance/model-management') ? 'Model management' : path.includes('/maintenance/records') ? 'Vehicle maintenance records' : path === '/admin/maintenance' ? 'Fleet operations' : path.includes('/intelligence/demand') ? 'Demand intelligence' : path.includes('/intelligence/risk') ? 'Risk analysis' : path.includes('payments') ? 'Payment history' : path.endsWith('/reservations/history') ? 'Reservation history' : path.includes('reservations') ? 'Reservation management' : path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>
         : <nav className={menuOpen ? 'public-nav open' : 'public-nav'}>{customerLinks.map(([href, label]) => <button key={href} className={path === href ? 'nav-link active' : 'nav-link'} onClick={() => { navigate(href); setMenuOpen(false) }}>{label}</button>)}</nav>}
       <div className="topbar-right">
-        <span className="connection-dot" title="Backend API" />
-        {user ? <><button className="profile-button" onClick={() => navigate(user.role === 'admin' ? '/admin/dashboard' : '/users/dashboard')}><span className="avatar">{(user.full_name || user.username || 'U').slice(0, 1).toUpperCase()}</span><span className="profile-name">{user.full_name || user.username}<small>{user.role === 'admin' ? 'Administrator' : 'Customer'}</small></span></button><button className="icon-button logout-top" onClick={logout} title="Logout"><Icon name="logout" /></button></>
+        {!adminLayout && <span className="connection-dot" title="Backend API" />}
+        {user ? <><button className="profile-button" onClick={() => navigate(user.role === 'admin' ? '/admin/dashboard' : '/users/dashboard')}><span className="avatar">{(user.full_name || user.username || 'U').slice(0, 1).toUpperCase()}</span><span className="profile-name">{user.full_name || user.username}<small>{user.role === 'admin' ? 'Administrator' : 'Customer'}</small></span></button>{!adminLayout && <button className="icon-button logout-top" onClick={logout} title="Logout"><Icon name="logout" /></button>}</>
           : <button className="button button-primary button-compact" onClick={() => navigate('/auth/login')}>Sign in</button>}
         <button className={adminLayout || customerLayout ? 'menu-toggle admin-menu-toggle' : 'menu-toggle'} onClick={adminLayout || customerLayout ? onMenuToggle : () => setMenuOpen((open) => !open)} aria-label={adminLayout ? 'Toggle admin navigation' : customerLayout ? 'Toggle customer navigation' : 'Toggle navigation'} aria-expanded={adminLayout || customerLayout ? undefined : menuOpen}><span /><span /><span /></button>
       </div>
@@ -363,73 +364,40 @@ function AdminSidebar({ path, navigate, logout, open, onNavigate }) {
     ['/admin/dashboard', 'dashboard', 'Dashboard'],
     ['/admin/vehicles', 'car', 'Car Listing'],
   ]
-  const isIntelligencePath = intelligenceItems.some(([href]) => path === href)
-  const isPaymentsPath = paymentItems.some(([href]) => path === href)
-  const [expandedGroup, setExpandedGroup] = useState(
-    isIntelligencePath ? 'intelligence' : isPaymentsPath ? 'payments' : null,
-  )
-
-  const renderGroup = (id, label, icon, items) => {
-    const expanded = expandedGroup === id
-    const hasActiveItem = items.some(([href]) => path === href)
+  const renderLink = ([href, icon, label]) => {
+    const active = path === href || (href === '/admin/vehicles' && path.startsWith('/admin/vehicles/'))
     return (
-      <section className="sidebar-group" key={id}>
-        <button
-          className={`sidebar-group-toggle${expanded ? ' expanded' : ''}${hasActiveItem ? ' has-active' : ''}`}
-          type="button"
-          aria-expanded={expanded}
-          aria-controls={`sidebar-${id}-links`}
-          onClick={() => setExpandedGroup(expanded ? null : id)}
-        >
-          <Icon name={icon} />
-          <span>{label}</span>
-          <Icon name="chevron" size={15} />
-        </button>
-        <div className="sidebar-submenu" id={`sidebar-${id}-links`} hidden={!expanded}>
-          {items.map(([href, itemIcon, itemLabel]) => {
-            const active = path === href
-            return (
-              <button
-                className={`sidebar-link sidebar-submenu-link${active ? ' selected' : ''}`}
-                key={href}
-                type="button"
-                aria-current={active ? 'page' : undefined}
-                onClick={() => { navigate(href); onNavigate?.() }}
-              >
-                <Icon name={itemIcon} size={16} />
-                <span>{itemLabel}</span>
-              </button>
-            )
-          })}
-        </div>
-      </section>
+      <button
+        className={`sidebar-link sidebar-primary-link${active ? ' selected' : ''}`}
+        key={href}
+        type="button"
+        aria-current={active ? 'page' : undefined}
+        onClick={() => { navigate(href); onNavigate?.() }}
+      >
+        <Icon name={icon} />
+        <span>{label}</span>
+      </button>
     )
   }
+
+  const sections = [
+    ['main', 'Main', primaryItems],
+    ['intelligence', 'AI Intelligence', intelligenceItems],
+    ['payments', 'Payments', paymentItems],
+  ]
 
   return <aside className={`admin-sidebar${open ? ' is-open' : ''}`}>
     <div className="admin-sidebar-content">
     <Logo onClick={() => navigate('/admin/dashboard')} />
-    <div className="sidebar-caption">ADMIN MENU</div>
     <nav className="sidebar-nav" aria-label="Admin navigation">
-      {primaryItems.map(([href, icon, label]) => {
-        const active = path === href || (href === '/admin/vehicles' && path.startsWith('/admin/vehicles/'))
-        return (
-          <button
-            className={`sidebar-link sidebar-primary-link${active ? ' selected' : ''}`}
-            key={href}
-            type="button"
-            aria-current={active ? 'page' : undefined}
-            onClick={() => { navigate(href); onNavigate?.() }}
-          >
-            <Icon name={icon} />
-            <span>{label}</span>
-          </button>
-        )
-      })}
-      {renderGroup('intelligence', 'AI Intelligence', 'brain', intelligenceItems)}
-      {renderGroup('payments', 'Payments', 'wallet', paymentItems)}
+      {sections.map(([id, title, items]) => (
+        <section className="sidebar-section" key={id} aria-labelledby={`sidebar-${id}-title`}>
+          <div className="sidebar-caption" id={`sidebar-${id}-title`}>{title}</div>
+          {items.map(renderLink)}
+        </section>
+      ))}
     </nav>
-    <div className="sidebar-lower"><span className="sidebar-caption">ACCOUNT</span><button className="sidebar-link" onClick={() => { logout(); onNavigate?.() }}><Icon name="logout" />Log out</button><div className="sidebar-note"><Icon name="shield" size={16} /><span>Admin workspace<small>Manage your fleet</small></span></div></div>
+    <div className="sidebar-lower"><span className="sidebar-caption">Account</span><button className="sidebar-link" onClick={() => { logout(); onNavigate?.() }}><Icon name="logout" />Log out</button></div>
     <small className="sidebar-version">DRIVERENT · FLEET PORTAL</small>
     </div>
   </aside>
@@ -1195,7 +1163,7 @@ function VehicleEditor({ carId, navigate, setToast, setApiError, onSaved }) {
   if (loading) return <div className="admin-content content-width"><Loading label="Loading vehicle details" /></div>
   return <div className="admin-content content-width editor-page ve-page">
     <button className="back-link" onClick={() => navigate(backPath)}><Icon name="back" size={16} />Back to vehicles</button>
-    <div className="listing-heading editor-heading"><div><span className="eyebrow">FLEET MANAGEMENT</span><h1>{editing ? 'Edit vehicle' : 'Add new vehicle'}</h1><p>{editing ? 'Update vehicle information and settings.' : 'Enter vehicle details and specifications. The preview on the right shows how the listing will look.'}</p></div></div>
+    <div className="listing-heading editor-heading"><div><h1>{editing ? 'Edit vehicle' : 'Add new vehicle'}</h1></div></div>
     {formError && <ErrorMessage message={formError} />}
     <form onSubmit={submit}>
       <div className="ve-layout">

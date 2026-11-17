@@ -493,9 +493,7 @@ export default function MaintenanceManagement({ navigate }) {
     <div className="admin-content mm">
       <header className="mm-header">
         <div>
-          <span className="mm-eyebrow">Fleet upkeep</span>
           <h1>Maintenance records</h1>
-          <p>See which cars need service, log the work done, and keep mileage up to date.</p>
         </div>
         <div className="mm-header-actions">
           <button type="button" className="mm-btn mm-btn-outline" onClick={() => navigate('/admin/maintenance/predictions')}>View predictions</button>

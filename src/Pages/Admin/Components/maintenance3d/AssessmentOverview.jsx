@@ -96,7 +96,6 @@ export default function AssessmentOverview({ fleet, onOpen, onManageModels }) {
         <div>
           <span className="am-eyebrow">Fleet maintenance</span>
           <h1>Predictive Maintenance</h1>
-          <p>Select a vehicle and complete its condition assessment. Results and the 3D inspection become available once the assessment is submitted.</p>
         </div>
       </header>
 
