@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getReservations } from '../../../Services/API/reservationAPI.js'
-import { imageUrl } from '../../../Services/API/api.js'
+import { api, imageUrl } from '../../../Services/API/api.js'
 import CarSilhouette from '../Components/CarSilhouette.jsx'
 import '../Components/ReservationDialogs.css'
 import { carPhoto } from '../Components/carPhoto.js'
@@ -58,16 +58,32 @@ function money(value) {
   }).format(Number(value || 0))
 }
 
-function ReservationCard({ reservation }) {
-  const [photoFailed, setPhotoFailed] = useState(false)
-  const photo = imageUrl(reservation.primary_image)
+/**
+ * Photos to try for a reservation, best first: the booked colour, the car's main
+ * photo, then its other photos. A photo that fails to load falls through to the next.
+ */
+function photosFor(reservation, car) {
+  const images = car?.images || []
+  const variantId = reservation.variant_id == null ? null : Number(reservation.variant_id)
+  const paths = [
+    ...images.filter((image) => variantId !== null && Number(image.variant_id) === variantId).map((image) => image.image_path),
+    reservation.primary_image,
+    car?.primary_image,
+    ...images.map((image) => image.image_path),
+  ]
+  return [...new Set(paths.filter(Boolean))].map(imageUrl)
+}
+
+function ReservationCard({ reservation, photos }) {
+  const [failed, setFailed] = useState(0)
+  const photo = photos[failed]
   const payment = reservation.payment_status
 
   return (
     <article className="rv-card">
       <div className="rv-photo" aria-hidden="true">
-        {photo && !photoFailed
-          ? <img {...carPhoto(photo)} alt="" loading="lazy" onError={() => setPhotoFailed(true)} />
+        {photo
+          ? <img key={photo} {...carPhoto(photo)} alt="" loading="lazy" onError={() => setFailed((count) => count + 1)} />
           : <span className="rv-photo-empty"><CarSilhouette category={reservation.category} /></span>}
       </div>
       <div className="rv-card-body">
@@ -102,6 +118,7 @@ export default function ReservationActivity({ navigate, view = 'active' }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
+  const [cars, setCars] = useState({})
   const copy = VIEW_COPY[view] || VIEW_COPY.active
 
   useEffect(() => {
@@ -134,6 +151,19 @@ export default function ReservationActivity({ navigate, view = 'active' }) {
       || item.end_date < today
     ))
   }, [reservations, view])
+
+  // Each car's photo list, so every card has a picture even when the reservation
+  // carries no main photo or that photo fails to load.
+  const carIds = useMemo(() => [...new Set(visible.map((item) => item.car_id).filter(Boolean))].join(','), [visible])
+  useEffect(() => {
+    if (!carIds) return undefined
+    let active = true
+    Promise.all(carIds.split(',').map((id) => api.get(`/api/cars/${id}`)
+      .then((response) => [id, response?.data || null])
+      .catch(() => [id, null])))
+      .then((entries) => { if (active) setCars(Object.fromEntries(entries)) })
+    return () => { active = false }
+  }, [carIds])
 
   function retry() {
     setError('')
@@ -169,7 +199,11 @@ export default function ReservationActivity({ navigate, view = 'active' }) {
       ) : visible.length > 0 ? (
         <div className="rv-list">
           {visible.map((reservation) => (
-            <ReservationCard key={reservation.id} reservation={reservation} />
+            <ReservationCard
+              key={`${reservation.id}-${cars[reservation.car_id] ? 'full' : 'basic'}`}
+              reservation={reservation}
+              photos={photosFor(reservation, cars[reservation.car_id])}
+            />
           ))}
         </div>
       ) : (

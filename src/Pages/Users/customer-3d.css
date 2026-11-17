@@ -3,51 +3,7 @@
  * and the cursor-following tilt on cards. Loaded last.
  */
 
-/* ---------- 3D showroom in the next-trip ticket ---------- */
-
-.customer-frame .dash-ticket-stage {
-  position: relative;
-  overflow: hidden;
-  aspect-ratio: 16 / 9;
-  border-radius: 12px;
-  background:
-    radial-gradient(ellipse 70% 55% at 50% 78%, #ffffff 0%, rgb(255 255 255 / 0%) 70%),
-    linear-gradient(180deg, #eceae2 0%, #f7f6f1 62%, #e9e7df 100%);
-}
-
-/* Faint turntable ring under the car. */
-.customer-frame .dash-ticket-stage::before {
-  position: absolute;
-  bottom: 9%;
-  left: 50%;
-  width: 78%;
-  height: 22%;
-  border: 1px solid rgb(38 63 57 / 12%);
-  border-radius: 50%;
-  content: '';
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-
-.customer-frame .dash-ticket-stage .dash-ticket-photo {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  aspect-ratio: auto;
-  background: transparent;
-}
-
-.customer-frame .dash-ticket-stage-empty {
-  margin-top: 6px;
-  background:
-    radial-gradient(ellipse 70% 55% at 50% 78%, rgb(255 255 255 / 14%) 0%, transparent 70%),
-    rgb(255 255 255 / 4%);
-}
-
-.customer-frame .dash-ticket-stage-empty::before {
-  border-color: rgb(228 195 166 / 28%);
-}
+/* ---------- 3D showroom (vehicle details "3D view") ---------- */
 
 .customer-frame .showroom3d {
   position: absolute;
@@ -82,11 +38,6 @@
 
 .customer-frame .showroom3d:hover .showroom3d-hint {
   opacity: 0;
-}
-
-.customer-frame .dash-ticket-stage-empty .showroom3d-hint {
-  color: rgb(255 255 255 / 70%);
-  background: rgb(0 0 0 / 22%);
 }
 
 @keyframes cx-fade-in {
@@ -145,7 +96,7 @@
 
 /* ---------- Shared 3D stage look ---------- */
 
-.customer-frame :is(.vd-stage3d, .vl-hero3d-stage) {
+.customer-frame .vd-stage3d {
   position: relative;
   overflow: hidden;
   background:
@@ -153,7 +104,7 @@
     linear-gradient(180deg, #eceae2 0%, #f7f6f1 62%, #e9e7df 100%);
 }
 
-.customer-frame :is(.vd-stage3d, .vl-hero3d-stage)::before {
+.customer-frame .vd-stage3d::before {
   position: absolute;
   bottom: 9%;
   left: 50%;
@@ -226,30 +177,6 @@
   font-size: 11.5px;
   text-align: center;
   pointer-events: none;
-}
-
-/* ---------- Vehicle listing: heading with a turning car ---------- */
-
-.customer-frame .vl-hero3d {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 420px);
-  align-items: center;
-  gap: 20px;
-}
-
-.customer-frame .vl-hero3d-stage {
-  aspect-ratio: 16 / 8;
-  border-radius: 18px;
-}
-
-@media (max-width: 760px) {
-  .customer-frame .vl-hero3d {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .customer-frame .vl-hero3d-stage {
-    aspect-ratio: 16 / 7;
-  }
 }
 
 /* ---------- Vehicle photos: always fitted ----------

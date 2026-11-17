@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, imageUrl } from '../../../Services/API/api.js'
 import CarSilhouette from '../Components/CarSilhouette.jsx'
 import { tiltHandlers } from '../Components/tilt.js'
@@ -6,8 +6,6 @@ import { createPaymentCheckout } from '../../../Services/API/reservationAPI.js'
 import { PaymentDialog } from '../Components/ReservationDialogs.jsx'
 import './UserDashboard.css'
 import { carPhoto } from '../Components/carPhoto.js'
-
-const Showroom3D = lazy(() => import('../Components/Showroom3D.jsx'))
 
 const DAY_MS = 86400000
 const PICKUP_LOCATION = 'Amuguis Street, Lumangbayan, Calapan, Philippines, 5200'
@@ -132,13 +130,6 @@ function NextTripTicket({ trip, loading, failed, onPay }) {
     return (
       <div className="dash-ticket dash-ticket-empty">
         <small className="dash-ticket-label">Next trip</small>
-        {!failed && (
-          <div className="dash-ticket-stage dash-ticket-stage-empty">
-            <Suspense fallback={null}>
-              <Showroom3D category="suv" color="silver" label="3D model of a rental car" />
-            </Suspense>
-          </div>
-        )}
         <div className="dash-ticket-route" aria-hidden="true">
           <span><small>Pickup</small><b>—</b></span>
           <i />
@@ -154,11 +145,7 @@ function NextTripTicket({ trip, loading, failed, onPay }) {
         <small className="dash-ticket-label">Next trip</small>
         <Status status={trip.status} />
       </header>
-      <div className="dash-ticket-stage">
-        <Suspense fallback={<CarThumb reservation={trip} className="dash-ticket-photo" />}>
-          <Showroom3D make={trip.make} model={trip.model} category={trip.category} color={trip.variant_color || trip.color} label={`3D model of your ${vehicleName(trip)}`} />
-        </Suspense>
-      </div>
+      <CarThumb reservation={trip} className="dash-ticket-photo" />
       <h2>{vehicleName(trip)}</h2>
       <div className="dash-ticket-route">
         <span><small>Pickup</small><b>{formatDay(trip.start_date)}</b></span>

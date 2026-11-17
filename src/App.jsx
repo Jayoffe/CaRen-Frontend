@@ -8,6 +8,7 @@ import SignUp from './auth/SignUp'
 import { ForgotPassword, ResetPassword } from './auth/AccountRecovery.jsx'
 import AdminLayout from './Pages/Admin/Layout/AdminLayout.jsx'
 import UserLayout from './Pages/Users/Layout/UserLayout.jsx'
+import ThemeToggle from './Pages/Users/Components/ThemeToggle.jsx'
 import ProtectedRoute from './Routes/ProtectedRoute.jsx'
 import UserDashboardPage from './Pages/Users/Pages/UserDashboard.jsx'
 import VehicleListingPage from './Pages/Users/Pages/VehicleListing.jsx'
@@ -37,6 +38,7 @@ import './Pages/Users/customer-polish.css'
 import './Pages/Users/customer-premium.css'
 import './Pages/Users/customer-compact.css'
 import './Pages/Users/customer-3d.css'
+import './Pages/Users/customer-dark.css'
 import './Pages/Admin/Layout/AdminSidebar.css'
 
 // Curated lifestyle photography for the landing page (Unsplash, free to use).
@@ -344,6 +346,7 @@ function Navbar({ user, adminLayout, customerLayout = false, path, navigate, log
         : <nav className={menuOpen ? 'public-nav open' : 'public-nav'}>{customerLinks.map(([href, label]) => <button key={href} className={path === href ? 'nav-link active' : 'nav-link'} onClick={() => { navigate(href); setMenuOpen(false) }}>{label}</button>)}</nav>}
       <div className="topbar-right">
         {!adminLayout && <span className="connection-dot" title="Backend API" />}
+        {customerLayout && <ThemeToggle />}
         {user ? <>{user.role === 'admin' && <button className="profile-button" onClick={() => navigate(user.role === 'admin' ? '/admin/dashboard' : '/users/dashboard')}><span className="avatar">{(user.full_name || user.username || 'U').slice(0, 1).toUpperCase()}</span><span className="profile-name">{user.full_name || user.username}<small>Administrator</small></span></button>}{!adminLayout && <button className="icon-button logout-top" onClick={logout} title="Logout"><Icon name="logout" /></button>}</>
           : <button className="button button-primary button-compact" onClick={() => navigate('/auth/login')}>Sign in</button>}
         <button className={adminLayout || customerLayout ? 'menu-toggle admin-menu-toggle' : 'menu-toggle'} onClick={adminLayout || customerLayout ? onMenuToggle : () => setMenuOpen((open) => !open)} aria-label={adminLayout ? 'Toggle admin navigation' : customerLayout ? 'Toggle customer navigation' : 'Toggle navigation'} aria-expanded={adminLayout || customerLayout ? undefined : menuOpen}><span /><span /><span /></button>
