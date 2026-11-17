@@ -582,3 +582,19 @@
     animation: none;
   }
 }
+
+/* Sign-in methods card below the profile form. */
+.pf-signin {
+  margin-top: 20px;
+}
+
+.pf-signin-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.pf-signin-form .form-field {
+  flex: 1 1 220px;
+}

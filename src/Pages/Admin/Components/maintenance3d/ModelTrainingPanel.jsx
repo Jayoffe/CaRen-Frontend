@@ -191,6 +191,17 @@ export default function ModelTrainingPanel() {
     if (reason?.trim()) void act(() => revokeModel(category.key, reason.trim()))
   }
 
+  /** Before real use: withdraws every model trained on simulated SAMPLE- vehicles in one step. */
+  function revokeDemoModels(demoModels) {
+    const names = demoModels.map((model) => model.key.replaceAll('_', ' ')).join(', ')
+    if (!window.confirm(`Withdraw all ${demoModels.length} demonstration models (${names})? Those categories return to prediction unavailable until a model is trained on real outcomes.`)) return
+    void act(async () => {
+      for (const model of demoModels) {
+        await revokeModel(model.key, 'Demonstration model trained on simulated SAMPLE- vehicles; withdrawn before real use.')
+      }
+    })
+  }
+
   if (!data) {
     return error ? <p className="am-error" role="alert">{error}</p> : <p className="am-note" role="status">Loading model training…</p>
   }
@@ -199,6 +210,7 @@ export default function ModelTrainingPanel() {
   const { policy } = data
   const qualified = categories.filter((category) => category.status === 'sufficient').length
   const models = Object.fromEntries(data.models.map((model) => [model.key, model]))
+  const demoModels = data.models.filter((model) => model.available && model.demonstration)
 
   return (
     <>
@@ -246,6 +258,15 @@ export default function ModelTrainingPanel() {
         <div className="am-section-head"><h2>Model training and registry</h2></div>
         {!data.service.reachable && <p className="am-banner">The AI service could not be reached, so model status is unknown and no training can run.</p>}
         {error && <p className="am-error" role="alert">{error}</p>}
+        {demoModels.length > 0 && (
+          <div className="am-banner" role="note">
+            <p>
+              <strong>{demoModels.length} demonstration {demoModels.length === 1 ? 'model is' : 'models are'} serving predictions.</strong>{' '}
+              They were trained on simulated SAMPLE- vehicles, not real fleet outcomes. Withdraw them before using predictions for real maintenance decisions.
+            </p>
+            <button type="button" disabled={busy || !data.service.reachable} onClick={() => revokeDemoModels(demoModels)}>Withdraw demo models</button>
+          </div>
+        )}
         <p className="am-note">Condition-based screening always runs. A machine learning prediction appears only for a category with an accepted model, and each category unlocks on its own.</p>
         <div className="am-models">
           {categories.map((category) => {
@@ -258,6 +279,7 @@ export default function ModelTrainingPanel() {
                 <header>
                   <strong>{category.name}{category.safety_critical && <small> Safety-critical</small>}</strong>
                   <Chip tone={model?.available ? 'good' : 'not-assessed'}>{model?.available ? 'ML prediction enabled' : 'Prediction unavailable'}</Chip>
+                  {model?.available && model.demonstration && <Chip tone="unknown">Demo model, simulated data</Chip>}
                   <span className="am-model-actions">
                     <button type="button" onClick={() => (open ? setDataset({ key: null, value: null }) : review(category.key))}>{open ? 'Hide dataset' : 'Review dataset'}</button>
                     <button type="button" className={ready ? 'is-primary' : ''} disabled={!ready || busy || !data.service.reachable} title={ready ? '' : 'This category does not have enough eligible data.'} onClick={() => train(category.key)}>
@@ -267,6 +289,7 @@ export default function ModelTrainingPanel() {
                 </header>
                 {training === category.key && <p className="am-note" role="status">Training and evaluating {category.name}. This page updates when it finishes.</p>}
                 {model && !model.available && versions.length > 0 && <p className="am-note">{model.reason}</p>}
+                {model?.available && model.demonstration && <p className="am-note" role="note">{model.notice} Withdraw it before relying on predictions for real vehicles.</p>}
                 {open && dataset.value && <DatasetReview dataset={dataset.value} />}
                 {versions.map((entry) => (
                   <Evaluation key={entry.model_version} entry={entry} active={model.active_version === entry.model_version} busy={busy} onAccept={(item) => accept(category, item)} onRevoke={(item) => revoke(category, item)} />

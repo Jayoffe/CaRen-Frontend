@@ -381,6 +381,7 @@
 .am-prediction h4 { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
 .am-prediction p { margin: 0 0 6px; }
 .am-prediction small { color: var(--pm-text-muted); font-size: 12px; }
+.am-demo-notice { padding: 6px 9px; border: 1px dashed color-mix(in srgb, #5c5788 40%, #fff); border-radius: 4px; background: #f6f5fb; color: #3f3b66; font-weight: 500; }
 .am-prediction-notice { margin: 6px 0 0; padding: 12px 14px; font-size: 14px; line-height: 1.5; color: var(--pm-text-muted); background: #fff; border: 1px solid var(--pm-line); border-radius: 8px; }
 .am-prediction-notice strong { color: var(--pm-text); font-weight: 600; }
 .am-results-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding-top: 6px; }

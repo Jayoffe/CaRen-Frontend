@@ -1,13 +1,25 @@
 import { api } from './api.js'
 
+// Records when each reservation was fetched, so hold_seconds_left (time left to pay) can be
+// turned into a deadline in the browser without comparing server and browser time zones.
+function stamp(reservation) {
+  return reservation ? { ...reservation, loadedAt: Date.now() } : reservation
+}
+
 export async function getReservations() {
   const response = await api.get('/api/reservations', { cache: 'no-store' })
-  return response?.data || []
+  return (response?.data || []).map(stamp)
 }
 
 export async function getReservationById(id) {
   const response = await api.get(`/api/reservations/${id}`)
-  return response?.data || null
+  return stamp(response?.data || null)
+}
+
+/** Paid payments an administrator must act on (payment after cancellation or expiry, duplicates). */
+export async function getPaymentsNeedingReview() {
+  const response = await api.get('/api/payments/review')
+  return response?.data || []
 }
 
 export async function createReservation(payload) {

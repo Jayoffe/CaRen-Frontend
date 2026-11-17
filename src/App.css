@@ -896,6 +896,7 @@
 }
 
 .status-pill.status-rejected,
+.status-pill.status-expired,
 .status-pill.status-cancelled {
   color: #a5454c;
   background: #fff0f0;
@@ -2443,6 +2444,13 @@
   gap: 19px;
   margin: 0 auto;
   padding: 48px 0;
+}
+
+/* A form nested inside .login-form (account recovery pages) keeps the same spacing. */
+.auth-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 19px;
 }
 
 .login-form h2 {
@@ -11250,3 +11258,18 @@ body,
   .ve-footer-status { flex-basis: 100%; }
   .ve-page .ve-footer .button { flex: 1; justify-content: center; }
 }
+
+/* Payments an administrator must act on (refund or rebook). */
+.review-queue {
+  margin: 0 0 20px;
+  padding: 16px 18px;
+  border: 1px solid #e7b6b1;
+  border-radius: 10px;
+  background: #fbeceb;
+  color: #5e1f1b;
+}
+.review-queue h2 { margin: 0 0 4px; font-size: 1.05rem; }
+.review-queue p { margin: 0 0 10px; }
+.review-queue ul { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
+.review-queue small { display: block; opacity: 0.85; }
+.status-warning { color: #8a2f2a; font-weight: 600; }

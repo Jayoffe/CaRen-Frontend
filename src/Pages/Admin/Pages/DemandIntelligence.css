@@ -1,0 +1,29 @@
+/* Demand Intelligence page (DemandPricingIntelligence.jsx). Builds on the shared maintenance-page and table styles. */
+.di-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.di-window { min-width: 170px; }
+
+.di-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 0 0 16px; }
+.di-tile { background: #ffffff; border: 1px solid #e6e4dc; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.di-tile span { font-size: 12.5px; color: #5d6662; text-transform: uppercase; letter-spacing: 0.04em; }
+.di-tile b { font-size: 24px; color: #202a28; }
+.di-tile small { font-size: 12.5px; color: #6c7570; }
+
+.di-panel { margin-bottom: 16px; }
+.di-panel h2 { margin: 4px 0; }
+.di-panel p { color: #5d6662; margin: 0 0 10px; }
+.di-panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+
+.di-legend { display: flex; gap: 16px; list-style: none; padding: 0; margin: 4px 0 8px; font-size: 13px; color: #3b4542; }
+.di-legend li { display: flex; align-items: center; gap: 6px; }
+.di-legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+.di-chart { position: relative; height: 280px; }
+.di-chart-small { height: 220px; }
+.di-table-wrap { overflow-x: auto; }
+
+.di-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+
+@media (max-width: 640px) {
+  .di-chart { height: 220px; }
+  .di-tile b { font-size: 20px; }
+}

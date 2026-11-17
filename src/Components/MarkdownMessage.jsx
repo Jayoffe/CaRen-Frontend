@@ -1,6 +1,28 @@
 import { Fragment } from 'react'
 
 const INLINE_MARKDOWN = /(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\*[^*\n]+\*|_[^_\n]+_)/g
+// In-app pages the assistant names, such as "My Reservations (/users/reservations)". Only these become links.
+const APP_PATH = /(\/(?:users|admin)(?:\/[a-z0-9-]+)*)/g
+
+function openAppPage(event, path) {
+  event.preventDefault()
+  // App.jsx follows the location through popstate, so this opens the page without reloading it.
+  window.history.pushState({}, '', path)
+  window.dispatchEvent(new PopStateEvent('popstate'))
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function renderPlain(text, key) {
+  const parts = text.split(APP_PATH)
+  if (parts.length === 1) return <Fragment key={key}>{text}</Fragment>
+  return (
+    <Fragment key={key}>
+      {parts.map((part, index) => (index % 2 === 1
+        ? <a key={`${key}-link-${index}`} href={part} className="dr-chat-link" onClick={(event) => openAppPage(event, part)}>{part}</a>
+        : part))}
+    </Fragment>
+  )
+}
 
 function renderInline(text, prefix) {
   return text.split(INLINE_MARKDOWN).filter(Boolean).map((part, index) => {
@@ -14,7 +36,7 @@ function renderInline(text, prefix) {
     if (part.startsWith('`') && part.endsWith('`')) {
       return <code key={key}>{part.slice(1, -1)}</code>
     }
-    return <Fragment key={key}>{part}</Fragment>
+    return renderPlain(part, key)
   })
 }
 

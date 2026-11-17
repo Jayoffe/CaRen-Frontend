@@ -218,6 +218,19 @@
   margin: 0 0 9px;
 }
 
+/* In-app pages named in an answer, e.g. /users/reservations: opens the page. */
+.dr-chat-link {
+  color: var(--dr-chat-blue);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.dr-chat-link:hover,
+.dr-chat-link:focus-visible {
+  color: var(--dr-chat-navy);
+}
+
 .dr-chat-markdown h1,
 .dr-chat-markdown h2,
 .dr-chat-markdown h3,

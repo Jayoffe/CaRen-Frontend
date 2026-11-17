@@ -27,6 +27,7 @@ const STATUS_LABELS = {
   confirmed: 'Confirmed',
   completed: 'Completed',
   cancelled: 'Cancelled',
+  expired: 'Expired (not paid in time)',
   rejected: 'Rejected',
 }
 
@@ -128,7 +129,7 @@ export default function ReservationActivity({ navigate, view = 'active' }) {
     }
 
     return reservations.filter((item) => (
-      ['completed', 'cancelled', 'rejected'].includes(item.status)
+      ['completed', 'cancelled', 'rejected', 'expired'].includes(item.status)
       || item.end_date < today
     ))
   }, [reservations, view])
