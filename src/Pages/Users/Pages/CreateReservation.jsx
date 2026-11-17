@@ -23,9 +23,23 @@ function addDays(day, count) {
   return new Date(Date.parse(day) + count * DAY_MS).toISOString().slice(0, 10)
 }
 
+function startOfMonth(day) {
+  return `${day.slice(0, 7)}-01`
+}
+
+function shiftMonth(month, offset) {
+  const date = new Date(`${month}T00:00:00`)
+  date.setMonth(date.getMonth() + offset)
+  return startOfMonth(localDate(date))
+}
+
 function formatDay(day) {
   if (!day) return '—'
   return new Date(`${day}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+function formatMonth(month) {
+  return new Date(`${month}T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
 /** Dates passed in the link, from the vehicle finder. Anything invalid is ignored. */
@@ -85,6 +99,9 @@ export default function CreateReservation({ navigate, carId, setToast }) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [requested] = useState(requestedDates)
+  const [calendarMode, setCalendarMode] = useState(null)
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(requested.start || localDate(new Date())))
+  const [calendarResult, setCalendarResult] = useState(null)
   const [startDate, setStartDate] = useState(requested.start)
   const [endDate, setEndDate] = useState(requested.end)
   const [specialRequest, setSpecialRequest] = useState(requested.days > STANDARD_MAX_DAYS)
@@ -114,6 +131,9 @@ export default function CreateReservation({ navigate, carId, setToast }) {
   const colorPhoto = selectedVariant && car?.images?.find((image) => image.variant_id === selectedVariant.id)
   const vehicleImage = imageUrl(colorPhoto?.image_path || car?.primary_image || car?.images?.[0]?.image_path)
   const lengthOptions = (specialRequest ? [8, 14, 21] : [3, 5, 7]).filter((days) => days >= minimumDays && days <= maximumDays)
+  const calendarKey = calendarMode
+    ? `${calendarMode}|${calendarMonth}|${selectedVariantId || ''}|${calendarMode === 'return' ? startDate : ''}`
+    : ''
 
   let dateIssue = ''
   if (startDate && endDate) {
@@ -160,6 +180,34 @@ export default function CreateReservation({ navigate, carId, setToast }) {
   }, [carId, endDate, rentalDays, selectedVariantId, startDate])
 
   useEffect(() => {
+    if (!calendarMode) return undefined
+
+    let active = true
+    const query = new URLSearchParams({ month: calendarMonth.slice(0, 7) })
+    if (selectedVariantId) query.set('variant_id', selectedVariantId)
+    if (calendarMode === 'return' && startDate) query.set('pickup_date', startDate)
+    api.get(`/api/cars/${carId}/availability-calendar?${query}`)
+      .then((response) => {
+        if (!Array.isArray(response?.data?.unavailable_dates)) {
+          throw new Error('The vehicle calendar returned invalid data.')
+        }
+        if (active) {
+          setCalendarResult({
+            key: calendarKey,
+            dates: response.data.unavailable_dates,
+            error: '',
+          })
+        }
+      })
+      .catch((requestError) => {
+        if (active) {
+          setCalendarResult({ key: calendarKey, dates: [], error: requestError.message })
+        }
+      })
+    return () => { active = false }
+  }, [calendarKey, calendarMode, calendarMonth, carId, selectedVariantId, startDate])
+
+  useEffect(() => {
     let active = true
     if (!carId) return undefined
     api.get(`/api/cars/${carId}`)
@@ -183,6 +231,27 @@ export default function CreateReservation({ navigate, carId, setToast }) {
       setAvailability(null)
       setCheckingAvailability(true)
     }
+  }
+
+  function openCalendar(mode) {
+    const selectedDay = mode === 'pickup'
+      ? startDate || today
+      : endDate || (startDate ? addDays(startDate, minimumDays) : today)
+    setCalendarResult(null)
+    setCalendarMonth(startOfMonth(selectedDay))
+    setCalendarMode(mode)
+  }
+
+  function selectCalendarDate(day) {
+    if (calendarMode === 'pickup') {
+      changeStart(day)
+      setCalendarMode('return')
+      setCalendarMonth(startOfMonth(endDate > day ? endDate : addDays(day, minimumDays)))
+      return
+    }
+
+    changeEnd(day)
+    setCalendarMode(null)
   }
 
   function changeStart(nextStart) {
@@ -286,6 +355,16 @@ export default function CreateReservation({ navigate, carId, setToast }) {
   }
 
   const backToVehicle = () => navigate(`/users/vehicles/${car.id}`)
+  const calendarDate = new Date(`${calendarMonth}T00:00:00`)
+  const daysInMonth = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0).getDate()
+  const leadingDays = calendarDate.getDay()
+  const calendarResponseReady = calendarResult?.key === calendarKey
+  const calendarLoading = Boolean(calendarMode && !calendarResponseReady)
+  const calendarError = calendarResponseReady ? calendarResult.error : ''
+  const calendarLoaded = calendarResponseReady && !calendarError
+  const datesUnavailable = calendarLoaded ? new Set(calendarResult.dates) : new Set()
+  const returnMin = startDate ? addDays(startDate, minimumDays) : ''
+  const returnMax = startDate ? addDays(startDate, maximumDays) : ''
 
   return (
     <div className="public-page content-width rsv">
@@ -323,22 +402,88 @@ export default function CreateReservation({ navigate, carId, setToast }) {
             )}
 
             <div className="rsv-dates">
-              <label className="rsv-field">
+              <div className="rsv-field">
                 <span>Pickup date</span>
-                <input type="date" min={today} required value={startDate} onChange={(event) => changeStart(event.target.value)} />
-              </label>
-              <label className="rsv-field">
+                <button
+                  type="button"
+                  className="rsv-date-trigger"
+                  aria-haspopup="dialog"
+                  aria-expanded={calendarMode === 'pickup'}
+                  onClick={() => openCalendar('pickup')}
+                >
+                  <span>{formatDay(startDate) === '—' ? 'Choose pickup date' : formatDay(startDate)}</span>
+                  <span aria-hidden="true">▦</span>
+                </button>
+              </div>
+              <div className="rsv-field">
                 <span>Return date</span>
-                <input
-                  type="date"
-                  min={startDate ? addDays(startDate, minimumDays) : today}
-                  max={startDate ? addDays(startDate, maximumDays) : undefined}
-                  required
-                  value={endDate}
-                  onChange={(event) => changeEnd(event.target.value)}
-                />
-              </label>
+                <button
+                  type="button"
+                  className="rsv-date-trigger"
+                  aria-haspopup="dialog"
+                  aria-expanded={calendarMode === 'return'}
+                  disabled={!startDate}
+                  onClick={() => openCalendar('return')}
+                >
+                  <span>{formatDay(endDate) === '—' ? 'Choose return date' : formatDay(endDate)}</span>
+                  <span aria-hidden="true">▦</span>
+                </button>
+              </div>
             </div>
+
+            {calendarMode && (
+              <div className="rsv-calendar" role="dialog" aria-label={`Choose ${calendarMode} date`}>
+                <div className="rsv-calendar-header">
+                  <strong>{formatMonth(calendarMonth)}</strong>
+                  <div>
+                    <button
+                      type="button"
+                      aria-label="Previous month"
+                      disabled={calendarMonth <= startOfMonth(today)}
+                      onClick={() => setCalendarMonth(shiftMonth(calendarMonth, -1))}
+                    >‹</button>
+                    <button
+                      type="button"
+                      aria-label="Next month"
+                      onClick={() => setCalendarMonth(shiftMonth(calendarMonth, 1))}
+                    >›</button>
+                  </div>
+                </div>
+                <div className="rsv-calendar-weekdays" aria-hidden="true">
+                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => <span key={day}>{day}</span>)}
+                </div>
+                <div className="rsv-calendar-days">
+                  {Array.from({ length: leadingDays }, (_, index) => <span key={`blank-${index}`} />)}
+                  {Array.from({ length: daysInMonth }, (_, index) => {
+                    const day = `${calendarMonth.slice(0, 7)}-${String(index + 1).padStart(2, '0')}`
+                    const isUnavailable = datesUnavailable.has(day)
+                    const outsideReturnRange = calendarMode === 'return' && (day < returnMin || day > returnMax)
+                    const disabled = day < today || isUnavailable || outsideReturnRange || calendarLoading || !calendarLoaded || Boolean(calendarError)
+                    const selected = day === (calendarMode === 'pickup' ? startDate : endDate)
+                    return (
+                      <button
+                        type="button"
+                        key={day}
+                        className={`${isUnavailable ? 'is-unavailable' : ''}${selected ? ' is-selected' : ''}`}
+                        disabled={disabled}
+                        aria-pressed={selected}
+                        aria-label={`${day}${isUnavailable ? ', unavailable' : ''}`}
+                        onClick={() => selectCalendarDate(day)}
+                      >{index + 1}</button>
+                    )
+                  })}
+                </div>
+                {calendarLoading && <p className="rsv-calendar-message" role="status">Checking reserved dates…</p>}
+                {calendarError && <p className="rsv-calendar-error" role="alert">{calendarError}</p>}
+                {calendarLoaded && !calendarError && (
+                  <p className="rsv-calendar-key">
+                    <span><i className="is-open" /> Available</span>
+                    <span><i className="is-unavailable" /> Reserved / unavailable</span>
+                  </p>
+                )}
+                <button type="button" className="rsv-calendar-close" onClick={() => setCalendarMode(null)}>Close calendar</button>
+              </div>
+            )}
 
             {lengthOptions.length > 0 && (
               <div className="rsv-lengths" role="group" aria-label="Set rental length">

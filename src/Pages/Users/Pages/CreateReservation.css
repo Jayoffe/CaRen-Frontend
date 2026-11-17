@@ -159,28 +159,194 @@
   font-weight: 500;
 }
 
-.rsv-field input {
+.rsv-date-trigger {
+  display: flex;
   width: 100%;
   min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 0 12px;
   border: 1px solid #d8ded7;
   border-radius: 8px;
   color: var(--rsv-ink);
   background: #fff;
-  color-scheme: light;
   font-size: 15px;
   font-variant-numeric: tabular-nums;
+  text-align: left;
+  cursor: pointer;
   transition: border-color .2s ease, box-shadow .2s ease;
 }
 
-.rsv-field input:hover:not(:disabled) {
+.rsv-date-trigger:hover:not(:disabled) {
   border-color: #a9b6ab;
 }
 
-.rsv-field input:focus {
+.rsv-date-trigger:focus-visible {
   border-color: #829987;
   box-shadow: 0 0 0 3px rgb(53 86 74 / 12%);
   outline: 0;
+}
+
+.rsv-date-trigger > span:last-child {
+  color: var(--rsv-muted);
+}
+
+.rsv-date-trigger:disabled {
+  color: #7d857f;
+  background: #f8f8f4;
+  cursor: not-allowed;
+}
+
+.rsv-calendar {
+  max-width: 430px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid var(--rsv-line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.rsv-calendar-header,
+.rsv-calendar-header > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rsv-calendar-header {
+  margin-bottom: 14px;
+}
+
+.rsv-calendar-header strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.rsv-calendar-header button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--rsv-line);
+  border-radius: 7px;
+  color: var(--rsv-ink);
+  background: #fff;
+  font-size: 21px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.rsv-calendar-header button:disabled {
+  color: #a9ada8;
+  background: #f8f8f4;
+  cursor: not-allowed;
+}
+
+.rsv-calendar-weekdays,
+.rsv-calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  text-align: center;
+}
+
+.rsv-calendar-weekdays {
+  margin-bottom: 6px;
+  color: var(--rsv-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.rsv-calendar-days > span,
+.rsv-calendar-days button {
+  display: grid;
+  min-width: 0;
+  min-height: 36px;
+  place-items: center;
+}
+
+.rsv-calendar-days button {
+  border: 0;
+  border-radius: 7px;
+  color: var(--rsv-ink);
+  background: transparent;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.rsv-calendar-days button:hover:not(:disabled) {
+  background: var(--rsv-tint);
+}
+
+.rsv-calendar-days button.is-unavailable,
+.rsv-calendar-days button:disabled {
+  color: #979d97;
+  background: #f1f1ed;
+  cursor: not-allowed;
+}
+
+.rsv-calendar-days button.is-selected {
+  color: #fff;
+  background: var(--rsv-forest);
+}
+
+.rsv-calendar-days button.is-selected:disabled {
+  color: #fff;
+  background: var(--rsv-forest);
+}
+
+.rsv-calendar-key,
+.rsv-calendar-key > span {
+  display: flex;
+  align-items: center;
+}
+
+.rsv-calendar-key {
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0 0;
+  color: var(--rsv-muted);
+  font-size: 11px;
+}
+
+.rsv-calendar-key > span {
+  gap: 5px;
+}
+
+.rsv-calendar-key i {
+  width: 9px;
+  height: 9px;
+  border: 1px solid #d8ded7;
+  border-radius: 3px;
+  background: #fff;
+}
+
+.rsv-calendar-key i.is-unavailable {
+  border-color: #e7e6df;
+  background: #f1f1ed;
+}
+
+.rsv-calendar-message,
+.rsv-calendar-error {
+  margin: 12px 0 0;
+  color: var(--rsv-muted);
+  font-size: 12px;
+}
+
+.rsv-calendar-error {
+  color: #a33a32;
+}
+
+.rsv-calendar-close {
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  color: var(--rsv-green);
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .rsv-lengths {
