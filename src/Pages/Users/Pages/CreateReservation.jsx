@@ -1,10 +1,8 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api, imageUrl } from '../../../Services/API/api.js'
 import { createPaymentCheckout, createReservation, previewReservationAgreement } from '../../../Services/API/reservationAPI.js'
 import { AgreementDialog, PaymentDialog } from '../Components/ReservationDialogs.jsx'
 import './CreateReservation.css'
-
-const Showroom3D = lazy(() => import('../Components/Showroom3D.jsx'))
 
 const DAY_MS = 86400000
 const STANDARD_MAX_DAYS = 7
@@ -540,11 +538,6 @@ export default function CreateReservation({ navigate, carId, setToast }) {
 
         <aside className="rsv-panel rsv-summary" aria-label="Booking summary">
           <div className="rsv-summary-body">
-            <div className="rsv-stage3d">
-              <Suspense fallback={null}>
-                <Showroom3D make={car.make} model={car.model} category={car.category} color={selectedVariant?.color || car.color} label={`3D model of the ${car.make} ${car.model}`} />
-              </Suspense>
-            </div>
             <div className="rsv-vehicle">
               <div className="rsv-photo">
                 {vehicleImage && !photoFailed

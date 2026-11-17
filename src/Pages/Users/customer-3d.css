@@ -145,7 +145,7 @@
 
 /* ---------- Shared 3D stage look ---------- */
 
-.customer-frame :is(.vd-stage3d, .rsv-stage3d, .vl-hero3d-stage) {
+.customer-frame :is(.vd-stage3d, .vl-hero3d-stage) {
   position: relative;
   overflow: hidden;
   background:
@@ -153,7 +153,7 @@
     linear-gradient(180deg, #eceae2 0%, #f7f6f1 62%, #e9e7df 100%);
 }
 
-.customer-frame :is(.vd-stage3d, .rsv-stage3d, .vl-hero3d-stage)::before {
+.customer-frame :is(.vd-stage3d, .vl-hero3d-stage)::before {
   position: absolute;
   bottom: 9%;
   left: 50%;
@@ -228,14 +228,6 @@
   pointer-events: none;
 }
 
-/* ---------- Reservation summary ---------- */
-
-.customer-frame .rsv-stage3d {
-  aspect-ratio: 16 / 9;
-  margin-bottom: 14px;
-  border-radius: 14px;
-}
-
 /* ---------- Vehicle listing: heading with a turning car ---------- */
 
 .customer-frame .vl-hero3d {
@@ -258,4 +250,66 @@
   .customer-frame .vl-hero3d-stage {
     aspect-ratio: 16 / 7;
   }
+}
+
+/* ---------- Vehicle photos: always fitted ----------
+ * Every car photo shows whole inside its box: never stretched, never cropped,
+ * never larger than the box. Empty space around it is plain white, which
+ * matches the white-background product shots.
+ */
+
+.customer-frame :is(
+  .vl-photo > img,
+  .vd-main-photo > img,
+  .vd-thumb img,
+  .vd-color-media img,
+  .rsv-photo img,
+  .rv-photo > img,
+  .pay-thumb img,
+  .vr-photo > img,
+  .dash-row-thumb img,
+  .dash-ticket-photo img
+) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+  padding: 6%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.customer-frame :is(.vd-thumb img, .vd-color-media img, .rsv-photo img, .pay-thumb img, .dash-row-thumb img) {
+  padding: 4%;
+}
+
+.customer-frame :is(
+  .vl-photo,
+  .vd-main-photo:not(.vd-stage3d),
+  .vd-thumb,
+  .rsv-photo,
+  .rv-photo,
+  .pay-thumb,
+  .vr-photo,
+  .dash-row-thumb
+) {
+  background: #fff;
+}
+
+/* No zoom on hover: the photo stays exactly the size of its box. */
+.customer-frame :is(.vl-card, .vr-card, .rv-card):hover :is(.vl-photo, .vr-photo, .rv-photo) > img {
+  transform: none;
+}
+
+/* Thumbnails and small boxes get a hairline so the white box still reads as a frame. */
+.customer-frame :is(.rsv-photo, .pay-thumb, .dash-row-thumb, .vd-thumb) {
+  box-shadow: inset 0 0 0 1px var(--cx-line);
+}
+
+/* Larger boxes need less breathing room; photos with their own backdrop get soft corners. */
+.customer-frame :is(.vl-photo > img, .vr-photo > img, .rv-photo > img, .vd-main-photo > img) {
+  padding: 2%;
+  border-radius: 14px;
 }
