@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { api, imageUrl } from '../../../Services/API/api.js'
 import CarSilhouette from '../Components/CarSilhouette.jsx'
 import { FuelIcon, GearboxIcon, OutlineIcon, SeatsIcon } from '../Components/VehicleSpecIcons.jsx'
+import { tiltHandlers } from '../Components/tilt.js'
 import './VehicleListing.css'
+
+const Showroom3D = lazy(() => import('../Components/Showroom3D.jsx'))
 
 // The API's largest page. Filtering happens here in the browser, so the whole fleet has to be loaded.
 const FLEET_PAGE_SIZE = 48
@@ -45,7 +48,7 @@ function VehicleCard({ car, navigate }) {
   const openDetails = () => navigate(`/users/vehicles/${car.id}`)
 
   return (
-    <article className="vl-card">
+    <article className="vl-card tilt3d" {...tiltHandlers}>
       <button className="vl-photo" type="button" onClick={openDetails} aria-label={`View ${name} details`}>
         <span className="vl-photo-empty" aria-hidden="true">
           <CarSilhouette category={car.category} />
@@ -57,6 +60,7 @@ function VehicleCard({ car, navigate }) {
           loading="lazy"
           onError={(event) => { event.currentTarget.hidden = true }}
         />}
+        {car.category && <span className="vl-badge">{car.category}</span>}
       </button>
       <div className="vl-card-body">
         <div className="vl-card-heading">
@@ -151,10 +155,17 @@ export default function VehicleListing({ navigate }) {
 
   return (
     <div className="public-page content-width vl">
-      <header className="vl-header">
-        <span className="vl-eyebrow">The available fleet</span>
-        <h1>Choose your vehicle</h1>
-        <p>Compare what's ready to rent, then reserve the one that fits your trip.</p>
+      <header className="vl-header vl-hero3d">
+        <div className="vl-hero3d-copy">
+          <span className="vl-eyebrow">The available fleet</span>
+          <h1>Choose your vehicle</h1>
+          <p>Compare what's ready to rent, then reserve the one that fits your trip.</p>
+        </div>
+        <div className="vl-hero3d-stage" aria-hidden="true">
+          <Suspense fallback={null}>
+            <Showroom3D category={category || 'suv'} color="silver" label="" />
+          </Suspense>
+        </div>
       </header>
 
       {showControls && (

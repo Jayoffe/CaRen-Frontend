@@ -33,6 +33,10 @@ import UserProfilePage from './Pages/Users/Pages/UserProfile.jsx'
 import ChatWidget from './Components/ChatWidget.jsx'
 import VehicleColorManager from './Pages/Admin/Components/VehicleColorManager.jsx'
 import './App.css'
+import './Pages/Users/customer-polish.css'
+import './Pages/Users/customer-premium.css'
+import './Pages/Users/customer-compact.css'
+import './Pages/Users/customer-3d.css'
 import './Pages/Admin/Layout/AdminSidebar.css'
 
 // Curated lifestyle photography for the landing page (Unsplash, free to use).
@@ -328,7 +332,7 @@ function Logo({ onClick }) {
 function Navbar({ user, adminLayout, customerLayout = false, path, navigate, logout, onMenuToggle }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const customerLinks = user?.role === 'admin'
-    ? [['/admin/maintenance', 'Fleet Operations'], ['/admin/intelligence/demand', 'Demand Intelligence'], ['/admin/maintenance/predictions', 'Predictive Maintenance'], ['/admin/payments', 'Payment History'], ['/admin/reservations', 'Reservations'], ['/admin/reservations/history', 'Reservation History']]
+    ? [['/admin/maintenance', 'Fleet Operations'], ['/admin/intelligence/demand', 'Demand Intelligence'], ['/admin/maintenance/predictions', 'Predictive Maintenance'], ['/admin/payments', 'Payment History'], ['/admin/reservations', 'Reservations'], ['/admin/reservations/history', 'Reservation history']]
     : user
     ? [['/', 'Home'], ['/users/vehicles', 'Vehicles'], ['/users/recommendations', 'Recommendations'], ['/users/payments', 'Payments'], ['/users/dashboard', 'Dashboard']]
       : [['/', 'Home'], ['/vehicles', 'Vehicles']]
@@ -336,11 +340,11 @@ function Navbar({ user, adminLayout, customerLayout = false, path, navigate, log
     <header className={`topbar ${adminLayout ? 'topbar-admin' : ''}`}>
       {!adminLayout && <Logo onClick={() => navigate('/')} />}
       {adminLayout || customerLayout
-        ? <div className="admin-breadcrumb">{!adminLayout && <><span>Your Drive</span><b>/</b></>}<strong>{customerLayout ? (path.endsWith('/reservations/create') ? 'New reservation' : path.includes('/recommendations') ? 'Vehicle finder' : path.includes('/vehicles') ? 'Browse vehicles' : path.endsWith('/rentals') ? 'Active rentals' : path.endsWith('/history') ? 'Reservation history' : path.includes('payments') ? 'Payment history' : path.includes('profile') ? 'Profile' : 'Dashboard') : path.includes('/maintenance/predictions') ? 'Predictive maintenance' : path.includes('/maintenance/model-management') ? 'Model management' : path.includes('/maintenance/records') ? 'Vehicle maintenance records' : path === '/admin/maintenance' ? 'Fleet operations' : path.includes('/intelligence/demand') ? 'Demand intelligence' : path.includes('/intelligence/risk') ? 'Risk analysis' : path.includes('payments') ? 'Payment history' : path.endsWith('/reservations/history') ? 'Reservation history' : path.includes('reservations') ? 'Reservation management' : path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>
+        ? <div className="admin-breadcrumb"><strong>{customerLayout ? (path.endsWith('/reservations/create') ? 'New reservation' : path.includes('/recommendations') ? 'Vehicle finder' : path.includes('/vehicles') ? 'Browse vehicles' : path.endsWith('/rentals') ? 'Active rentals' : path.endsWith('/history') ? 'Reservation history' : path.includes('payments') ? 'Payment history' : path.includes('profile') ? 'Profile' : 'Dashboard') : path.includes('/maintenance/predictions') ? 'Predictive maintenance' : path.includes('/maintenance/model-management') ? 'Model management' : path.includes('/maintenance/records') ? 'Vehicle maintenance records' : path === '/admin/maintenance' ? 'Fleet operations' : path.includes('/intelligence/demand') ? 'Demand intelligence' : path.includes('/intelligence/risk') ? 'Risk analysis' : path.includes('payments') ? 'Payment history' : path.endsWith('/reservations/history') ? 'Reservation history' : path.includes('reservations') ? 'Reservation management' : path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>
         : <nav className={menuOpen ? 'public-nav open' : 'public-nav'}>{customerLinks.map(([href, label]) => <button key={href} className={path === href ? 'nav-link active' : 'nav-link'} onClick={() => { navigate(href); setMenuOpen(false) }}>{label}</button>)}</nav>}
       <div className="topbar-right">
         {!adminLayout && <span className="connection-dot" title="Backend API" />}
-        {user ? <><button className="profile-button" onClick={() => navigate(user.role === 'admin' ? '/admin/dashboard' : '/users/dashboard')}><span className="avatar">{(user.full_name || user.username || 'U').slice(0, 1).toUpperCase()}</span><span className="profile-name">{user.full_name || user.username}<small>{user.role === 'admin' ? 'Administrator' : 'Customer'}</small></span></button>{!adminLayout && <button className="icon-button logout-top" onClick={logout} title="Logout"><Icon name="logout" /></button>}</>
+        {user ? <>{user.role === 'admin' && <button className="profile-button" onClick={() => navigate(user.role === 'admin' ? '/admin/dashboard' : '/users/dashboard')}><span className="avatar">{(user.full_name || user.username || 'U').slice(0, 1).toUpperCase()}</span><span className="profile-name">{user.full_name || user.username}<small>Administrator</small></span></button>}{!adminLayout && <button className="icon-button logout-top" onClick={logout} title="Logout"><Icon name="logout" /></button>}</>
           : <button className="button button-primary button-compact" onClick={() => navigate('/auth/login')}>Sign in</button>}
         <button className={adminLayout || customerLayout ? 'menu-toggle admin-menu-toggle' : 'menu-toggle'} onClick={adminLayout || customerLayout ? onMenuToggle : () => setMenuOpen((open) => !open)} aria-label={adminLayout ? 'Toggle admin navigation' : customerLayout ? 'Toggle customer navigation' : 'Toggle navigation'} aria-expanded={adminLayout || customerLayout ? undefined : menuOpen}><span /><span /><span /></button>
       </div>
@@ -358,7 +362,7 @@ function AdminSidebar({ path, navigate, logout, open, onNavigate }) {
   const paymentItems = [
     ['/admin/payments', 'receipt', 'Payment History'],
     ['/admin/reservations', 'calendar', 'Reservations'],
-    ['/admin/reservations/history', 'history', 'Reservation History'],
+    ['/admin/reservations/history', 'history', 'Reservation history'],
   ]
   const primaryItems = [
     ['/admin/dashboard', 'dashboard', 'Dashboard'],
@@ -406,24 +410,24 @@ function AdminSidebar({ path, navigate, logout, open, onNavigate }) {
 function CustomerSidebar({ user, path, navigate, logout, open, onNavigate }) {
   const sections = [
     {
-      title: 'MAIN',
+      title: 'Main',
       items: [
         ['/users/dashboard', 'dashboard', 'Dashboard'],
-        ['/users/vehicles', 'car', 'Browse Vehicles'],
+        ['/users/vehicles', 'car', 'Browse vehicles'],
       ],
     },
     {
-      title: 'RENTAL ACTIVITY',
+      title: 'Rental activity',
       items: [
-        ['/users/rentals', 'key', 'Active Rentals'],
-        ['/users/reservations/history', 'history', 'Reservation History'],
+        ['/users/rentals', 'key', 'Active rentals'],
+        ['/users/reservations/history', 'history', 'Reservation history'],
       ],
     },
     {
-      title: 'ACCOUNT',
+      title: 'Account',
       items: [
         ['/users/profile', 'user', 'Profile'],
-        ['/users/payments', 'receipt', 'Payment History'],
+        ['/users/payments', 'receipt', 'Payment history'],
       ],
     },
   ]

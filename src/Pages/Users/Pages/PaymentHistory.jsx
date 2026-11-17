@@ -200,10 +200,10 @@ export default function PaymentHistory({ navigate }) {
   const visible = filter === 'all' ? payments : payments.filter((item) => item.payment_status === filter)
 
   return (
-    <div className="public-page pay-page">
+    <div className="public-page content-width pay-page">
       <header className="pay-header">
         <div>
-          <span className="pay-eyebrow">YOUR ACCOUNT</span>
+          <span className="pay-eyebrow">Your account</span>
           <h1>Payment history</h1>
           <p>Payments are verified by the provider. Standard reservations confirm automatically; special rental periods need administrator approval.</p>
         </div>

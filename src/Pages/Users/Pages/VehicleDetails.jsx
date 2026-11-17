@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { api, imageUrl } from '../../../Services/API/api.js'
+import { parseFeatures } from '../../../Services/vehicleData.js'
 import './VehicleDetails.css'
+
+const Showroom3D = lazy(() => import('../Components/Showroom3D.jsx'))
 
 function money(value) {
   const n = Number(value || 0)
@@ -39,6 +42,7 @@ export default function VehicleDetails({ carId, navigate }) {
   const [selectedVariantId, setSelectedVariantId] = useState(null)
   const [activeIndex, setActiveIndex] = useState(0)
   const [failedPaths, setFailedPaths] = useState([])
+  const [view, setView] = useState('photos')
   const thumbsRef = useRef(null)
 
   useEffect(() => {
@@ -142,6 +146,11 @@ export default function VehicleDetails({ carId, navigate }) {
   }
 
   const carName = `${car.make} ${car.model}`
+  const features = [...new Set([
+    Number(car.air_conditioning) === 1 && 'Air conditioning',
+    Number(car.gps_navigation) === 1 && 'GPS navigation',
+    ...parseFeatures(car.additional_features),
+  ].filter(Boolean))]
   const photoLabel = selectedVariant ? `${selectedVariant.color} ${carName}` : carName
 
   return (
@@ -150,6 +159,25 @@ export default function VehicleDetails({ carId, navigate }) {
 
       <div className="vd-grid">
         <section className="vd-gallery" aria-label={`${carName} photos`} onKeyDown={onGalleryKey}>
+          <div className="vd-view-toggle" role="group" aria-label="Gallery view">
+            <button type="button" aria-pressed={view === 'photos'} onClick={() => setView('photos')}>Photos</button>
+            <button type="button" aria-pressed={view === '3d'} onClick={() => setView('3d')}>3D view</button>
+          </div>
+          {view === '3d' ? (
+            <div className="vd-main-photo vd-stage3d">
+              <Suspense fallback={<div className="vd-stage3d-loading">Loading 3D view…</div>}>
+                <Showroom3D
+                  make={car.make}
+                  model={car.model}
+                  category={car.category}
+                  color={selectedVariant?.color || car.color}
+                  label={`Rotatable 3D model of the ${photoLabel}`}
+                />
+              </Suspense>
+              {selectedVariant && <span className="vd-color-tag">{selectedVariant.color}</span>}
+              <span className="vd-stage3d-note">Illustrative {car.category || 'vehicle'} shape in this car's colour</span>
+            </div>
+          ) : (
           <div className="vd-main-photo">
             {currentPhoto ? (
               <img
@@ -175,8 +203,9 @@ export default function VehicleDetails({ carId, navigate }) {
             )}
             {hasManyPhotos && <span className="vd-counter" aria-hidden="true">{currentIndex + 1} / {visiblePhotos.length}</span>}
           </div>
+          )}
 
-          {hasManyPhotos && (
+          {hasManyPhotos && view === 'photos' && (
             <div className="vd-thumbs" ref={thumbsRef}>
               {visiblePhotos.map((photo, index) => (
                 <button
@@ -257,6 +286,21 @@ export default function VehicleDetails({ carId, navigate }) {
             <div><dt>Fuel</dt><dd>{car.fuel_type || 'Gasoline'}</dd></div>
             <div><dt>Seats</dt><dd>{car.seating_capacity || 5}</dd></div>
           </dl>
+
+          {features.length > 0 && (
+            <ul className="vd-features" aria-label="Included features">
+              {features.map((feature) => <li key={feature}>{feature}</li>)}
+            </ul>
+          )}
+
+          {(Number(car.security_deposit) > 0 || Number(car.minimum_rental_duration) > 1) && (
+            <p className="vd-terms">
+              {[
+                Number(car.security_deposit) > 0 && `A ${money(car.security_deposit)} security deposit may apply`,
+                Number(car.minimum_rental_duration) > 1 && `${car.minimum_rental_duration}-day minimum rental`,
+              ].filter(Boolean).join(' · ')}
+            </p>
+          )}
 
           <button className="vd-reserve" type="button" disabled={!canReserve} onClick={reserve}>
             {car.status !== 'available'

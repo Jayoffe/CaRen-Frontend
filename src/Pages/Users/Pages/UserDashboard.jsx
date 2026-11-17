@@ -1,8 +1,12 @@
-import { useEffect, useState } from 'react'
-import { api } from '../../../Services/API/api.js'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { api, imageUrl } from '../../../Services/API/api.js'
+import CarSilhouette from '../Components/CarSilhouette.jsx'
+import { tiltHandlers } from '../Components/tilt.js'
 import { createPaymentCheckout } from '../../../Services/API/reservationAPI.js'
 import { PaymentDialog } from '../Components/ReservationDialogs.jsx'
 import './UserDashboard.css'
+
+const Showroom3D = lazy(() => import('../Components/Showroom3D.jsx'))
 
 const DAY_MS = 86400000
 const PICKUP_LOCATION = 'Amuguis Street, Lumangbayan, Calapan, Philippines, 5200'
@@ -48,6 +52,50 @@ function ArrowIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14m-7-7 7 7-7 7" /></svg>
 }
 
+function StatIcon({ name }) {
+  const paths = {
+    calendar: <><rect x="3.5" y="5" width="17" height="15" rx="2" /><path d="M3.5 10h17M8 3v4m8-4v4" /></>,
+    road: <><path d="M5 20 9 4m10 16L15 4" /><path d="M12 6v2m0 4v2m0 4v2" /></>,
+    alert: <><circle cx="12" cy="12" r="9" /><path d="M12 7.5v5.5m0 3.2v.1" /></>,
+  }
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
+}
+
+function CarThumb({ reservation, className }) {
+  const [failed, setFailed] = useState(false)
+  const photo = imageUrl(reservation.primary_image)
+  return (
+    <span className={className} aria-hidden="true">
+      {photo && !failed
+        ? <img src={photo} alt="" loading="lazy" onError={() => setFailed(true)} />
+        : <CarSilhouette category={reservation.category} />}
+    </span>
+  )
+}
+
+const QUICK_ACTIONS = [
+  { href: '/users/vehicles', title: 'Browse vehicles', text: 'See every car ready to rent', icon: <><path d="m5 11 1.6-4.5A2.2 2.2 0 0 1 8.7 5h6.6a2.2 2.2 0 0 1 2.1 1.5L19 11" /><path d="M3 11h18v7H3zM6 18v2m12-2v2" /><circle cx="7" cy="15" r="1" /><circle cx="17" cy="15" r="1" /></> },
+  { href: '/users/recommendations', title: 'Find my car', text: 'Match a car to your trip', icon: <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.8-3.8M8.5 11h5M11 8.5v5" /></> },
+  { href: '/users/payments', title: 'Payments', text: 'Receipts and payment status', icon: <><rect x="3" y="5.5" width="18" height="13" rx="2" /><path d="M3 10h18M7 15h3" /></> },
+  { href: '/users/profile', title: 'Profile', text: 'License and contact details', icon: <><circle cx="12" cy="8" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /></> },
+]
+
+function QuickActions({ navigate }) {
+  return (
+    <nav className="dash-quick" aria-label="Quick actions">
+      {QUICK_ACTIONS.map((action) => (
+        <button type="button" key={action.href} className="dash-quick-item tilt3d" {...tiltHandlers} onClick={() => navigate(action.href)}>
+          <span className="dash-quick-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{action.icon}</svg>
+          </span>
+          <span className="dash-quick-text"><b>{action.title}</b><small>{action.text}</small></span>
+          <ArrowIcon />
+        </button>
+      ))}
+    </nav>
+  )
+}
+
 function PickupLocation() {
   return (
     <section className="dash-location" aria-labelledby="dash-location-title">
@@ -83,6 +131,13 @@ function NextTripTicket({ trip, loading, failed, onPay }) {
     return (
       <div className="dash-ticket dash-ticket-empty">
         <small className="dash-ticket-label">Next trip</small>
+        {!failed && (
+          <div className="dash-ticket-stage dash-ticket-stage-empty">
+            <Suspense fallback={null}>
+              <Showroom3D category="suv" color="silver" label="3D model of a rental car" />
+            </Suspense>
+          </div>
+        )}
         <div className="dash-ticket-route" aria-hidden="true">
           <span><small>Pickup</small><b>—</b></span>
           <i />
@@ -98,6 +153,11 @@ function NextTripTicket({ trip, loading, failed, onPay }) {
         <small className="dash-ticket-label">Next trip</small>
         <Status status={trip.status} />
       </header>
+      <div className="dash-ticket-stage">
+        <Suspense fallback={<CarThumb reservation={trip} className="dash-ticket-photo" />}>
+          <Showroom3D make={trip.make} model={trip.model} category={trip.category} color={trip.variant_color || trip.color} label={`3D model of your ${vehicleName(trip)}`} />
+        </Suspense>
+      </div>
       <h2>{vehicleName(trip)}</h2>
       <div className="dash-ticket-route">
         <span><small>Pickup</small><b>{formatDay(trip.start_date)}</b></span>
@@ -165,9 +225,9 @@ export default function UserDashboard({ user, navigate }) {
   const failed = Boolean(error)
 
   const stats = [
-    { label: 'Reservations', value: reservations.length },
-    { label: 'On the road', value: activeRentals },
-    { label: 'Needs attention', value: pendingReservations + awaitingApproval, attention: pendingReservations + awaitingApproval > 0 },
+    { label: 'Reservations', value: reservations.length, icon: 'calendar' },
+    { label: 'On the road', value: activeRentals, icon: 'road' },
+    { label: 'Needs attention', value: pendingReservations + awaitingApproval, attention: pendingReservations + awaitingApproval > 0, icon: 'alert' },
   ]
 
   return (
@@ -177,10 +237,26 @@ export default function UserDashboard({ user, navigate }) {
           <time dateTime={today}>{now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</time>
           <h1>Welcome back, <em>{firstName}.</em></h1>
           <p>{loading ? 'Checking your trips…' : failed ? 'Your trip details are unavailable right now.' : describeTrip(nextRental, today)}</p>
+          <section className="dash-stats" aria-label="Reservation overview" aria-busy={loading}>
+            {stats.map((stat) => {
+              const empty = !loading && !failed && stat.value === 0
+              return (
+                <article className={`dash-stat${stat.attention ? ' is-attention' : ''}`} key={stat.label}>
+                  <span className="dash-stat-icon"><StatIcon name={stat.icon} /></span>
+                  {loading
+                    ? <span className="dash-skeleton dash-skeleton-num" />
+                    : <b className={`${empty ? 'is-zero' : ''}${stat.attention ? ' is-attention' : ''}`}>{failed ? '—' : stat.value}</b>}
+                  <span>{stat.label}</span>
+                </article>
+              )
+            })}
+          </section>
           <button className="dash-hero-action" type="button" onClick={() => navigate('/users/vehicles')}>Browse vehicles <ArrowIcon /></button>
         </div>
         <NextTripTicket trip={nextRental} loading={loading} failed={failed} onPay={setPayFor} />
       </section>
+
+      <QuickActions navigate={navigate} />
 
       {error && (
         <div className="dash-error" role="alert">
@@ -189,19 +265,6 @@ export default function UserDashboard({ user, navigate }) {
         </div>
       )}
 
-      <section className="dash-stats" aria-label="Reservation overview" aria-busy={loading}>
-        {stats.map((stat) => {
-          const empty = !loading && !failed && stat.value === 0
-          return (
-            <article className="dash-stat" key={stat.label}>
-              {loading
-                ? <span className="dash-skeleton dash-skeleton-num" />
-                : <b className={`${empty ? 'is-zero' : ''}${stat.attention ? ' is-attention' : ''}`}>{failed ? '—' : stat.value}</b>}
-              <span>{stat.label}</span>
-            </article>
-          )
-        })}
-      </section>
 
       <div className="dash-lower">
         <section className="dash-panel dash-recent" aria-labelledby="dash-recent-title" aria-busy={loading}>
@@ -220,6 +283,7 @@ export default function UserDashboard({ user, navigate }) {
             <ul className="dash-rows">
               {recentReservations.map((reservation) => (
                 <li className="dash-row" key={reservation.id}>
+                  <CarThumb reservation={reservation} className="dash-row-thumb" />
                   <div>
                     <b>{vehicleName(reservation)}</b>
                     <small>{formatDay(reservation.start_date, { month: 'short', day: 'numeric' })} – {formatDay(reservation.end_date)} · #{reservation.id}</small>
