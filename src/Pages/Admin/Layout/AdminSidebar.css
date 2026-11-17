@@ -156,18 +156,6 @@
   box-shadow: none;
 }
 
-/* Thin accent bar on the current page so it reads at a glance. */
-.admin-sidebar .sidebar-section .sidebar-link.selected::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 9px;
-  bottom: 9px;
-  width: 2px;
-  border-radius: 2px;
-  background: var(--sb-accent);
-}
-
 .admin-sidebar .sidebar-link.selected svg,
 .admin-sidebar .sidebar-link.sidebar-primary-link.selected svg,
 .admin-sidebar .sidebar-link.sidebar-submenu-link.selected svg {

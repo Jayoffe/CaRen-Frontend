@@ -47,7 +47,7 @@ export default function SignUp({ navigate, onGoogleLogin }) {
 
   return <div className="login-page">
     <section className="login-visual">
-      <div className="login-brand"><button className="logo" onClick={() => navigate('/')} aria-label="DriveRent home"><span className="logo-symbol">D</span><span>Drive<span>Rent</span></span></button></div>
+      <div className="login-brand"><button className="logo" onClick={() => navigate('/')} aria-label="DriveRent home"><img className="logo-mark" src="/logo.png" alt="" width="64" height="36" decoding="async" /><span>Drive<span>Rent</span></span></button></div>
       <span className="eyebrow light">JOIN DRIVERENT</span>
       <h1>Make room for<br /><em>new journeys.</em></h1>
       <p>Create your account to explore the available fleet.</p>

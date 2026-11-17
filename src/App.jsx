@@ -328,7 +328,7 @@ function Icon({ name, size = 18 }) {
 }
 
 function Logo({ onClick }) {
-  return <button className="logo" onClick={onClick} aria-label="DriveRent home"><span className="logo-symbol"><Icon name="car" size={19} /></span><span>Drive<span>Rent</span></span></button>
+  return <button className="logo" onClick={onClick} aria-label="DriveRent home"><img className="logo-mark" src="/logo.png" alt="" width="64" height="36" decoding="async" /><span>Drive<span>Rent</span></span></button>
 }
 
 function Navbar({ user, adminLayout, customerLayout = false, path, navigate, logout, onMenuToggle }) {

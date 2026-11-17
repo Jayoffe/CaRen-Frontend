@@ -1338,3 +1338,148 @@
   .mm-progress .mm-bar { grid-column: 1 / -1; grid-row: 2; }
   .mm-progress-meta { display: none; }
 }
+
+/* Step list: no accent bar or outlines; the background alone marks the current step. */
+.pm-page .am-assess-nav .am-category-nav button,
+.pm-page .am-assess-nav .am-category-nav button.is-active {
+  border: 0;
+  box-shadow: none;
+}
+
+/* "Add details" and the "Needed" notice: no outlines or accent bar; their backgrounds set them apart. */
+.am-assess .am-details,
+.am-assess .am-details.is-open .am-details-toggle {
+  border: 0;
+}
+.am-assess .am-details { background: #f8f8f4; border-radius: 12px; }
+.am-assess .am-needed { border: 0; border-radius: 10px; }
+
+/* ------------------------------------------------------------------
+   Component results: one list with dividers, like an inspection sheet.
+   Rating in plain coloured text, screening shown only when it says
+   something, and a real button for photos.
+   ------------------------------------------------------------------ */
+.am-result-list {
+  border: 1px solid var(--pm-line);
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+.am-result-list .am-result,
+.am-result-list .am-result:hover,
+.am-result-list .am-result[open],
+.am-result-list .am-result.is-safety {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.am-result-list .am-result + .am-result { border-top: 1px solid var(--pm-line); }
+
+.am-result-list .am-result > summary {
+  grid-template-columns: minmax(0, 1fr) auto 16px;
+  gap: 6px 20px;
+  min-height: 56px;
+  padding: 14px 18px;
+  transition: background-color .15s ease;
+}
+.am-result-list .am-result > summary:hover { background: #fafaf7; }
+.am-result-list .am-result > summary:focus-visible { border-radius: 0; }
+
+.am-result-list .am-result-name { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; font-size: 15px; font-weight: 600; }
+.am-result-safety {
+  color: var(--pm-critical);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.am-result-status { display: flex; align-items: baseline; gap: 14px; font-size: 14px; }
+.am-result-rating { color: var(--chip); font-weight: 600; }
+.am-result-flag { color: var(--chip); font-size: 13px; font-weight: 500; }
+.am-result-flag::after { content: '·'; margin-left: 14px; color: var(--pm-text-faint); }
+
+.am-result-list .am-result-chevron { width: 16px; height: 16px; border-radius: 0; color: var(--pm-text-faint); background: none; }
+.am-result-list .am-result > summary:hover .am-result-chevron { background: none; color: var(--pm-text); }
+
+.am-result-list .am-result-body {
+  padding: 4px 18px 18px;
+  border-top: 0;
+}
+.am-result-empty { margin: 0; color: var(--pm-text-muted); font-size: 14px; }
+
+.am-result-list .am-evidence { gap: 10px; margin-top: 16px; }
+.am-result-upload {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--pm-line-strong);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--pm-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.am-result-upload:hover { background: #f6f6f1; }
+.am-result-upload:focus-within { outline: 2px solid var(--pm-focus); outline-offset: 2px; }
+.am-result-upload input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.pm-page .am-result-3d {
+  min-height: 34px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--pm-accent);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .am-result-list .am-result > summary { grid-template-columns: minmax(0, 1fr) 16px; padding: 12px 14px; }
+  .am-result-list .am-result-status { grid-column: 1; grid-row: 2; }
+  .am-result-list .am-result-chevron { grid-column: 2; grid-row: 1; }
+  .am-result-list .am-result-body { padding: 4px 14px 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .am-result-list .am-result > summary { transition: none; }
+}
+
+/* Safety warnings: no outline, side bar or dividers; spacing separates the items. */
+.am-safety { border: 0; }
+.am-safety li { padding: 10px 0; border-top: 0; }
+
+/* Outcomes: no outline, coloured side bar or divider; plain sentence-case labels. */
+.am-outcomes li.am-outcome,
+.am-history .am-outcomes li { border: 0; }
+.am-outcome-facts { padding-top: 0; border-top: 0; }
+.am-outcome-facts dt { font-size: 12.5px; letter-spacing: 0; text-transform: none; }
+
+/* Outcomes: a plain border, and the decision coloured by what happened. */
+.am-outcomes li.am-outcome,
+.am-history .am-outcomes li { border: 1px solid var(--pm-line); }
+.am-outcome-decision.is-completed { color: var(--pm-good); }
+.am-outcome-decision.is-deferred { color: #80640f; }
+.am-outcome-decision.is-rejected { color: var(--pm-critical); }
+
+/* Back button beside the workflow steps. */
+.am-topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.pm-page .am-back-red {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--pm-critical);
+  border-radius: 999px;
+  background: var(--pm-critical);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color .15s ease;
+}
+.pm-page .am-back-red:hover:not(:disabled) { border-color: #6f2420; background: #6f2420; color: #fff; }
+.pm-page .am-back-red:focus-visible { outline: 2px solid var(--pm-critical); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .pm-page .am-back-red { transition: none; } }

@@ -5,7 +5,7 @@ import { api } from '../api'
 function AuthCard({ navigate, eyebrow, title, intro, children }) {
   return <div className="login-page">
     <section className="login-visual">
-      <div className="login-brand"><button className="logo" onClick={() => navigate('/')} aria-label="DriveRent home"><span className="logo-symbol">D</span><span>Drive<span>Rent</span></span></button></div>
+      <div className="login-brand"><button className="logo" onClick={() => navigate('/')} aria-label="DriveRent home"><img className="logo-mark" src="/logo.png" alt="" width="64" height="36" decoding="async" /><span>Drive<span>Rent</span></span></button></div>
       <span className="eyebrow light">ACCOUNT SECURITY</span>
       <h1>Keep your<br /><em>account yours.</em></h1>
       <p>Links we email you work once and expire, so only you can use them.</p>

@@ -11276,3 +11276,33 @@ body,
 .review-queue ul { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
 .review-queue small { display: block; opacity: 0.85; }
 .status-warning { color: #8a2f2a; font-weight: 600; }
+
+/* ── Brand mark (DriveRent car logo image) ── */
+.logo .logo-mark {
+  display: block;
+  flex: none;
+  width: auto;
+  height: 36px;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.admin-sidebar .logo .logo-mark,
+.customer-sidebar .logo .logo-mark {
+  height: 40px;
+}
+
+.login-brand .logo .logo-mark {
+  height: 46px;
+}
+
+.site-footer .logo .logo-mark {
+  height: 32px;
+}
+
+@media (max-width: 640px) {
+  .logo .logo-mark {
+    height: 30px;
+  }
+}

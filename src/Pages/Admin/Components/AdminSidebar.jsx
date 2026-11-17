@@ -2,7 +2,7 @@ export default function AdminSidebar({ title = 'Admin workspace', subtitle = 'Fl
   return (
     <aside className="admin-sidebar">
       <div className="logo" aria-label="DriveRent admin home">
-        <span className="logo-symbol">D</span>
+        <img className="logo-mark" src="/logo.png" alt="" width="64" height="36" decoding="async" />
         <span>Drive<span>Rent</span></span>
       </div>
       <p className="sidebar-caption">Workspace</p>

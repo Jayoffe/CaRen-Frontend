@@ -575,7 +575,7 @@ function EvidenceImage({ item }) {
 }
 
 function Findings({ findings }) {
-  if (findings.length === 0) return <p className="am-note">Nothing flagged.</p>
+  if (findings.length === 0) return <p className="am-result-empty">No problems found during this check.</p>
   return (
     <ul className="am-findings">
       {findings.map((finding) => (
@@ -651,16 +651,15 @@ function CategoryResult({ category, assessment, canInspect, onInspect, onChanged
   return (
     <details className={`am-result${safetyFlag ? ' is-safety' : ''}`}>
       <summary>
-        <span className={`am-result-score am-tone-${rating.tone}`} aria-hidden="true">{rating.short}</span>
         <span className="am-result-name">
           {category.name}
-          {category.safety_critical && <span className="am-safety-tag"><PmIcon name="alert" size={13} /> Safety-critical</span>}
+          {category.safety_critical && <span className="am-result-safety">Safety-critical</span>}
         </span>
-        <span className="am-result-chips">
-          <Chip tone={rating.tone} title="Condition rating recorded by the assessor">{rating.label}</Chip>
-          <Chip tone={screening.tone} title="Result of the condition-based screening rules">{screening.label}</Chip>
+        <span className="am-result-status">
+          {component.screening_status !== 'no_concerns_recorded' && <span className={`am-result-flag am-tone-${screening.tone}`} title="Result of the condition-based screening rules">{screening.label}</span>}
+          <span className={`am-result-rating am-tone-${rating.tone}`} title="Condition rating recorded by the assessor">{rating.label}</span>
         </span>
-        <span className="am-result-chevron" aria-hidden="true"><PmIcon name="right" size={16} /></span>
+        <span className="am-result-chevron" aria-hidden="true"><PmIcon name="chevron" size={16} /></span>
       </summary>
       <div className="am-result-body">
         <Findings findings={findings} />
@@ -699,8 +698,11 @@ function CategoryResult({ category, assessment, canInspect, onInspect, onChanged
 
         <div className="am-evidence">
           {evidence.map((item) => <EvidenceImage key={item.id} item={item} />)}
-          <label className="am-file">Add photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={attach} /></label>
-          {canInspect && <button type="button" className="am-link" onClick={() => onInspect(category.key)}><PmIcon name="cube" size={14} /> View in 3D</button>}
+          <label className="am-result-upload">
+            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={attach} />
+            <PmIcon name="plus" size={14} /> Add photo
+          </label>
+          {canInspect && <button type="button" className="am-result-3d" onClick={() => onInspect(category.key)}>View in 3D</button>}
           {error && <p className="am-error" role="alert">{error}</p>}
         </div>
       </div>
@@ -793,9 +795,11 @@ function ResultsSummary({ assessment, catalog, partsByCategory, onInspect, onCha
         <h2 className="am-results-title">Components</h2>
         <span>{catalog.categories.length}</span>
       </div>
-      {catalog.categories.map((category) => (
-        <CategoryResult key={category.key} category={category} assessment={assessment} canInspect={partsByCategory.has(category.key)} onInspect={onInspect} onChanged={onChanged} />
-      ))}
+      <div className="am-result-list">
+        {catalog.categories.map((category) => (
+          <CategoryResult key={category.key} category={category} assessment={assessment} canInspect={partsByCategory.has(category.key)} onInspect={onInspect} onChanged={onChanged} />
+        ))}
+      </div>
 
       <PredictionNotice assessment={assessment} catalog={catalog} />
 
@@ -1128,7 +1132,7 @@ function OutcomeList({ outcomes, canVerify, onVerify }) {
         return (
           <li key={outcome.id} className={`am-outcome is-${outcome.verification_status}`}>
             <div className="am-outcome-head">
-              <strong>{DECISIONS[outcome.decision]}</strong>
+              <strong className={`am-outcome-decision is-${outcome.decision}`}>{DECISIONS[outcome.decision]}</strong>
               <span className="am-outcome-result">{RESULTS[outcome.result]}</span>
               <Chip tone={outcome.verification_status === 'verified' ? 'good' : outcome.verification_status === 'rejected' ? 'failed' : 'pending'}>{VERIFICATION[outcome.verification_status]}</Chip>
             </div>
@@ -1498,7 +1502,10 @@ export default function AssessmentWorkspace({ vehicleId, view, listing, onView, 
 
   return (
     <section className="am-workspace" aria-label="Vehicle assessment workspace">
-      <FlowSteps view={activeView} hasAssessment={Boolean(assessment)} onFleet={onBack} onAssess={() => onView('assess')} onResults={() => onView('results')} />
+      <div className="am-topbar">
+        <button type="button" className="am-back-red" onClick={onBack}><PmIcon name="left" size={16} /> Back</button>
+        <FlowSteps view={activeView} hasAssessment={Boolean(assessment)} onFleet={onBack} onAssess={() => onView('assess')} onResults={() => onView('results')} />
+      </div>
 
       <header className="am-workspace-head">
         <VehicleThumb listing={listing} category={vehicle.body_type || vehicle.category} />

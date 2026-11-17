@@ -52,7 +52,7 @@ export default function Login({ onLogin, onGoogleLogin, navigate, onError, error
 
   return <div className="login-page">
     <section className="login-visual">
-      <div className="login-brand"><button className="logo" onClick={() => navigate('/')} aria-label="DriveRent home"><span className="logo-symbol">D</span><span>Drive<span>Rent</span></span></button></div>
+      <div className="login-brand"><button className="logo" onClick={() => navigate('/')} aria-label="DriveRent home"><img className="logo-mark" src="/logo.png" alt="" width="64" height="36" decoding="async" /><span>Drive<span>Rent</span></span></button></div>
       <span className="eyebrow light">WELCOME TO DRIVERENT</span>
       <h1>Your next<br /><em>journey starts here.</em></h1>
       <p>Sign in to see the fleet and make the road your own.</p>
