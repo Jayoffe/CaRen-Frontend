@@ -340,6 +340,7 @@ function Navbar({ user, adminLayout, customerLayout = false, path, navigate, log
       : [['/', 'Home'], ['/vehicles', 'Vehicles']]
   return (
     <header className={`topbar ${adminLayout ? 'topbar-admin' : ''}`}>
+      {adminLayout && <div className="admin-topbar-brand"><Logo onClick={() => navigate('/admin/dashboard')} /></div>}
       {!adminLayout && <Logo onClick={() => navigate('/')} />}
       {adminLayout || customerLayout
         ? <div className="admin-breadcrumb"><strong>{customerLayout ? (path.endsWith('/reservations/create') ? 'New reservation' : path.includes('/recommendations') ? 'Vehicle finder' : path.includes('/vehicles') ? 'Browse vehicles' : path.endsWith('/rentals') ? 'Active rentals' : path.endsWith('/history') ? 'Reservation history' : path.includes('payments') ? 'Payment history' : path.includes('profile') ? 'Profile' : 'Dashboard') : path.includes('/maintenance/predictions') ? 'Predictive maintenance' : path.includes('/maintenance/model-management') ? 'Model management' : path.includes('/maintenance/records') ? 'Vehicle maintenance records' : path === '/admin/maintenance' ? 'Fleet operations' : path.includes('/intelligence/demand') ? 'Demand intelligence' : path.includes('/intelligence/risk') ? 'Risk analysis' : path.includes('payments') ? 'Payment history' : path.endsWith('/reservations/history') ? 'Reservation history' : path.includes('reservations') ? 'Reservation management' : path.includes('vehicles') ? 'Vehicle management' : 'Dashboard'}</strong></div>

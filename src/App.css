@@ -11278,6 +11278,10 @@ body,
 .status-warning { color: #8a2f2a; font-weight: 600; }
 
 /* ── Brand mark (DriveRent car logo image) ── */
+.admin-topbar-brand {
+  display: none;
+}
+
 .logo .logo-mark {
   display: block;
   flex: none;
@@ -11304,5 +11308,34 @@ body,
 @media (max-width: 640px) {
   .logo .logo-mark {
     height: 30px;
+  }
+}
+
+@media (max-width: 580px) {
+  .topbar-admin .admin-topbar-brand {
+    display: block;
+    flex: 0 0 auto;
+  }
+
+  .topbar-admin .logo {
+    gap: 6px;
+    font-size: 14px;
+  }
+
+  .topbar-admin .logo-symbol {
+    width: 28px;
+    height: 28px;
+  }
+
+  .topbar-admin .admin-breadcrumb {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar-admin .profile-button .profile-name {
+    display: none;
   }
 }
