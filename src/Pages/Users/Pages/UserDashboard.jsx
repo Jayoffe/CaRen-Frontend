@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { api, imageUrl } from '../../../Services/API/api.js'
+import { api } from '../../../Services/API/api.js'
 import CarSilhouette from '../Components/CarSilhouette.jsx'
 import { tiltHandlers } from '../Components/tilt.js'
+import { reservationPhotos, useReservationCars } from '../Components/reservationPhotos.js'
 import { createPaymentCheckout } from '../../../Services/API/reservationAPI.js'
 import { PaymentDialog } from '../Components/ReservationDialogs.jsx'
 import './UserDashboard.css'
@@ -60,13 +61,13 @@ function StatIcon({ name }) {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
 }
 
-function CarThumb({ reservation, className }) {
-  const [failed, setFailed] = useState(false)
-  const photo = imageUrl(reservation.primary_image)
+function CarThumb({ reservation, photos, className }) {
+  const [failed, setFailed] = useState(0)
+  const photo = photos[failed]
   return (
     <span className={className} aria-hidden="true">
-      {photo && !failed
-        ? <img {...carPhoto(photo)} alt="" loading="lazy" onError={() => setFailed(true)} />
+      {photo
+        ? <img key={photo} {...carPhoto(photo)} alt="" loading="lazy" onError={() => setFailed((count) => count + 1)} />
         : <CarSilhouette category={reservation.category} />}
     </span>
   )
@@ -145,7 +146,6 @@ function NextTripTicket({ trip, loading, failed, onPay }) {
         <small className="dash-ticket-label">Next trip</small>
         <Status status={trip.status} />
       </header>
-      <CarThumb reservation={trip} className="dash-ticket-photo" />
       <h2>{vehicleName(trip)}</h2>
       <div className="dash-ticket-route">
         <span><small>Pickup</small><b>{formatDay(trip.start_date)}</b></span>
@@ -204,6 +204,7 @@ export default function UserDashboard({ user, navigate }) {
     .filter((item) => ['pending', 'awaiting_approval', 'confirmed'].includes(item.status) && item.end_date >= today)
     .sort((left, right) => left.start_date.localeCompare(right.start_date))[0]
   const recentReservations = reservations.slice(0, 4)
+  const cars = useReservationCars(recentReservations)
   const activeRentals = reservations.filter((item) => (
     item.status === 'confirmed' && item.start_date <= today && item.end_date > today
   )).length
@@ -271,7 +272,12 @@ export default function UserDashboard({ user, navigate }) {
             <ul className="dash-rows">
               {recentReservations.map((reservation) => (
                 <li className="dash-row" key={reservation.id}>
-                  <CarThumb reservation={reservation} className="dash-row-thumb" />
+                  <CarThumb
+                    key={`${reservation.id}-${cars[reservation.car_id] ? 'full' : 'basic'}`}
+                    reservation={reservation}
+                    photos={reservationPhotos(reservation, cars[reservation.car_id])}
+                    className="dash-row-thumb"
+                  />
                   <div>
                     <b>{vehicleName(reservation)}</b>
                     <small>{formatDay(reservation.start_date, { month: 'short', day: 'numeric' })} – {formatDay(reservation.end_date)} · #{reservation.id}</small>

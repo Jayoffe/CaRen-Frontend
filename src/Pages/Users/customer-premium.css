@@ -434,3 +434,18 @@
   font-weight: 600;
   letter-spacing: -.03em;
 }
+
+/* The next-trip ticket no longer has a photo: its header sits in the flow again. */
+.customer-frame .dash-ticket:not(.dash-ticket-empty) > header {
+  position: static;
+  margin: 6px 8px 0;
+}
+
+.customer-frame .dash-ticket:not(.dash-ticket-empty) {
+  justify-content: center;
+  padding: 18px 14px 20px;
+}
+
+.customer-frame .dash-hero > .dash-ticket {
+  align-self: center;
+}
