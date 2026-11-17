@@ -313,3 +313,27 @@
   padding: 2%;
   border-radius: 14px;
 }
+
+/* Photos on a coloured or photographic backdrop fill the box (set by carPhoto.js),
+   so no grey slab sits inside the white frame. Aspect ratio is always kept. */
+.customer-frame :is(
+  .vl-photo > img,
+  .vd-main-photo > img,
+  .vd-thumb img,
+  .vd-color-media img,
+  .rsv-photo img,
+  .rv-photo > img,
+  .pay-thumb img,
+  .vr-photo > img,
+  .dash-row-thumb img,
+  .dash-ticket-photo img
+)[data-backdrop='solid'] {
+  padding: 0;
+  border-radius: 0;
+  object-fit: cover;
+}
+
+/* Photos on white: trimmed by ImageKit, so a small even margin is enough. */
+.customer-frame :is(.vl-photo > img, .vr-photo > img, .rv-photo > img, .vd-main-photo > img)[data-backdrop='light'] {
+  padding: 4% 5%;
+}

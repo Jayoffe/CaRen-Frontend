@@ -5,6 +5,7 @@ import { tiltHandlers } from '../Components/tilt.js'
 import { createPaymentCheckout } from '../../../Services/API/reservationAPI.js'
 import { PaymentDialog } from '../Components/ReservationDialogs.jsx'
 import './UserDashboard.css'
+import { carPhoto } from '../Components/carPhoto.js'
 
 const Showroom3D = lazy(() => import('../Components/Showroom3D.jsx'))
 
@@ -67,7 +68,7 @@ function CarThumb({ reservation, className }) {
   return (
     <span className={className} aria-hidden="true">
       {photo && !failed
-        ? <img src={photo} alt="" loading="lazy" onError={() => setFailed(true)} />
+        ? <img {...carPhoto(photo)} alt="" loading="lazy" onError={() => setFailed(true)} />
         : <CarSilhouette category={reservation.category} />}
     </span>
   )

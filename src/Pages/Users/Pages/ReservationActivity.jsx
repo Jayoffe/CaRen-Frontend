@@ -3,6 +3,7 @@ import { getReservations } from '../../../Services/API/reservationAPI.js'
 import { imageUrl } from '../../../Services/API/api.js'
 import CarSilhouette from '../Components/CarSilhouette.jsx'
 import '../Components/ReservationDialogs.css'
+import { carPhoto } from '../Components/carPhoto.js'
 
 const VIEW_COPY = {
   active: {
@@ -66,7 +67,7 @@ function ReservationCard({ reservation }) {
     <article className="rv-card">
       <div className="rv-photo" aria-hidden="true">
         {photo && !photoFailed
-          ? <img src={photo} alt="" loading="lazy" onError={() => setPhotoFailed(true)} />
+          ? <img {...carPhoto(photo)} alt="" loading="lazy" onError={() => setPhotoFailed(true)} />
           : <span className="rv-photo-empty"><CarSilhouette category={reservation.category} /></span>}
       </div>
       <div className="rv-card-body">

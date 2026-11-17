@@ -4,6 +4,7 @@ import CarSilhouette from '../Components/CarSilhouette.jsx'
 import { FuelIcon, GearboxIcon, OutlineIcon, SeatsIcon } from '../Components/VehicleSpecIcons.jsx'
 import { tiltHandlers } from '../Components/tilt.js'
 import './VehicleListing.css'
+import { carPhoto } from '../Components/carPhoto.js'
 
 const Showroom3D = lazy(() => import('../Components/Showroom3D.jsx'))
 
@@ -55,7 +56,7 @@ function VehicleCard({ car, navigate }) {
           <small>Photo coming soon</small>
         </span>
         {photo && <img
-          src={photo}
+          {...carPhoto(photo)}
           alt={name}
           loading="lazy"
           onError={(event) => { event.currentTarget.hidden = true }}

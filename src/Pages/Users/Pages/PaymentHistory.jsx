@@ -3,6 +3,7 @@ import { getReservations } from '../../../Services/API/reservationAPI.js'
 import { imageUrl } from '../../../Services/API/api.js'
 import CarSilhouette from '../Components/CarSilhouette.jsx'
 import './PaymentHistory.css'
+import { carPhoto } from '../Components/carPhoto.js'
 
 // The server returns only the signed-in customer's reservations, so only their payments appear here.
 const PAYMENT_LABELS = { paid: 'Paid', pending: 'Pending verification', failed: 'Failed' }
@@ -104,7 +105,7 @@ function PaymentCard({ item }) {
     <article className={`pay-card pay-card--${status}`}>
       <div className="pay-card-vehicle">
         <div className="pay-thumb" aria-hidden="true">
-          {photo && !photoFailed ? <img src={photo} alt="" loading="lazy" onError={() => setPhotoFailed(true)} /> : <CarSilhouette category={item.category} />}
+          {photo && !photoFailed ? <img {...carPhoto(photo)} alt="" loading="lazy" onError={() => setPhotoFailed(true)} /> : <CarSilhouette category={item.category} />}
         </div>
         <div>
           <span className="pay-card-kicker">Reservation #{item.id}</span>

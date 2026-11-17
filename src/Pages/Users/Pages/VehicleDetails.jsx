@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { api, imageUrl } from '../../../Services/API/api.js'
 import { parseFeatures } from '../../../Services/vehicleData.js'
 import './VehicleDetails.css'
+import { carPhoto } from '../Components/carPhoto.js'
 
 const Showroom3D = lazy(() => import('../Components/Showroom3D.jsx'))
 
@@ -182,7 +183,7 @@ export default function VehicleDetails({ carId, navigate }) {
             {currentPhoto ? (
               <img
                 key={currentPhoto.image_path}
-                src={imageUrl(currentPhoto.image_path)}
+                {...carPhoto(imageUrl(currentPhoto.image_path))}
                 alt={`${photoLabel}, photo ${currentIndex + 1} of ${visiblePhotos.length}`}
                 onError={() => setFailedPaths((paths) => [...paths, currentPhoto.image_path])}
               />
@@ -217,7 +218,7 @@ export default function VehicleDetails({ carId, navigate }) {
                   onClick={() => showPhoto(index)}
                 >
                   <img
-                    src={imageUrl(photo.image_path)}
+                    {...carPhoto(imageUrl(photo.image_path))}
                     alt=""
                     loading="lazy"
                     onError={() => setFailedPaths((paths) => [...paths, photo.image_path])}
@@ -266,7 +267,7 @@ export default function VehicleDetails({ carId, navigate }) {
                       onClick={() => chooseVariant(variant)}
                     >
                       <span className="vd-color-media" style={!photo && swatch ? { background: swatch } : undefined}>
-                        {photo && <img src={imageUrl(photo.image_path)} alt="" loading="lazy" />}
+                        {photo && <img {...carPhoto(imageUrl(photo.image_path))} alt="" loading="lazy" />}
                       </span>
                       <span className="vd-color-text">
                         <b>{variant.color}</b>
