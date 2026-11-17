@@ -111,6 +111,7 @@ function emptyRecord(today, vehicleId = '') {
     cost: '',
     nextMaintenanceDate: '',
     description: '',
+    serviceItems: [],
   }
 }
 
@@ -124,8 +125,14 @@ function recordToForm(record, overrides = {}) {
     cost: Number(record.cost) ? String(Number(record.cost)) : '',
     nextMaintenanceDate: dateOnly(record.nextMaintenanceDate),
     description: record.description || '',
+    serviceItems: Array.isArray(record.serviceItems) ? [...record.serviceItems].sort() : [],
     ...overrides,
   }
+}
+
+/** Ticked items are what the AI service-need model learns from, so they need the odometer they were done at. */
+function needsOdometer(form) {
+  return form.maintenanceStatus === 'completed' && form.serviceItems.length > 0
 }
 
 function validateRecord(form, today) {
@@ -134,6 +141,7 @@ function validateRecord(form, today) {
   if (!form.maintenanceDate) errors.maintenanceDate = 'Choose a date.'
   else if (form.maintenanceStatus === 'completed' && form.maintenanceDate > today) errors.maintenanceDate = 'A completed service can\'t be in the future.'
   if (form.odometerReading !== '' && !(Number.isInteger(Number(form.odometerReading)) && Number(form.odometerReading) >= 0)) errors.odometerReading = 'Enter whole kilometres.'
+  else if (form.odometerReading === '' && needsOdometer(form)) errors.odometerReading = 'Enter the odometer reading for the ticked service items.'
   if (form.cost !== '' && !(Number(form.cost) >= 0)) errors.cost = 'Enter an amount of 0 or more.'
   if (form.nextMaintenanceDate && form.maintenanceDate && form.nextMaintenanceDate <= form.maintenanceDate) errors.nextMaintenanceDate = 'This must be after the service date.'
   return errors
@@ -166,7 +174,7 @@ function Dialog({ title, busy, onClose, children }) {
   )
 }
 
-function RecordDialog({ initial, record, vehicles, today, onSaved, onClose }) {
+function RecordDialog({ initial, record, vehicles, serviceItems, today, onSaved, onClose }) {
   const [form, setForm] = useState(initial)
   const [errors, setErrors] = useState({})
   const [busy, setBusy] = useState(false)
@@ -189,6 +197,21 @@ function RecordDialog({ initial, record, vehicles, today, onSaved, onClose }) {
       if (!current[name]) return current
       const next = { ...current }
       delete next[name]
+      return next
+    })
+  }
+
+  function toggleItem(event) {
+    const { value, checked } = event.target
+    setForm((current) => ({
+      ...current,
+      serviceItems: checked ? [...current.serviceItems, value].sort() : current.serviceItems.filter((item) => item !== value),
+    }))
+    setSaveError('')
+    setErrors((current) => {
+      if (!current.odometerReading) return current
+      const next = { ...current }
+      delete next.odometerReading
       return next
     })
   }
@@ -220,6 +243,8 @@ function RecordDialog({ initial, record, vehicles, today, onSaved, onClose }) {
       cost: form.cost === '' ? 0 : Number(form.cost),
       nextMaintenanceDate: form.nextMaintenanceDate || null,
       description: form.description.trim(),
+      // Nothing ticked means "items not recorded", never "nothing was serviced".
+      serviceItems: !scheduled && form.serviceItems.length ? form.serviceItems : null,
     }
     setBusy(true)
     setSaveError('')
@@ -275,7 +300,7 @@ function RecordDialog({ initial, record, vehicles, today, onSaved, onClose }) {
             {renderError('nextMaintenanceDate')}
           </label>
           <label className="mm-field">
-            <span>Odometer <em>Optional</em></span>
+            <span>Odometer {!needsOdometer(form) && <em>Optional</em>}</span>
             <span className="mm-suffix"><input {...fieldProps('odometerReading')} type="number" min="0" step="1" /><b aria-hidden="true">km</b></span>
             {renderError('odometerReading')}
             {!errors.odometerReading && lowersMileage && <small className="mm-warning">Below the current {formatKm(vehicle.current_mileage)}. Saving sets the car's mileage to this reading.</small>}
@@ -289,6 +314,20 @@ function RecordDialog({ initial, record, vehicles, today, onSaved, onClose }) {
             <span>Notes <em>Optional</em></span>
             <textarea {...fieldProps('description')} rows="3" placeholder="Work done or issues found" />
           </label>
+          {!scheduled && serviceItems.length > 0 && (
+            <fieldset className="mm-items mm-wide">
+              <legend>Service items done <em>Optional</em></legend>
+              <small>Tick every item done at this visit; unticked items are recorded as not done. These real visits train the AI service-need model.</small>
+              <div className="mm-item-grid">
+                {serviceItems.map(([key, label]) => (
+                  <label key={key} className="mm-item">
+                    <input type="checkbox" value={key} checked={form.serviceItems.includes(key)} onChange={toggleItem} />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
         </div>
         {saveError && <p className="mm-error mm-save-error" role="alert">{saveError}</p>}
         <div className="mm-dialog-actions">
@@ -369,7 +408,7 @@ function PageSkeleton() {
 }
 
 export default function MaintenanceManagement({ navigate }) {
-  const [data, setData] = useState({ vehicles: [], records: [] })
+  const [data, setData] = useState({ vehicles: [], records: [], serviceItems: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
@@ -388,7 +427,7 @@ export default function MaintenanceManagement({ navigate }) {
     getMaintenanceRecords()
       .then((result) => {
         if (!active) return
-        setData({ vehicles: result.vehicles || [], records: result.records || [] })
+        setData({ vehicles: result.vehicles || [], records: result.records || [], serviceItems: Object.entries(result.service_items || {}) })
         setError('')
       })
       .catch((requestError) => {
@@ -400,7 +439,7 @@ export default function MaintenanceManagement({ navigate }) {
     return () => { active = false }
   }, [attempt])
 
-  const { vehicles, records } = data
+  const { vehicles, records, serviceItems } = data
   const rows = useMemo(() => vehicles.map((vehicle) => ({ vehicle, health: serviceHealth(vehicle, today) })), [today, vehicles])
   const counts = useMemo(() => rows.reduce((totals, row) => ({ ...totals, [row.health.key]: totals[row.health.key] + 1 }), { overdue: 0, soon: 0, good: 0, none: 0 }), [rows])
   const visibleRows = healthFilter ? rows.filter((row) => row.health.key === healthFilter) : rows
@@ -636,7 +675,7 @@ export default function MaintenanceManagement({ navigate }) {
         </>
       )}
 
-      {recordDialog && <RecordDialog initial={recordDialog.initial} record={recordDialog.record} vehicles={vehicles} today={today} onSaved={saved} onClose={() => setRecordDialog(null)} />}
+      {recordDialog && <RecordDialog initial={recordDialog.initial} record={recordDialog.record} vehicles={vehicles} serviceItems={serviceItems} today={today} onSaved={saved} onClose={() => setRecordDialog(null)} />}
       {mileageVehicle && <MileageDialog vehicle={mileageVehicle} onSaved={saved} onClose={() => setMileageVehicle(null)} />}
     </div>
   )
