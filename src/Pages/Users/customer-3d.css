@@ -264,3 +264,9 @@
 .customer-frame :is(.vl-photo > img, .vr-photo > img, .rv-photo > img, .vd-main-photo > img)[data-backdrop='light'] {
   padding: 4% 5%;
 }
+
+/* The "Photo coming soon" placeholder sits behind the photo; show it only when
+   there is no photo, so it never shows through as a watermark. */
+.customer-frame :is(.vl-photo, .vr-photo):has(> img:not([hidden])) :is(.vl-photo-empty, .vr-photo-empty) {
+  display: none;
+}
