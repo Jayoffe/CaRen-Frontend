@@ -11279,7 +11279,9 @@ body,
 
 /* ── Brand mark (DriveRent car logo image) ── */
 .admin-topbar-brand {
-  display: none;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
 }
 
 .logo .logo-mark {
@@ -11312,11 +11314,6 @@ body,
 }
 
 @media (max-width: 900px) {
-  .topbar-admin .admin-topbar-brand {
-    display: block;
-    flex: 0 0 auto;
-  }
-
   .topbar-admin .logo {
     gap: 6px;
     font-size: 14px;
