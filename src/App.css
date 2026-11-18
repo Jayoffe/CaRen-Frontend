@@ -11311,7 +11311,7 @@ body,
   }
 }
 
-@media (max-width: 580px) {
+@media (max-width: 900px) {
   .topbar-admin .admin-topbar-brand {
     display: block;
     flex: 0 0 auto;
@@ -11334,7 +11334,9 @@ body,
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
 
+@media (max-width: 580px) {
   .topbar-admin .profile-button .profile-name {
     display: none;
   }
